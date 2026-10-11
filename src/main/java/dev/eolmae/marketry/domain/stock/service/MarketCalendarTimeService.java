@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class MarketCalendarTimeService {
+
+    // 긴 연휴(추석 등)도 넘길 수 있는 탐색 범위
+    private static final int PREVIOUS_TRADING_DAY_LOOKBACK = 30;
 
     private final MarketCalendarService marketCalendarService;
     private final MarketHoursProperties marketHoursProperties;
@@ -64,6 +68,50 @@ public class MarketCalendarTimeService {
             }
         });
         return result;
+    }
+
+    /**
+     * 수집 대상일 판정, 캘린더 활성화, 직전 거래일 탐색이 함께 쓰는 거래일 판정이다. 캘린더가 TRADING_DAY면 거래일, HOLIDAY면
+     * 휴장일이고, FAILED이거나 행이 없으면(calendar가 null) 월~금은 거래일, 토·일은 휴장일로 본다.
+     */
+    public static boolean isTradingDay(LocalDate date, MarketCalendar calendar) {
+        if (calendar != null && calendar.getStatus() != MarketCalendarStatus.FAILED) {
+            return calendar.getStatus() == MarketCalendarStatus.TRADING_DAY;
+        }
+        return date.getDayOfWeek() != DayOfWeek.SATURDAY && date.getDayOfWeek() != DayOfWeek.SUNDAY;
+    }
+
+    public boolean isTradingDay(LocalDate date) {
+        return isTradingDay(
+                date,
+                marketCalendarService.findByCountryAndDate(Country.KR, date).orElse(null));
+    }
+
+    /** {@link #isTradingDay(LocalDate, MarketCalendar)} 기준 거래일만 한 번의 조회로 골라 날짜별 시간표를 돌려준다. */
+    public Map<LocalDate, CalendarDayTimes> resolveTradingDaysWithFallback(Collection<LocalDate> dates) {
+        Map<LocalDate, MarketCalendar> calendars = marketCalendarService.findByCountryAndDateIn(Country.KR, dates);
+        Map<LocalDate, CalendarDayTimes> result = new HashMap<>();
+        for (LocalDate date : dates) {
+            MarketCalendar calendar = calendars.get(date);
+            if (isTradingDay(date, calendar)) {
+                result.put(date, resolve(date, calendar));
+            }
+        }
+        return result;
+    }
+
+    /** date 이전의 가장 가까운 거래일. 토스 캘린더와 요일 fallback으로 찾으며 단순히 하루 전으로 가지 않는다. */
+    public Optional<LocalDate> findPreviousTradingDay(LocalDate date) {
+        List<LocalDate> candidates =
+                date.minusDays(PREVIOUS_TRADING_DAY_LOOKBACK).datesUntil(date).toList();
+        Map<LocalDate, MarketCalendar> calendars = marketCalendarService.findByCountryAndDateIn(Country.KR, candidates);
+        for (int index = candidates.size() - 1; index >= 0; index--) {
+            LocalDate candidate = candidates.get(index);
+            if (isTradingDay(candidate, calendars.get(candidate))) {
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
     }
 
     /** fromExclusive 다음 날부터 toInclusive까지의 거래일 수 — 주말과 휴장일은 세지 않는다. toInclusive가 더 늦지 않으면 0. */

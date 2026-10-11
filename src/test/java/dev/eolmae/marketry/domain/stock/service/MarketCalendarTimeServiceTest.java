@@ -284,6 +284,78 @@ class MarketCalendarTimeServiceTest {
                 .isZero();
     }
 
+    @Test
+    void 거래일_판정은_캘린더_상태를_우선하고_FAILED와_없음은_요일로_본다() {
+        LocalDate wednesday = LocalDate.of(2026, 10, 7);
+        LocalDate saturday = LocalDate.of(2026, 10, 10);
+        LocalDate sunday = LocalDate.of(2026, 10, 11);
+
+        assertThat(MarketCalendarTimeService.isTradingDay(wednesday, status(wednesday, MarketCalendarStatus.HOLIDAY)))
+                .isFalse();
+        assertThat(MarketCalendarTimeService.isTradingDay(saturday, status(saturday, MarketCalendarStatus.TRADING_DAY)))
+                .isTrue();
+        assertThat(MarketCalendarTimeService.isTradingDay(wednesday, status(wednesday, MarketCalendarStatus.FAILED)))
+                .isTrue();
+        assertThat(MarketCalendarTimeService.isTradingDay(wednesday, null)).isTrue();
+        assertThat(MarketCalendarTimeService.isTradingDay(sunday, status(sunday, MarketCalendarStatus.FAILED)))
+                .isFalse();
+        assertThat(MarketCalendarTimeService.isTradingDay(saturday, null)).isFalse();
+    }
+
+    @Test
+    void 직전_거래일은_주말과_휴장일을_건너뛰고_FAILED_평일은_거래일로_본다() {
+        LocalDate monday = LocalDate.of(2026, 10, 12);
+        LocalDate friday = LocalDate.of(2026, 10, 9);
+        LocalDate thursday = LocalDate.of(2026, 10, 8);
+        when(calendarService.findByCountryAndDateIn(Mockito.eq(Country.KR), Mockito.any()))
+                .thenReturn(Map.of(
+                        friday, status(friday, MarketCalendarStatus.HOLIDAY),
+                        thursday, status(thursday, MarketCalendarStatus.FAILED)));
+
+        assertThat(service.findPreviousTradingDay(monday)).contains(thursday);
+    }
+
+    @Test
+    void 직전_거래일은_캘린더_행이_없어도_평일이면_하루전이_아니라_요일로_찾는다() {
+        when(calendarService.findByCountryAndDateIn(Mockito.eq(Country.KR), Mockito.any()))
+                .thenReturn(Map.of());
+
+        assertThat(service.findPreviousTradingDay(LocalDate.of(2026, 10, 12))).contains(LocalDate.of(2026, 10, 9));
+        assertThat(service.findPreviousTradingDay(LocalDate.of(2026, 10, 11))).contains(LocalDate.of(2026, 10, 9));
+    }
+
+    @Test
+    void 탐색_범위의_모든_날이_휴장이면_직전_거래일이_없다() {
+        LocalDate date = LocalDate.of(2026, 10, 12);
+        Map<LocalDate, MarketCalendar> holidays = date.minusDays(30)
+                .datesUntil(date)
+                .collect(java.util.stream.Collectors.toMap(
+                        day -> day, day -> status(day, MarketCalendarStatus.HOLIDAY)));
+        when(calendarService.findByCountryAndDateIn(Mockito.eq(Country.KR), Mockito.any()))
+                .thenReturn(holidays);
+
+        assertThat(service.findPreviousTradingDay(date)).isEmpty();
+    }
+
+    @Test
+    void 거래일만_골라_시간표를_돌려주고_휴장일은_제외한다() {
+        LocalDate wednesday = LocalDate.of(2026, 10, 7);
+        LocalDate thursday = LocalDate.of(2026, 10, 8);
+        LocalDate saturday = LocalDate.of(2026, 10, 10);
+        when(calendarService.findByCountryAndDateIn(Mockito.eq(Country.KR), Mockito.any()))
+                .thenReturn(Map.of(wednesday, status(wednesday, MarketCalendarStatus.HOLIDAY)));
+
+        Map<LocalDate, CalendarDayTimes> result =
+                service.resolveTradingDaysWithFallback(java.util.List.of(wednesday, thursday, saturday));
+
+        assertThat(result).containsOnlyKeys(thursday);
+        assertThat(result.get(thursday).closingWindowEnd()).isEqualTo(thursday.atTime(15, 40));
+    }
+
+    private MarketCalendar status(LocalDate date, MarketCalendarStatus status) {
+        return MarketCalendar.create(Country.KR, date, status, null);
+    }
+
     private OffsetDateTime time(int hour, int minute) {
         return DATE.atTime(hour, minute).atOffset(ZoneOffset.ofHours(9));
     }
