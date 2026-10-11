@@ -25,7 +25,7 @@ public class CustomValueTierThresholdService {
             CustomValueTierThreshold.createDefault(4L, "소형주", 0L, true),
             CustomValueTierThreshold.createDefault(3L, "중형주", 500_000_000_000L, false),
             CustomValueTierThreshold.createDefault(2L, "대형주", 5_000_000_000_000L, false),
-            CustomValueTierThreshold.createDefault(1L, "Top 2", 200_000_000_000_000L, false));
+            CustomValueTierThreshold.createDefault(1L, "Top 2", 500_000_000_000_000L, false));
 
     private final CustomValueTierThresholdRepository customValueTierThresholdRepository;
 
