@@ -169,7 +169,7 @@ class SectorPriceSnapshotServiceTest {
     }
 
     @Test
-    void 일봉만_있는_날은_스냅샷_없이도_종가구간_끝_시각으로_활성화한다() {
+    void 종가_데이터만_있는_날은_현재가_데이터_없이도_종가구간_끝_시각으로_활성화한다() {
         calendar(15);
         stubPriceDates(DATE);
 
@@ -178,7 +178,7 @@ class SectorPriceSnapshotServiceTest {
     }
 
     @Test
-    void 스냅샷과_일봉이_모두_있으면_스냅샷_종가_시각을_쓴다() {
+    void 종가_데이터와_현재가_데이터가_모두_있으면_현재가_데이터_종가_시각을_쓴다() {
         calendar(15);
         when(repository.findSnapshotDaySummaries(any()))
                 .thenReturn(List.of(new SnapshotDaySummary(Market.KOSPI, DATE.atTime(15, 35), 1, null)));
@@ -189,7 +189,7 @@ class SectorPriceSnapshotServiceTest {
     }
 
     @Test
-    void 시장끼리_스냅샷_시각이_엇갈려도_일봉이_있으면_활성화한다() {
+    void 시장끼리_현재가_데이터_시각이_엇갈려도_종가_데이터가_있으면_활성화한다() {
         calendar(15);
         when(repository.findSnapshotDaySummaries(any()))
                 .thenReturn(List.of(
@@ -202,7 +202,7 @@ class SectorPriceSnapshotServiceTest {
     }
 
     @Test
-    void 일봉도_스냅샷도_없는_거래일은_활성화하지_않는다() {
+    void 종가_데이터도_현재가_데이터도_없는_거래일은_활성화하지_않는다() {
         calendar(15);
 
         assertThat(service.findClosingSnapshotTimes(List.of(Market.KOSPI), YearMonth.from(DATE), DATE))

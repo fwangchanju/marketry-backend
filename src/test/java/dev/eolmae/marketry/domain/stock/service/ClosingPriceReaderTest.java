@@ -23,7 +23,7 @@ class ClosingPriceReaderTest {
     private final ClosingPriceReader reader = new ClosingPriceReader(cache, dailyPrices, calendars);
 
     @Test
-    void 일봉이_없으면_조회하는_스냅샷_날짜의_종가를_읽는다() {
+    void 종가_데이터가_없으면_조회하는_날짜의_현재가_데이터_종가를_읽는다() {
         ClosingPrices prices = new ClosingPrices(TODAY, Map.of("005930", BigDecimal.TEN));
         when(dailyPrices.existsKrxPrice(TODAY)).thenReturn(false);
         when(cache.getFor(eq(TODAY), any())).thenReturn(prices);
@@ -33,7 +33,7 @@ class ClosingPriceReaderTest {
     }
 
     @Test
-    void 일봉이_있는_거래일은_스냅샷_대신_일봉_종가를_읽는다() {
+    void 종가_데이터가_있는_거래일은_현재가_데이터_대신_종가_데이터를_읽는다() {
         when(dailyPrices.existsKrxPrice(YESTERDAY)).thenReturn(true);
         when(calendars.isTradingDay(YESTERDAY)).thenReturn(true);
         when(dailyPrices.findKrxClosePrices(YESTERDAY)).thenReturn(Map.of("005930", BigDecimal.valueOf(100)));
@@ -46,7 +46,7 @@ class ClosingPriceReaderTest {
     }
 
     @Test
-    void 명시적_휴장일은_일봉이_있어도_스냅샷_경로로_읽는다() {
+    void 명시적_휴장일은_종가_데이터가_있어도_현재가_데이터_경로로_읽는다() {
         ClosingPrices empty = new ClosingPrices(YESTERDAY, Map.of());
         when(dailyPrices.existsKrxPrice(YESTERDAY)).thenReturn(true);
         when(calendars.isTradingDay(YESTERDAY)).thenReturn(false);
@@ -72,7 +72,7 @@ class ClosingPriceReaderTest {
     }
 
     @Test
-    void 직전_거래일의_일봉이_없으면_수집_실패와_무관하게_스냅샷_종가로_대체한다() {
+    void 직전_거래일의_종가_데이터가_없으면_수집_실패와_무관하게_현재가_데이터_종가로_대체한다() {
         ClosingPrices snapshotClose = new ClosingPrices(YESTERDAY, Map.of("005930", BigDecimal.valueOf(65)));
         when(calendars.findPreviousTradingDay(TODAY)).thenReturn(Optional.of(YESTERDAY));
         when(dailyPrices.existsKrxPrice(YESTERDAY)).thenReturn(false);

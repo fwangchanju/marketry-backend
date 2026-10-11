@@ -1514,7 +1514,7 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void 일봉이_있는_날짜는_스냅샷_없이_일봉_종가와_직전_거래일_종가로_지도를_만든다() {
+    void 종가_데이터가_있는_날짜는_현재가_데이터_없이_종가와_직전_거래일_종가로_지도를_만든다() {
         LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
         StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.valueOf(1));
         when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
@@ -1555,7 +1555,7 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void 일봉이_있는_날짜는_스냅샷_존재_확인_없이_조회하고_시간외_기준을_적용하지_않는다() {
+    void 종가_데이터가_있는_날짜는_현재가_데이터_존재_확인_없이_조회하고_시간외_기준을_적용하지_않는다() {
         LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
         StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.ONE);
         when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
@@ -1570,7 +1570,7 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void 일봉이_없는_날짜는_스냅샷_현재가와_등락률을_쓰고_전일_종가만_직전_거래일_종가로_바꾼다() {
+    void 종가_데이터가_없는_날짜는_현재가_데이터의_현재가와_등락률을_쓰고_전일_종가만_직전_거래일_종가로_바꾼다() {
         LocalDateTime time = OFFICIAL_DAY.atTime(10, 0);
         StockInfo withClose = stockInfo("005930", "삼성전자", 10L, BigDecimal.valueOf(1));
         StockInfo withoutClose = stockInfo("000660", "SK하이닉스", 10L, BigDecimal.valueOf(7));

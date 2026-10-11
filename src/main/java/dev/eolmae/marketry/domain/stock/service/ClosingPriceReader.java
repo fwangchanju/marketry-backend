@@ -7,8 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /**
- * 날짜별 종가를 읽는다. 종가(D)는 D의 KRX 일봉이 있으면 일봉 종가를, 없으면(어제인데 아직 수집 전이거나 오늘) 스냅샷의 종가 시각 가격을
- * 쓰는 하나의 규칙이다. 전일 종가는 종가(직전 거래일)다.
+ * 날짜별 종가를 읽는다. 종가(D)는 D의 종가 데이터(stock_daily_price에 쌓는 키움 종가(일봉) 요청 API 수집분, KRX)가 있는지 날짜만 확인해서
+ * 있으면 종가 데이터를, 없으면 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)의 종가 시각 가격을 쓰는 하나의
+ * 규칙이다. 전일 종가도 같은 규칙으로 직전 거래일을 기준으로 읽는다.
  */
 @Service
 @RequiredArgsConstructor
@@ -33,7 +34,7 @@ public class ClosingPriceReader {
                 .orElseGet(() -> new ClosingPrices(date, Map.of()));
     }
 
-    /** 그 날짜 KRX 일봉이 있고 거래일이면 일봉이 종가의 기준이다. 일봉 존재 여부만 날짜 단위로 확인한다. */
+    /** 그 날짜의 종가 데이터(KRX)가 있고 거래일이면 종가 데이터가 종가의 기준이다. 존재 여부만 날짜 단위로 확인한다. */
     public boolean hasOfficialClose(LocalDate date) {
         return stockDailyPriceService.existsKrxPrice(date) && marketCalendarTimeService.isTradingDay(date);
     }

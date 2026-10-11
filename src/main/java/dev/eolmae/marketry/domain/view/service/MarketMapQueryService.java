@@ -207,7 +207,7 @@ public class MarketMapQueryService {
         return new TradingDayGapResponse(marketCalendarTimeService.countTradingDays(from, to));
     }
 
-    /** 달력에서 고를 수 있는 날짜 — 그 달의 거래일 중 KRX 일봉이나 종가 스냅샷이 있는 날과 그 시각. 시각을 snapshotTime으로 넘기면 그날 종가 지도를 받는다. */
+    /** 달력에서 고를 수 있는 날짜 — 그 달의 거래일 중 종가 데이터(KRX)나 현재가 데이터의 종가가 있는 날과 그 시각. 시각을 snapshotTime으로 넘기면 그날 종가 지도를 받는다. */
     public List<MarketMapSnapshotDay> getClosingSnapshotDays(MarketQuery marketQuery, YearMonth month) {
         return sectorPriceSnapshotService.findClosingSnapshotTimes(marketQuery.toMarkets(), month).entrySet().stream()
                 .map(entry -> new MarketMapSnapshotDay(entry.getKey(), entry.getValue()))
@@ -221,7 +221,7 @@ public class MarketMapQueryService {
         if (snapshotTime == null) {
             return sectorPriceSnapshotService.findLatestCommonSnapshotTime(markets);
         }
-        // 그 날짜의 KRX 일봉이 있으면 스냅샷 없이도 그 날짜의 종가 지도를 그릴 수 있다.
+        // 그 날짜의 종가 데이터(KRX)가 있으면 현재가 데이터 없이도 그 날짜의 종가 지도를 그릴 수 있다.
         if (closingPriceReader.hasOfficialClose(snapshotTime.toLocalDate())) {
             return Optional.of(snapshotTime);
         }
@@ -697,13 +697,14 @@ public class MarketMapQueryService {
     }
 
     /**
-     * 종목별 현재가·등락률·전일 종가. 전일 종가는 어느 경우에나 직전 거래일의 종가(일봉이 있으면 일봉, 없으면 스냅샷 종가)다.
+     * 종목별 현재가·등락률·전일 종가. 그 날짜의 종가 데이터(stock_daily_price에 쌓는 키움 종가(일봉) 요청 API 수집분)가 있는지 날짜만
+     * 확인해서 있으면 종가 데이터를, 없으면 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)를 쓴다. 전일 종가도
+     * 같은 규칙으로 직전 거래일을 기준으로 정한다.
      *
      * <ul>
-     *   <li>그 날짜의 KRX 일봉이 있으면 현재가는 그날 일봉 종가이고 등락률은 전일 종가 대비로 계산한다. 가격이나 전일 종가가 없거나 0
-     *       이하인 종목은 뺀다(0으로 나누지 않으며, 프런트가 제외 종목으로 다룬다). 일봉에는 시간외 값이 없어 basis는 적용하지 않는다.
-     *   <li>일봉이 없으면(아직 수집 전인 어제, 오늘) 현재가와 등락률은 기존 스냅샷 값을 그대로 쓴다. 직전 거래일 종가를 구하지 못한
-     *       종목은 종목 정보의 전일 종가를 쓴다.
+     *   <li>종가 데이터가 있으면 현재가는 그날 종가이고 등락률은 전일 종가 대비로 계산한다. 가격이나 전일 종가가 없거나 0 이하인 종목은
+     *       뺀다(0으로 나누지 않으며, 프런트가 제외 종목으로 다룬다). 종가 데이터에는 시간외 값이 없어 basis는 적용하지 않는다.
+     *   <li>없으면 현재가와 등락률은 현재가 데이터 값을 그대로 쓴다. 직전 거래일 종가를 구하지 못한 종목은 종목 정보의 전일 종가를 쓴다.
      * </ul>
      */
     private Map<String, CachedStockPrice> findPrices(
