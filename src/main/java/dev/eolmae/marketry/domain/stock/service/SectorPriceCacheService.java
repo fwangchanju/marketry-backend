@@ -54,6 +54,18 @@ public class SectorPriceCacheService {
         return new CachedStockPrice(snapshot.getCurrentPrice(), snapshot.getChangeRate(), snapshot.getSnapshotTime());
     }
 
-    /** JPA 엔티티를 캐시에 그대로 넣지 않기 위한 불변 값 — toMarketMapItem이 쓰는 필드 셋뿐이다. */
-    public record CachedStockPrice(BigDecimal currentPrice, BigDecimal changeRate, LocalDateTime snapshotTime) {}
+    /**
+     * JPA 엔티티를 캐시에 그대로 넣지 않기 위한 불변 값 — toMarketMapItem이 쓰는 필드 셋이다. lastPrice는 직전 거래일 종가를 덮어쓸 때만
+     * 채우며, 비어 있으면 종목 정보의 전일 종가를 쓴다.
+     */
+    public record CachedStockPrice(
+            BigDecimal currentPrice, BigDecimal changeRate, LocalDateTime snapshotTime, BigDecimal lastPrice) {
+        public CachedStockPrice(BigDecimal currentPrice, BigDecimal changeRate, LocalDateTime snapshotTime) {
+            this(currentPrice, changeRate, snapshotTime, null);
+        }
+
+        public CachedStockPrice withLastPrice(BigDecimal lastPrice) {
+            return new CachedStockPrice(currentPrice, changeRate, snapshotTime, lastPrice);
+        }
+    }
 }

@@ -3,10 +3,13 @@ package dev.eolmae.marketry.domain.stock.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.exception.BadRequestException;
+import dev.eolmae.marketry.domain.stock.dto.DailyClosePrice;
 import dev.eolmae.marketry.domain.stock.entity.StockDailyPrice;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
 import dev.eolmae.marketry.domain.stock.repository.StockDailyPriceRepository;
@@ -42,6 +45,38 @@ class StockDailyPriceServiceTest {
                 .isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> service.savePage(List.of(price(DATE, "100", ExchangeType.SOR))))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 종가는_KRX_일봉만_읽고_0이하_종가는_가격없음으로_뺀다() {
+        when(repository.findByExchangeTypeAndTradeDate(ExchangeType.KRX, DATE))
+                .thenReturn(List.of(
+                        new DailyClosePrice("005930", new BigDecimal("100")),
+                        new DailyClosePrice("000660", BigDecimal.ZERO)));
+
+        assertThat(service.findKrxClosePrices(DATE)).containsOnlyKeys("005930");
+        verify(repository, never()).findByExchangeTypeAndTradeDate(ExchangeType.NXT, DATE);
+    }
+
+    @Test
+    void 일봉_존재_날짜는_캘린더_행이_있는_날짜를_한번에_보고_행이_없는_날짜만_따로_확인한다() {
+        LocalDate withRow = DATE;
+        LocalDate withoutRow = DATE.plusDays(1);
+        LocalDate noPrice = DATE.plusDays(2);
+        when(repository.findCalendarDatesWithPrice(ExchangeType.KRX, withRow, noPrice))
+                .thenReturn(List.of(withRow));
+        when(repository.existsByExchangeTypeAndTradeDate(ExchangeType.KRX, withoutRow))
+                .thenReturn(true);
+
+        assertThat(service.findKrxPriceDates(List.of(withRow, withoutRow, noPrice)))
+                .containsExactlyInAnyOrder(withRow, withoutRow);
+        verify(repository, never()).existsByExchangeTypeAndTradeDate(ExchangeType.KRX, withRow);
+    }
+
+    @Test
+    void 후보_날짜가_없으면_조회하지_않는다() {
+        assertThat(service.findKrxPriceDates(List.of())).isEmpty();
+        verifyNoInteractions(repository);
     }
 
     private StockDailyPrice price(LocalDate date, String close, ExchangeType exchange) {

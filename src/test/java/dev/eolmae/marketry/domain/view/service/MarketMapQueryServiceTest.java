@@ -32,6 +32,7 @@ import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceCacheService;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceCacheService.CachedStockPrice;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
+import dev.eolmae.marketry.domain.stock.service.StockDailyPriceService;
 import dev.eolmae.marketry.domain.stock.service.StockIndustryNameResolver;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
@@ -96,7 +97,9 @@ class MarketMapQueryServiceTest {
             Mockito.mock(MarketOverviewSnapshotRepository.class);
     private final IndustryInfoRepository industryInfoRepository = Mockito.mock(IndustryInfoRepository.class);
     private final SectorPriceSnapshotService sectorPriceSnapshotService = new SectorPriceSnapshotService(
-            sectorPriceSnapshotRepository, Mockito.mock(MarketCalendarTimeService.class));
+            sectorPriceSnapshotRepository,
+            Mockito.mock(MarketCalendarTimeService.class),
+            Mockito.mock(StockDailyPriceService.class));
     private final ClosingPriceReader closingPriceReader = Mockito.mock(ClosingPriceReader.class);
     private final MarketCalendarTimeService calendarTimeService = Mockito.mock(MarketCalendarTimeService.class);
     private final MarketMapQueryService service = new MarketMapQueryService(
@@ -119,6 +122,9 @@ class MarketMapQueryServiceTest {
     // (5-1). 구간이 여럿 필요한 테스트는 이 기본값을 자기 stubTierThresholds 호출로 덮어쓴다.
     @BeforeEach
     void stubDefaultTier() {
+        // 직전 거래일 종가를 구하지 못하는 기본 상태: 전일 종가는 종목 정보 값을 쓴다.
+        Mockito.when(closingPriceReader.previousClosingPricesFor(ArgumentMatchers.any(LocalDate.class)))
+                .thenAnswer(invocation -> new ClosingPrices(invocation.getArgument(0), Map.of()));
         Mockito.when(calendarTimeService.resolve(Mockito.any(LocalDate.class))).thenAnswer(invocation -> {
             LocalDate date = invocation.getArgument(0);
             return new CalendarDayTimes(
@@ -1494,5 +1500,99 @@ class MarketMapQueryServiceTest {
                         .get(0)
                         .changeRate())
                 .isEqualByComparingTo(BigDecimal.ONE);
+    }
+
+    private static final LocalDate PREVIOUS_DAY = LocalDate.of(2026, 10, 7);
+    private static final LocalDate OFFICIAL_DAY = LocalDate.of(2026, 10, 8);
+
+    private void stubOfficialClose(Map<String, BigDecimal> closes, Map<String, BigDecimal> previousCloses) {
+        when(closingPriceReader.hasOfficialClose(OFFICIAL_DAY)).thenReturn(true);
+        when(closingPriceReader.closingPricesFor(Mockito.eq(OFFICIAL_DAY), Mockito.any()))
+                .thenReturn(new ClosingPrices(OFFICIAL_DAY, closes));
+        when(closingPriceReader.previousClosingPricesFor(OFFICIAL_DAY))
+                .thenReturn(new ClosingPrices(PREVIOUS_DAY, previousCloses));
+    }
+
+    @Test
+    void 일봉이_있는_날짜는_스냅샷_없이_일봉_종가와_직전_거래일_종가로_지도를_만든다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
+        StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.valueOf(1));
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
+        stubOfficialClose(Map.of("005930", BigDecimal.valueOf(110)), Map.of("005930", BigDecimal.valueOf(100)));
+
+        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, time);
+
+        var item = response.items().get(0).items().get(0);
+        assertThat(response.snapshotTime()).isEqualTo(time);
+        assertThat(item.currentPrice()).isEqualByComparingTo("110");
+        assertThat(item.lastPrice()).isEqualByComparingTo("100");
+        assertThat(item.changeRate()).isEqualByComparingTo("10");
+        assertThat(item.snapshotTime()).isEqualTo(time);
+        Mockito.verifyNoInteractions(sectorPriceCacheService);
+    }
+
+    @Test
+    void 일봉이_있는_날짜는_전일_종가가_없거나_0이거나_일봉이_없는_종목을_응답에서_뺀다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
+        StockInfo listedToday = stockInfo("111111", "신규", 10L, BigDecimal.ONE);
+        StockInfo zeroBase = stockInfo("222222", "기준가0", 10L, BigDecimal.ONE);
+        StockInfo noPrice = stockInfo("333333", "일봉없음", 10L, BigDecimal.ONE);
+        StockInfo normal = stockInfo("444444", "정상", 10L, BigDecimal.ONE);
+        when(stockInfoCacheService.getCache())
+                .thenReturn(Map.of("111111", listedToday, "222222", zeroBase, "333333", noPrice, "444444", normal));
+        stubOfficialClose(
+                Map.of(
+                        "111111", BigDecimal.valueOf(100),
+                        "222222", BigDecimal.valueOf(100),
+                        "444444", BigDecimal.valueOf(50)),
+                Map.of("222222", BigDecimal.ZERO, "333333", BigDecimal.valueOf(10), "444444", BigDecimal.valueOf(40)));
+
+        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, time);
+
+        var items = response.items().get(0).items();
+        assertThat(items).extracting(item -> item.stockCode()).containsExactly("444444");
+        assertThat(items.get(0).changeRate()).isEqualByComparingTo("25");
+    }
+
+    @Test
+    void 일봉이_있는_날짜는_스냅샷_존재_확인_없이_조회하고_시간외_기준을_적용하지_않는다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
+        StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.ONE);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
+        stubOfficialClose(Map.of("005930", BigDecimal.valueOf(120)), Map.of("005930", BigDecimal.valueOf(100)));
+
+        MarketMapResponse response =
+                service.getDefaultMarketMap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS);
+
+        assertThat(response.items().get(0).items().get(0).changeRate()).isEqualByComparingTo("20");
+        Mockito.verify(sectorPriceSnapshotRepository, Mockito.never())
+                .existsByMarketTypeAndSnapshotTime(ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 일봉이_없는_날짜는_스냅샷_현재가와_등락률을_쓰고_전일_종가만_직전_거래일_종가로_바꾼다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(10, 0);
+        StockInfo withClose = stockInfo("005930", "삼성전자", 10L, BigDecimal.valueOf(1));
+        StockInfo withoutClose = stockInfo("000660", "SK하이닉스", 10L, BigDecimal.valueOf(7));
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("005930", withClose, "000660", withoutClose));
+        when(closingPriceReader.previousClosingPricesFor(OFFICIAL_DAY))
+                .thenReturn(new ClosingPrices(PREVIOUS_DAY, Map.of("005930", BigDecimal.valueOf(100))));
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(true);
+        when(sectorPriceCacheService.getCache(Market.KOSPI, time))
+                .thenReturn(Map.of(
+                        "005930", new CachedStockPrice(BigDecimal.valueOf(103), BigDecimal.valueOf(3), time),
+                        "000660", new CachedStockPrice(BigDecimal.valueOf(9), BigDecimal.valueOf(2), time)));
+
+        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, time);
+
+        var items = response.items().stream()
+                .flatMap(node -> node.items().stream())
+                .collect(Collectors.toMap(item -> item.stockCode(), Function.identity()));
+        assertThat(items.get("005930").currentPrice()).isEqualByComparingTo("103");
+        assertThat(items.get("005930").changeRate()).isEqualByComparingTo("3");
+        assertThat(items.get("005930").lastPrice()).isEqualByComparingTo("100");
+        // 직전 거래일 종가를 구하지 못한 종목은 종목 정보의 전일 종가를 쓴다.
+        assertThat(items.get("000660").lastPrice()).isEqualByComparingTo("7");
     }
 }

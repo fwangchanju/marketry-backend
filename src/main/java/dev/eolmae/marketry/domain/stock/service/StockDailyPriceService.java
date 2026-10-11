@@ -2,12 +2,18 @@ package dev.eolmae.marketry.domain.stock.service;
 
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
+import dev.eolmae.marketry.domain.stock.dto.DailyClosePrice;
 import dev.eolmae.marketry.domain.stock.entity.StockDailyPrice;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
 import dev.eolmae.marketry.domain.stock.repository.StockDailyPriceRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +67,37 @@ public class StockDailyPriceService {
         repository.saveAll(added);
         repository.flush();
         return new SaveResult(added.size(), skipped);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsKrxPrice(LocalDate date) {
+        return repository.existsByExchangeTypeAndTradeDate(ExchangeType.KRX, date);
+    }
+
+    /** 그 날짜 KRX 일봉의 종가. 거래정지 등으로 종가가 0 이하인 종목은 가격이 없는 것으로 보고 뺀다. */
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> findKrxClosePrices(LocalDate date) {
+        return repository.findByExchangeTypeAndTradeDate(ExchangeType.KRX, date).stream()
+                .filter(price -> price.closePrice().signum() > 0)
+                .collect(Collectors.toUnmodifiableMap(DailyClosePrice::stockCode, DailyClosePrice::closePrice));
+    }
+
+    /** dates 중 KRX 일봉이 하나라도 있는 날짜. 캘린더 행이 없는 날짜만 날짜별 존재 여부로 따로 확인한다. */
+    @Transactional(readOnly = true)
+    public Set<LocalDate> findKrxPriceDates(Collection<LocalDate> dates) {
+        if (dates.isEmpty()) {
+            return Set.of();
+        }
+        LocalDate from = dates.stream().min(LocalDate::compareTo).orElseThrow();
+        LocalDate to = dates.stream().max(LocalDate::compareTo).orElseThrow();
+        Set<LocalDate> priceDates = new HashSet<>(repository.findCalendarDatesWithPrice(ExchangeType.KRX, from, to));
+        priceDates.retainAll(dates);
+        for (LocalDate date : dates) {
+            if (priceDates.contains(date) == false && existsKrxPrice(date)) {
+                priceDates.add(date);
+            }
+        }
+        return priceDates;
     }
 
     public record SaveResult(int inserted, int skipped) {}
