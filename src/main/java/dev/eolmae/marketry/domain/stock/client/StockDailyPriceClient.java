@@ -6,7 +6,6 @@ import dev.eolmae.marketry.domain.stock.entity.StockDailyPrice;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -22,8 +21,11 @@ import org.springframework.stereotype.Component;
 public class StockDailyPriceClient {
     private final KiwoomApiClient apiClient;
 
-    public List<Map<String, Object>> fetchFirstPage(
-            String stockCode, ExchangeType exchange, LocalDate date, Instant deadline) {
+    /**
+     * 일봉 첫 페이지의 행을 반환한다. 모든 값이 빈 placeholder 행은 데이터 없음의 정상 응답이라 버리므로 빈 목록이 정상 skip이다. 목록
+     * 구조 자체가 없거나 깨진 응답은 예외로 구분한다.
+     */
+    public List<Map<String, Object>> fetchFirstPage(String stockCode, ExchangeType exchange, LocalDate date) {
         String requestCode =
                 switch (exchange) {
                     case KRX -> stockCode;
@@ -40,8 +42,7 @@ public class StockDailyPriceClient {
                         "base_dt",
                         date.format(DateTimeFormatter.BASIC_ISO_DATE),
                         "upd_stkpc_tp",
-                        "0"),
-                deadline);
+                        "0"));
         Object rows = body.get("result_list");
         if (rows instanceof List<?> list) {
             List<Map<String, Object>> mapped = new ArrayList<>();
@@ -51,11 +52,18 @@ public class StockDailyPriceClient {
                 }
                 @SuppressWarnings("unchecked")
                 var values = (Map<String, Object>) row;
-                mapped.add(values);
+                if (isEmptyPlaceholder(values) == false) {
+                    mapped.add(values);
+                }
             }
             return mapped;
         }
         throw invalid("일봉 목록 없음");
+    }
+
+    private boolean isEmptyPlaceholder(Map<String, Object> row) {
+        return row.values().stream()
+                .allMatch(value -> value == null || String.valueOf(value).isBlank());
     }
 
     public List<StockDailyPrice> parsePrices(

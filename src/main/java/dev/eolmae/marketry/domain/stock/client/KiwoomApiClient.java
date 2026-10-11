@@ -8,7 +8,6 @@ import dev.eolmae.marketry.domain.stock.dto.KiwoomResponseHeader;
 import dev.eolmae.marketry.domain.stock.exception.KiwoomRateLimitException;
 import dev.eolmae.marketry.domain.stock.exception.KiwoomTransientFailureException;
 import dev.eolmae.marketry.domain.stock.properties.KiwoomProperties;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -49,16 +48,10 @@ public class KiwoomApiClient {
     private long lastFetchNanos = 0;
 
     /** 첫 페이지만 반환하며 재시도는 호출하는 수집기가 담당한다. 기존 post의 연속조회 정책은 유지한다. */
-    public Map<String, Object> postFirstPage(String apiId, String path, Map<String, String> payload, Instant deadline) {
-        if (Thread.currentThread().isInterrupted() || Instant.now().isBefore(deadline) == false) {
-            throw new BadRequestException(ErrorCode.COLLECTOR_EXECUTION_FAILED, "일봉 수집 종료 기한");
-        }
-        // 토큰과 HTTP 요청은 각각 10초 제한이다. 수집기는 DB 처리까지 포함한 여유를 확보하고 호출한다.
+    public Map<String, Object> postFirstPage(String apiId, String path, Map<String, String> payload) {
+        // 토큰과 HTTP 요청은 각각 10초 제한이며, 진행 중인 요청은 끝까지 기다린다.
         String token = tokenManager.getToken();
         acquire();
-        if (Thread.currentThread().isInterrupted() || Instant.now().isBefore(deadline) == false) {
-            throw new BadRequestException(ErrorCode.COLLECTOR_EXECUTION_FAILED, "일봉 수집 종료 기한");
-        }
         Map<String, Object> body;
         try {
             body = restClient

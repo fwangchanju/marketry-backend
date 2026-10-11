@@ -4,8 +4,6 @@ import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
 import dev.eolmae.marketry.domain.stock.service.StockDailyPriceService;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -13,9 +11,13 @@ import java.time.LocalDateTime;
 record StockDailyPriceBackfillLoader(StockDailyPriceClient client, StockDailyPriceService prices) {
     StockDailyPriceService.SaveResult load(
             String code, ExchangeType exchange, LocalDate baseDate, LocalDate today, LocalDateTime collectedAt) {
-        var rows = client.fetchFirstPage(code, exchange, baseDate, Instant.now().plus(Duration.ofMinutes(1)));
-        if (rows.isEmpty() || rows.size() > 600) {
-            throw new BadRequestException(ErrorCode.KIWOOM_RESPONSE_PARSE_FAILED, "첫 페이지 일봉 없음 또는 최대 건수 초과");
+        var rows = client.fetchFirstPage(code, exchange, baseDate);
+        if (rows.isEmpty()) {
+            // 빈 placeholder나 빈 목록은 정상 응답이다. 날짜를 만들어 저장하지 않고 실패로도 보지 않는다.
+            return new StockDailyPriceService.SaveResult(0, 0);
+        }
+        if (rows.size() > 600) {
+            throw new BadRequestException(ErrorCode.KIWOOM_RESPONSE_PARSE_FAILED, "첫 페이지 최대 건수 초과");
         }
         var selected = client.parsePrices(code, exchange, rows, collectedAt).stream()
                 .filter(price -> price.getTradeDate().isBefore(today))
@@ -24,7 +26,7 @@ record StockDailyPriceBackfillLoader(StockDailyPriceClient client, StockDailyPri
             throw new BadRequestException(ErrorCode.KIWOOM_RESPONSE_PARSE_FAILED, "일봉 기준일 이후 날짜");
         }
         if (selected.isEmpty()) {
-            throw new BadRequestException(ErrorCode.KIWOOM_RESPONSE_PARSE_FAILED, "완료된 과거 일봉 없음");
+            return new StockDailyPriceService.SaveResult(0, 0);
         }
         return prices.savePage(selected);
     }

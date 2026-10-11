@@ -2,7 +2,6 @@ package dev.eolmae.marketry.domain.stock.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -11,7 +10,6 @@ import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,18 +22,55 @@ class StockDailyPriceClientTest {
 
     @Test
     void 거래소별_코드로_정규장API의_첫페이지만_요청한다() {
-        when(api.postFirstPage(anyString(), anyString(), anyMap(), any())).thenReturn(Map.of("result_list", List.of()));
+        when(api.postFirstPage(anyString(), anyString(), anyMap())).thenReturn(Map.of("result_list", List.of()));
         var date = LocalDate.of(2026, 10, 8);
-        var deadline = Instant.now().plusSeconds(60);
-        client.fetchFirstPage("005930", ExchangeType.NXT, date, deadline);
+        client.fetchFirstPage("005930", ExchangeType.NXT, date);
         verify(api)
                 .postFirstPage(
                         "ka11081",
                         "/api/dostk/chart",
-                        Map.of("stk_cd", "005930_NX", "base_dt", "20261008", "upd_stkpc_tp", "0"),
-                        deadline);
-        assertThatThrownBy(() -> client.fetchFirstPage("005930", ExchangeType.SOR, date, deadline))
+                        Map.of("stk_cd", "005930_NX", "base_dt", "20261008", "upd_stkpc_tp", "0"));
+        assertThatThrownBy(() -> client.fetchFirstPage("005930", ExchangeType.SOR, date))
                 .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 모든_값이_빈_placeholder와_빈목록은_정상_빈응답으로_빈목록을_반환한다() {
+        var placeholder = new java.util.HashMap<String, Object>();
+        placeholder.put("dt", "");
+        placeholder.put("cur_prc", "  ");
+        placeholder.put("trde_qty", null);
+        when(api.postFirstPage(anyString(), anyString(), anyMap()))
+                .thenReturn(Map.of("result_list", List.of(placeholder)))
+                .thenReturn(Map.of("result_list", List.of()));
+        var date = LocalDate.of(2026, 10, 8);
+
+        assertThat(client.fetchFirstPage("196490", ExchangeType.KRX, date)).isEmpty();
+        assertThat(client.fetchFirstPage("196490", ExchangeType.KRX, date)).isEmpty();
+    }
+
+    @Test
+    void 값이_있는_행은_유지하고_placeholder만_버린다() {
+        var row = Map.<String, Object>of("dt", "20261008", "cur_prc", "100");
+        when(api.postFirstPage(anyString(), anyString(), anyMap()))
+                .thenReturn(Map.of("result_list", List.of(Map.of("dt", ""), row)));
+
+        assertThat(client.fetchFirstPage("005930", ExchangeType.KRX, LocalDate.of(2026, 10, 8)))
+                .containsExactly(row);
+    }
+
+    @Test
+    void 목록이_없거나_행구조가_깨진_응답은_정상_빈응답과_달리_예외다() {
+        when(api.postFirstPage(anyString(), anyString(), anyMap()))
+                .thenReturn(Map.of("return_code", 0))
+                .thenReturn(Map.of("result_list", "invalid"))
+                .thenReturn(Map.of("result_list", List.of("invalid")));
+        var date = LocalDate.of(2026, 10, 8);
+
+        for (int index = 0; index < 3; index++) {
+            assertThatThrownBy(() -> client.fetchFirstPage("005930", ExchangeType.KRX, date))
+                    .isInstanceOf(BadRequestException.class);
+        }
     }
 
     @Test

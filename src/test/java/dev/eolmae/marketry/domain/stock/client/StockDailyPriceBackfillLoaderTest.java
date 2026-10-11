@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -52,20 +53,19 @@ class StockDailyPriceBackfillLoaderTest {
         for (int day = 1; day <= 600; day++) {
             rows.add(row(today.minusDays(day)));
         }
-        when(client.fetchFirstPage(anyString(), any(), any(), any())).thenReturn(rows);
+        when(client.fetchFirstPage(anyString(), any(), any())).thenReturn(rows);
         doCallRealMethod().when(client).parsePrices(anyString(), any(), anyList(), any());
         when(prices.savePage(anyList()))
                 .thenAnswer(call -> new StockDailyPriceService.SaveResult(((List<?>) call.getArgument(0)).size(), 0));
         var result = new StockDailyPriceBackfillLoader(client, prices)
                 .load("005930", ExchangeType.KRX, today, today, today.atTime(5, 0));
         assertThat(result.inserted()).isEqualTo(600);
-        verify(client, times(1)).fetchFirstPage(anyString(), any(), any(), any());
+        verify(client, times(1)).fetchFirstPage(anyString(), any(), any());
     }
 
     @Test
     void 오늘행은_제외하고_NXT의_짧은이력도_그대로저장한다() {
-        when(client.fetchFirstPage(anyString(), any(), any(), any()))
-                .thenReturn(List.of(row(today), row(today.minusDays(1))));
+        when(client.fetchFirstPage(anyString(), any(), any())).thenReturn(List.of(row(today), row(today.minusDays(1))));
         doCallRealMethod().when(client).parsePrices(anyString(), any(), anyList(), any());
         when(prices.savePage(anyList()))
                 .thenAnswer(call -> new StockDailyPriceService.SaveResult(((List<?>) call.getArgument(0)).size(), 0));
@@ -76,10 +76,23 @@ class StockDailyPriceBackfillLoaderTest {
     }
 
     @Test
-    void 빈페이지는_적재성공으로_처리하지않는다() {
-        when(client.fetchFirstPage(anyString(), any(), any(), any())).thenReturn(List.of());
+    void 정상_빈응답은_저장없이_성공으로_건너뛴다() {
+        when(client.fetchFirstPage(anyString(), any(), any())).thenReturn(List.of());
+        var result = new StockDailyPriceBackfillLoader(client, prices)
+                .load("196490", ExchangeType.KRX, today, today, LocalDateTime.now());
+        assertThat(result).isEqualTo(new StockDailyPriceService.SaveResult(0, 0));
+        verify(prices, never()).savePage(anyList());
+    }
+
+    @Test
+    void 최대건수를_넘는_첫페이지는_실패로_처리한다() {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int day = 1; day <= 601; day++) {
+            rows.add(row(today.minusDays(day)));
+        }
+        when(client.fetchFirstPage(anyString(), any(), any())).thenReturn(rows);
         assertThatThrownBy(() -> new StockDailyPriceBackfillLoader(client, prices)
-                        .load("005930", ExchangeType.NXT, today, today, LocalDateTime.now()))
+                        .load("005930", ExchangeType.KRX, today, today, LocalDateTime.now()))
                 .isInstanceOf(BadRequestException.class);
     }
 

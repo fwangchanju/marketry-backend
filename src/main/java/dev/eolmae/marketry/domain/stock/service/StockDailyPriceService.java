@@ -2,11 +2,9 @@ package dev.eolmae.marketry.domain.stock.service;
 
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
-import dev.eolmae.marketry.domain.stock.dto.MissingDailyPriceStock;
 import dev.eolmae.marketry.domain.stock.entity.StockDailyPrice;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
 import dev.eolmae.marketry.domain.stock.repository.StockDailyPriceRepository;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,9 +21,6 @@ public class StockDailyPriceService {
 
     @Transactional(timeout = 5)
     public SaveResult savePage(List<StockDailyPrice> prices) {
-        if (Thread.currentThread().isInterrupted()) {
-            throw new BadRequestException(ErrorCode.COLLECTOR_EXECUTION_FAILED, "일봉 수집 중단");
-        }
         if (prices.isEmpty()) {
             return new SaveResult(0, 0);
         }
@@ -65,15 +60,7 @@ public class StockDailyPriceService {
         }
         repository.saveAll(added);
         repository.flush();
-        if (Thread.currentThread().isInterrupted()) {
-            throw new BadRequestException(ErrorCode.COLLECTOR_EXECUTION_FAILED, "일봉 저장 중단");
-        }
         return new SaveResult(added.size(), skipped);
-    }
-
-    @Transactional(readOnly = true, timeout = 5)
-    public List<MissingDailyPriceStock> findMissing(LocalDate date, List<String> stockCodes) {
-        return repository.findMissing(date, stockCodes);
     }
 
     public record SaveResult(int inserted, int skipped) {}

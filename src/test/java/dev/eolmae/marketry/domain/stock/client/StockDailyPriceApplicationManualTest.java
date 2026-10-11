@@ -1,7 +1,6 @@
 package dev.eolmae.marketry.domain.stock.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -60,7 +59,7 @@ class StockDailyPriceApplicationManualTest extends StockDailyPriceSpringManualTe
         stockInfoRepository.save(
                 StockInfo.create(code, "Spring 검증종목", Market.KOSPI, "0", null, 100L, BigDecimal.TEN, true));
         stocks.evict();
-        when(apiClient.postFirstPage(eq("ka11081"), eq("/api/dostk/chart"), anyMap(), any()))
+        when(apiClient.postFirstPage(eq("ka11081"), eq("/api/dostk/chart"), anyMap()))
                 .thenReturn(
                         Map.of("result_list", List.of(row(today), row(today.minusDays(1)), row(today.minusDays(2)))));
 

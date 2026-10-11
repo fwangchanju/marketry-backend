@@ -6,8 +6,7 @@ import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface StockDailyPriceRepository
-        extends JpaRepository<StockDailyPrice, Long>, StockDailyPriceRepositoryCustom {
+public interface StockDailyPriceRepository extends JpaRepository<StockDailyPrice, Long> {
     List<StockDailyPrice> findByStockCodeAndExchangeTypeAndTradeDateBetween(
             String stockCode, ExchangeType exchangeType, LocalDate startDate, LocalDate endDate);
 }

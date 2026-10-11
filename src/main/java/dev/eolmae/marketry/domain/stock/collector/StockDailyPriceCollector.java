@@ -1,14 +1,13 @@
 package dev.eolmae.marketry.domain.stock.collector;
 
-import dev.eolmae.marketry.common.enums.Country;
 import dev.eolmae.marketry.common.enums.Zone;
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.domain.stock.client.StockDailyPriceClient;
-import dev.eolmae.marketry.domain.stock.dto.MissingDailyPriceStock;
+import dev.eolmae.marketry.domain.stock.entity.StockDailyPrice;
+import dev.eolmae.marketry.domain.stock.entity.StockInfo;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
-import dev.eolmae.marketry.domain.stock.enums.MarketCalendarStatus;
-import dev.eolmae.marketry.domain.stock.service.MarketCalendarService;
+import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import dev.eolmae.marketry.domain.stock.service.StockDailyPriceService;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import java.time.Clock;
@@ -16,9 +15,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.OptionalInt;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
@@ -28,14 +34,14 @@ import org.springframework.stereotype.Component;
 @Component
 @Profile("prod")
 public class StockDailyPriceCollector {
+    // 회차마다 요청 시작 간격을 넓힌다. KiwoomApiClient의 공유 게이트(200ms)는 직전 요청 시작 시각 기준이라 이 간격과 겹쳐서 적용되며 더해지지 않는다.
     private static final List<Duration> REQUEST_INTERVALS =
             List.of(Duration.ofMillis(200), Duration.ofMillis(500), Duration.ofSeconds(2));
-    // 토큰·HTTP·DB와 최종 누락 조회를 끝낼 여유다. 기한 직전 새 작업을 시작하지 않는다.
-    private static final Duration FINISH_RESERVE = Duration.ofSeconds(45);
+
     private final StockDailyPriceClient client;
     private final StockDailyPriceService prices;
     private final StockInfoCacheService stocks;
-    private final MarketCalendarService calendars;
+    private final MarketCalendarTimeService calendars;
     private final Clock clock;
     private final Sleeper sleeper;
 
@@ -44,7 +50,7 @@ public class StockDailyPriceCollector {
             StockDailyPriceClient client,
             StockDailyPriceService prices,
             StockInfoCacheService stocks,
-            MarketCalendarService calendars) {
+            MarketCalendarTimeService calendars) {
         this(
                 client,
                 prices,
@@ -58,7 +64,7 @@ public class StockDailyPriceCollector {
             StockDailyPriceClient client,
             StockDailyPriceService prices,
             StockInfoCacheService stocks,
-            MarketCalendarService calendars,
+            MarketCalendarTimeService calendars,
             Clock clock,
             Sleeper sleeper) {
         this.client = client;
@@ -69,120 +75,142 @@ public class StockDailyPriceCollector {
         this.sleeper = sleeper;
     }
 
-    /** 스케줄과 날짜 지정 수동 재처리가 공통으로 호출하며, 대상 날짜만 저장한다. */
+    /**
+     * 스케줄과 날짜 지정 수동 재처리가 공통으로 호출하며, 대상 날짜 행만 저장한다. deadline 이상이 되면 새 요청을 시작하지 않고, 이미
+     * 시작한 요청 하나는 끝까지 기다린다.
+     */
     public Result collect(LocalDate targetDate, List<String> selectedCodes, Instant deadline) {
-        return collect(targetDate, selectedCodes, deadline, missing -> {});
-    }
-
-    public Result collect(
-            LocalDate targetDate,
-            List<String> selectedCodes,
-            Instant deadline,
-            Consumer<List<MissingDailyPriceStock>> progress) {
         if (targetDate.isBefore(LocalDate.now(clock)) == false) {
             throw new BadRequestException(ErrorCode.INVALID_INPUT, "일봉 대상 날짜는 실행일 이전");
         }
-        var calendar = calendars.findByCountryAndDate(Country.KR, targetDate);
-        if (calendar.isPresent() && calendar.get().getStatus() == MarketCalendarStatus.HOLIDAY) {
+        if (calendars.isTradingDay(targetDate) == false) {
             return new Result(Status.HOLIDAY, 0, 0, 0, List.of());
         }
-        if (calendar.isEmpty() || calendar.get().getStatus() != MarketCalendarStatus.TRADING_DAY) {
-            return new Result(Status.CALENDAR_UNAVAILABLE, 0, 0, 0, List.of());
-        }
-        List<String> targetCodes = stocks.getCache().values().stream()
+        Map<String, StockInfo> targetStocks = new LinkedHashMap<>();
+        stocks.getCache().values().stream()
                 .filter(stock -> stock.isActiveAndOrdinary()
                         && (selectedCodes.isEmpty() || selectedCodes.contains(stock.getStockCode())))
-                .map(stock -> stock.getStockCode())
-                .sorted()
-                .toList();
-        if (targetCodes.isEmpty()
-                || (selectedCodes.isEmpty() == false && targetCodes.containsAll(selectedCodes) == false)) {
+                .sorted(Comparator.comparing(StockInfo::getStockCode))
+                .forEach(stock -> targetStocks.put(stock.getStockCode(), stock));
+        if (targetStocks.isEmpty()
+                || (selectedCodes.isEmpty() == false && targetStocks.keySet().containsAll(selectedCodes) == false)) {
             throw new BadRequestException(ErrorCode.INVALID_INPUT, "활성 일반주 대상 종목 없음 또는 잘못된 코드");
         }
-        List<MissingDailyPriceStock> missing = prices.findMissing(targetDate, targetCodes);
-        progress.accept(missing);
+        // 실패 목록이 곧 남은 요청이다. 처음에는 전체 KRX와 nxtEnabled 종목의 NXT가 들어 있고, 성공하거나 정상 skip이면 뺀다.
+        Set<DailyPriceKey> remaining = new LinkedHashSet<>();
+        for (StockInfo stock : targetStocks.values()) {
+            remaining.add(new DailyPriceKey(stock.getStockCode(), ExchangeType.KRX));
+            if (stock.isNxtEnabled()) {
+                remaining.add(new DailyPriceKey(stock.getStockCode(), ExchangeType.NXT));
+            }
+        }
         int passes = 0;
         int attempts = 0;
         int inserted = 0;
         Instant previousRequest = null;
-        boolean stopped = false;
-        // 두 번째부터는 DB가 반환한 누락 종목·거래소만 다시 요청한다.
         for (Duration interval : REQUEST_INTERVALS) {
-            if (missing.isEmpty() || stopped) {
+            if (remaining.isEmpty()) {
                 break;
             }
             passes++;
-            for (var stock : missing) {
-                for (ExchangeType exchange : List.of(ExchangeType.KRX, ExchangeType.NXT)) {
-                    if ((exchange == ExchangeType.KRX && stock.krxMissing() == false)
-                            || (exchange == ExchangeType.NXT && stock.nxtMissing() == false)) {
-                        continue;
-                    }
-                    if (waitForRequest(previousRequest, interval, deadline) == false) {
-                        stopped = true;
-                        break;
-                    }
-                    previousRequest = clock.instant();
-                    attempts++;
-                    inserted += collectSafely(stock.stockCode(), exchange, targetDate, deadline);
+            for (DailyPriceKey key : List.copyOf(remaining)) {
+                if (waitForRequest(previousRequest, interval) == false) {
+                    return new Result(Status.INTERRUPTED, passes, attempts, inserted, List.of());
                 }
-                if (stopped) {
-                    break;
+                if (clock.instant().isBefore(deadline) == false) {
+                    log.warn("[일봉 수집 제한 시간 도달] | context : {}|{}|{}", targetDate, passes, attempts);
+                    return new Result(Status.DEADLINE, passes, attempts, inserted, List.of());
+                }
+                previousRequest = clock.instant();
+                attempts++;
+                OptionalInt saved = collectSafely(key, targetDate);
+                if (saved.isPresent()) {
+                    remaining.remove(key);
+                    inserted += saved.getAsInt();
                 }
             }
-            // 저장된 일봉이 성공 판정의 근거다. 빈 응답이나 저장 실패는 성공으로 처리하지 않는다.
-            missing = prices.findMissing(targetDate, targetCodes);
-            progress.accept(missing);
-            log.info("[일봉 수집 회차 완료] | context : {}|{}|{}|{}", targetDate, passes, attempts, missing.size());
+            log.info("[일봉 수집 회차 완료] | context : {}|{}|{}|{}", targetDate, passes, attempts, remaining.size());
         }
         return new Result(
-                missing.isEmpty() ? Status.COMPLETE : stopped ? Status.DEADLINE : Status.INCOMPLETE,
+                remaining.isEmpty() ? Status.COMPLETE : Status.INCOMPLETE,
                 passes,
                 attempts,
                 inserted,
-                missing);
+                toFailedStocks(remaining, targetStocks));
     }
 
-    private boolean waitForRequest(Instant previous, Duration interval, Instant deadline) {
-        if (Thread.currentThread().isInterrupted()
-                || clock.instant().plus(FINISH_RESERVE).isBefore(deadline) == false) {
+    private boolean waitForRequest(Instant previousRequest, Duration interval) {
+        if (Thread.currentThread().isInterrupted()) {
             return false;
         }
-        if (previous != null) {
-            Duration wait = Duration.between(clock.instant(), previous.plus(interval));
-            if (wait.isPositive()) {
-                try {
-                    sleeper.sleep(wait);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return false;
-                }
+        if (previousRequest == null) {
+            return true;
+        }
+        Duration wait = Duration.between(clock.instant(), previousRequest.plus(interval));
+        if (wait.isPositive()) {
+            try {
+                sleeper.sleep(wait);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
             }
         }
-        return Thread.currentThread().isInterrupted() == false
-                && clock.instant().plus(FINISH_RESERVE).isBefore(deadline);
+        return true;
     }
 
-    private int collectSafely(String stockCode, ExchangeType exchange, LocalDate date, Instant deadline) {
+    /** 저장했거나(skipped 포함) 정상 skip이면 저장 건수를, 재시도할 실패이면 빈 값을 반환한다. */
+    private OptionalInt collectSafely(DailyPriceKey key, LocalDate date) {
+        List<StockDailyPrice> selected;
         try {
-            var rows = client.fetchFirstPage(stockCode, exchange, date, deadline).stream()
-                    .filter(row -> date.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
-                            .equals(String.valueOf(row.get("dt"))))
+            var rows = client.fetchFirstPage(key.stockCode(), key.exchange(), date).stream()
+                    .filter(row -> date.format(DateTimeFormatter.BASIC_ISO_DATE).equals(String.valueOf(row.get("dt"))))
                     .toList();
-            var selected = client.parsePrices(stockCode, exchange, rows, LocalDateTime.now(clock));
-            if (Thread.currentThread().isInterrupted() || clock.instant().isBefore(deadline) == false) {
-                return 0;
+            if (rows.isEmpty()) {
+                // 빈 placeholder나 빈 목록, 대상 날짜 행 없음은 정상 응답이다. 날짜를 만들어 저장하거나 재시도하지 않는다.
+                return OptionalInt.of(0);
             }
-            return prices.savePage(selected).inserted();
+            selected = client.parsePrices(key.stockCode(), key.exchange(), rows, LocalDateTime.now(clock));
         } catch (RuntimeException failure) {
             log.warn(
                     "[일봉 종목 수집 실패] | context : {}|{}|{}|{}",
                     date,
-                    stockCode,
-                    exchange,
+                    key.stockCode(),
+                    key.exchange(),
                     failure.getClass().getSimpleName());
-            return 0;
+            return OptionalInt.empty();
         }
+        try {
+            return OptionalInt.of(prices.savePage(selected).inserted());
+        } catch (RuntimeException failure) {
+            // 인증 정보나 원인 예외 없이 저장하려던 대상 날짜의 가격 행만 남긴다.
+            StockDailyPrice price = selected.getFirst();
+            log.warn(
+                    "[일봉 저장 실패] | context : {}|{}|{}|open={}|high={}|low={}|close={}|volume={}|{}",
+                    date,
+                    key.stockCode(),
+                    key.exchange(),
+                    price.getOpenPrice().toPlainString(),
+                    price.getHighPrice().toPlainString(),
+                    price.getLowPrice().toPlainString(),
+                    price.getClosePrice().toPlainString(),
+                    price.getVolume(),
+                    failure.getClass().getSimpleName());
+            return OptionalInt.empty();
+        }
+    }
+
+    private List<FailedStock> toFailedStocks(Set<DailyPriceKey> remaining, Map<String, StockInfo> targetStocks) {
+        // 같은 종목의 KRX/NXT 실패는 한 항목으로 묶는다.
+        Map<String, List<ExchangeType>> exchangesByCode = new LinkedHashMap<>();
+        for (DailyPriceKey key : remaining) {
+            exchangesByCode
+                    .computeIfAbsent(key.stockCode(), code -> new ArrayList<>())
+                    .add(key.exchange());
+        }
+        return exchangesByCode.entrySet().stream()
+                .map(entry -> new FailedStock(
+                        entry.getKey(), targetStocks.get(entry.getKey()).getStockName(), entry.getValue()))
+                .toList();
     }
 
     @FunctionalInterface
@@ -193,10 +221,15 @@ public class StockDailyPriceCollector {
     public enum Status {
         COMPLETE,
         HOLIDAY,
-        CALENDAR_UNAVAILABLE,
         DEADLINE,
+        INTERRUPTED,
         INCOMPLETE
     }
 
-    public record Result(Status status, int passes, int attempts, int inserted, List<MissingDailyPriceStock> missing) {}
+    /** failures는 세 회차가 끝나도 남은 종목이며 INCOMPLETE일 때만 채워진다. */
+    public record Result(Status status, int passes, int attempts, int inserted, List<FailedStock> failures) {}
+
+    public record FailedStock(String stockCode, String stockName, List<ExchangeType> exchanges) {}
+
+    private record DailyPriceKey(String stockCode, ExchangeType exchange) {}
 }

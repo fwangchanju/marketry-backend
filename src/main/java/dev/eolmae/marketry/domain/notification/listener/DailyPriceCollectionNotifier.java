@@ -45,7 +45,7 @@ public class DailyPriceCollectionNotifier {
         List<String> messages = new ArrayList<>();
         var message = new StringBuilder(header);
         // Telegram의 HTML 해석과 길이 제한 때문에 종목명을 이스케이프하고 목록을 나눈다.
-        for (String stock : event.missingStocks()) {
+        for (String stock : event.failedStocks()) {
             String line = stock.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") + "\n";
             if (message.length() + line.length() > MESSAGE_LIMIT) {
                 messages.add(message.toString());
