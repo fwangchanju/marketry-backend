@@ -32,6 +32,7 @@ public class SectorPriceSnapshotService {
 
     private final SectorPriceSnapshotRepository sectorPriceSnapshotRepository;
     private final MarketCalendarTimeService marketCalendarTimeService;
+    private final StockDailyPriceService stockDailyPriceService;
 
     /** markets 전부가 공통으로 가진 최신 스냅샷 시각 — markets가 하나뿐이면 그 마켓의 최신 시각과 같다. */
     public Optional<LocalDateTime> findLatestCommonSnapshotTime(List<Market> markets) {
@@ -67,9 +68,10 @@ public class SectorPriceSnapshotService {
     }
 
     /**
-     * 한 달 안에서 markets 전부가 같은 시각의 종가 스냅샷을 가진 날짜와 그 시각. 종가 스냅샷은 정리 배치와 같은
-     * 기준(한 시각이면 그대로, 여러 시각이면 시간외 시작 이전 latest)이다. 미확인일·휴장일·종가 후보가 없는 날,
-     * 시장끼리 시각이 엇갈린 날은 뺀다(그 시각으로는 모든 시장의 지도를 그릴 수 없다).
+     * 달력에서 고를 수 있는 한 달의 날짜와 그 시각. 활성화는 거래일(공통 판정)이고 오늘 이하이며 종가 데이터(KRX)나 현재가 데이터의 종가가
+     * 있는 날이다. 현재가 데이터가 있으면 그 종가 시각을 쓰고(정리 배치와 같은 기준, 한 시각이면 그대로, 여러 시각이면 시간외 시작 이전
+     * latest), 종가 데이터만 있는 날은 그날 종가 구간 끝 시각을 쓴다. 시장끼리 현재가 데이터 시각이 엇갈린 날은 종가 데이터가 없으면 뺀다(그
+     * 시각으로는 모든 시장의 지도를 그릴 수 없다). 명시적 휴장일은 가격이 있어도 뺀다.
      */
     public Map<LocalDate, LocalDateTime> findClosingSnapshotTimes(List<Market> markets, YearMonth month) {
         return findClosingSnapshotTimes(markets, month, KstClock.now().toLocalDate());
@@ -83,13 +85,23 @@ public class SectorPriceSnapshotService {
         if (dates.isEmpty()) {
             return Map.of();
         }
-        List<TimeWindow> closingWindows = marketCalendarTimeService.resolveTradingDays(dates).entrySet().stream()
+        Map<LocalDate, CalendarDayTimes> tradingDays = marketCalendarTimeService.resolveTradingDaysWithFallback(dates);
+        if (tradingDays.isEmpty()) {
+            return Map.of();
+        }
+        Map<LocalDate, LocalDateTime> closingTimes = new TreeMap<>(findSnapshotClosingTimes(markets, tradingDays));
+        for (LocalDate date : stockDailyPriceService.findKrxPriceDates(tradingDays.keySet())) {
+            closingTimes.putIfAbsent(date, tradingDays.get(date).closingWindowEnd());
+        }
+        return closingTimes;
+    }
+
+    private Map<LocalDate, LocalDateTime> findSnapshotClosingTimes(
+            List<Market> markets, Map<LocalDate, CalendarDayTimes> tradingDays) {
+        List<TimeWindow> closingWindows = tradingDays.entrySet().stream()
                 .map(entry -> new TimeWindow(
                         entry.getKey().atStartOfDay(), entry.getValue().closingWindowEnd()))
                 .toList();
-        if (closingWindows.isEmpty()) {
-            return Map.of();
-        }
         Map<LocalDate, List<MarketSnapshotTime>> closingByDate =
                 sectorPriceSnapshotRepository.findSnapshotDaySummaries(closingWindows).stream()
                         .flatMap(summary -> summary.closingSnapshot().stream())

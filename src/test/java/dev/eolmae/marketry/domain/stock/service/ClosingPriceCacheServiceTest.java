@@ -27,7 +27,9 @@ class ClosingPriceCacheServiceTest {
     private final SectorPriceSnapshotRepository repository = mock(SectorPriceSnapshotRepository.class);
     private final MarketCalendarTimeService timeService = mock(MarketCalendarTimeService.class);
     private final ClosingPriceCacheService service = new ClosingPriceCacheService(
-            repository, timeService, new SectorPriceSnapshotService(repository, timeService));
+            repository,
+            timeService,
+            new SectorPriceSnapshotService(repository, timeService, mock(StockDailyPriceService.class)));
 
     @BeforeEach
     void 기본_경계() {

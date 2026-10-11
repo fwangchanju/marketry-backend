@@ -24,6 +24,7 @@ import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceCacheService;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceCacheService.CachedStockPrice;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
+import dev.eolmae.marketry.domain.stock.service.StockDailyPriceService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -97,7 +98,8 @@ class MarketMapToggleQueryManualTest {
         var timeService = new MarketCalendarTimeService(
                 new MarketCalendarService(calendars, event -> {}),
                 new MarketHoursProperties(LocalTime.of(15, 30), LocalTime.of(15, 40)));
-        var snapshots = new SectorPriceSnapshotService(repository, timeService);
+        var snapshots = new SectorPriceSnapshotService(
+                repository, timeService, org.mockito.Mockito.mock(StockDailyPriceService.class));
         var prices = new SectorPriceCacheService(repository);
         var closing = new ClosingPriceCacheService(repository, timeService, snapshots);
         String label = (before ? "BEFORE" : "AFTER") + "/" + toggle + "/" + round;

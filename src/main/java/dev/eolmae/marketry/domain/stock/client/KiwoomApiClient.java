@@ -8,11 +8,13 @@ import dev.eolmae.marketry.domain.stock.dto.KiwoomResponseHeader;
 import dev.eolmae.marketry.domain.stock.exception.KiwoomRateLimitException;
 import dev.eolmae.marketry.domain.stock.exception.KiwoomTransientFailureException;
 import dev.eolmae.marketry.domain.stock.properties.KiwoomProperties;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -44,6 +46,36 @@ public class KiwoomApiClient {
     private final RestClient restClient;
 
     private long lastFetchNanos = 0;
+
+    /** 첫 페이지만 반환하며 재시도는 호출하는 수집기가 담당한다. 기존 post의 연속조회 정책은 유지한다. */
+    public Map<String, Object> postFirstPage(String apiId, String path, Map<String, String> payload) {
+        // 토큰과 HTTP 요청은 각각 10초 제한이며, 진행 중인 요청은 끝까지 기다린다.
+        String token = tokenManager.getToken();
+        acquire();
+        Map<String, Object> body;
+        try {
+            body = restClient
+                    .post()
+                    .uri(BASE_URL + path)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .headers(headers -> {
+                        headers.setBearerAuth(token);
+                        headers.set("appkey", properties.appKey());
+                        headers.set("secretkey", properties.secret());
+                        headers.set("api-id", apiId);
+                    })
+                    .body(payload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+        } catch (RestClientException e) {
+            // 인증 헤더가 포함될 수 있는 HTTP 예외 원문은 새 일봉 수집 경계 밖으로 전달하지 않는다.
+            throw new BadRequestException(ErrorCode.KIWOOM_HTTP_ERROR, apiId);
+        }
+        if (body == null || SUCCESS_CODE.equals(String.valueOf(body.get("return_code"))) == false) {
+            throw new BadRequestException(ErrorCode.KIWOOM_ERROR_RESPONSE, apiId);
+        }
+        return body;
+    }
 
     /**
      * 타입 안전 API 호출. request DTO가 직렬화되어 요청 바디로 전송되고, 응답은 dataClass 타입으로 역직렬화된다.

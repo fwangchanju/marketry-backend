@@ -51,9 +51,29 @@ public class SectorPriceCacheService {
     }
 
     private static CachedStockPrice toCachedPrice(SectorPriceSnapshot snapshot) {
-        return new CachedStockPrice(snapshot.getCurrentPrice(), snapshot.getChangeRate(), snapshot.getSnapshotTime());
+        // 현재가 데이터의 등락률은 키움이 자기 기준의 전일 종가로 계산해 저장한 값이다. 전일 종가도 같은 출처(현재가 − 변동액)로 맞춰야
+        // 현재가·전일 종가·등락률이 어긋나지 않는다. 구하지 못하거나 0 이하이면 비워 두고 조회 쪽이 종가 데이터로 대체한다.
+        BigDecimal lastPrice = snapshot.getCurrentPrice().subtract(snapshot.getChangeValue());
+        return new CachedStockPrice(
+                snapshot.getCurrentPrice(),
+                snapshot.getChangeRate(),
+                snapshot.getSnapshotTime(),
+                lastPrice.signum() > 0 ? lastPrice : null);
     }
 
-    /** JPA 엔티티를 캐시에 그대로 넣지 않기 위한 불변 값 — toMarketMapItem이 쓰는 필드 셋뿐이다. */
-    public record CachedStockPrice(BigDecimal currentPrice, BigDecimal changeRate, LocalDateTime snapshotTime) {}
+    /**
+     * JPA 엔티티를 캐시에 그대로 넣지 않기 위한 불변 값 — toMarketMapItem이 쓰는 필드 셋이다. lastPrice(전일 종가)는 현재가 데이터는
+     * 현재가 − 변동액, 종가 데이터로 만든 지도는 직전 거래일 종가이며, 비어 있으면 조회 쪽이 대체값을 채우고 끝내 없으면 종목 정보의 전일
+     * 종가를 쓴다.
+     */
+    public record CachedStockPrice(
+            BigDecimal currentPrice, BigDecimal changeRate, LocalDateTime snapshotTime, BigDecimal lastPrice) {
+        public CachedStockPrice(BigDecimal currentPrice, BigDecimal changeRate, LocalDateTime snapshotTime) {
+            this(currentPrice, changeRate, snapshotTime, null);
+        }
+
+        public CachedStockPrice withLastPrice(BigDecimal lastPrice) {
+            return new CachedStockPrice(currentPrice, changeRate, snapshotTime, lastPrice);
+        }
+    }
 }
