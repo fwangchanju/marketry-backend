@@ -9,7 +9,8 @@ import org.springframework.stereotype.Service;
 /**
  * 날짜별 종가를 읽는다. 종가(D)는 D의 종가 데이터(stock_daily_price에 쌓는 키움 종가(일봉) 요청 API 수집분, KRX)가 있는지 날짜만 확인해서
  * 있으면 종가 데이터를, 없으면 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)의 종가 시각 가격을 쓰는 하나의
- * 규칙이다. 전일 종가도 같은 규칙으로 직전 거래일을 기준으로 읽는다.
+ * 규칙이다. 전일 종가도 같은 규칙으로 직전 거래일을 기준으로 읽는다. 종가 데이터가 있는 날짜의 지도는 이 값을 전일 종가로 쓰고, 현재가
+ * 데이터로 만드는 날짜의 지도는 현재가 − 변동액을 구하지 못한 종목의 대체값으로만 쓴다.
  */
 @Service
 @RequiredArgsConstructor

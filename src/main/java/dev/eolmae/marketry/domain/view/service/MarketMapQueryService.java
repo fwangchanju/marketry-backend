@@ -697,15 +697,20 @@ public class MarketMapQueryService {
     }
 
     /**
-     * 종목별 현재가·등락률·전일 종가. 그 날짜의 종가 데이터(stock_daily_price에 쌓는 키움 종가(일봉) 요청 API 수집분)가 있는지 날짜만
-     * 확인해서 있으면 종가 데이터를, 없으면 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)를 쓴다. 전일 종가도
-     * 같은 규칙으로 직전 거래일을 기준으로 정한다.
+     * 종목별 현재가·등락률·전일 종가. 그 날짜의 종가 데이터(stock_daily_price에 쌓는 키움 종가 요청 API 수집분)가 있는지 날짜만 확인해서
+     * 있으면 종가 데이터로, 없으면 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)로 세 값을 같은 출처에 맞춘다.
      *
      * <ul>
-     *   <li>종가 데이터가 있으면 현재가는 그날 종가이고 등락률은 전일 종가 대비로 계산한다. 가격이나 전일 종가가 없거나 0 이하인 종목은
-     *       뺀다(0으로 나누지 않으며, 프런트가 제외 종목으로 다룬다). 종가 데이터에는 시간외 값이 없어 basis는 적용하지 않는다.
-     *   <li>없으면 현재가와 등락률은 현재가 데이터 값을 그대로 쓴다. 직전 거래일 종가를 구하지 못한 종목은 종목 정보의 전일 종가를 쓴다.
+     *   <li>종가 데이터가 있으면 현재가는 그날 종가, 전일 종가는 직전 거래일 종가, 등락률은 그 둘로 계산한다. 가격이나 전일 종가가 없거나
+     *       0 이하인 종목은 뺀다(0으로 나누지 않으며, 프런트가 제외 종목으로 다룬다). 종가 데이터에는 시간외 값이 없어 basis는 적용하지
+     *       않는다.
+     *   <li>없으면 현재가·등락률은 현재가 데이터 값을 그대로 쓴다. 전일 종가는 요청 날짜가 오늘일 때만 현재가 − 변동액을 쓴다. 이
+     *       등락률은 키움이 병합·분할 같은 기업행위까지 반영해 계산한 값이라 전일 종가도 같은 출처여야 현재가·전일 종가·등락률이 어긋나지
+     *       않는다(종가 데이터의 직전 거래일 종가는 기업행위 전 값일 수 있다, 에이비온 203400). 오늘이 아닌 날짜는 직전 거래일 종가
+     *       데이터를 쓴다. 변동액으로 구하지 못한 종목은 직전 거래일 종가 데이터로, 그것도 없으면 종목 정보의 전일 종가로 대체한다.
      * </ul>
+     *
+     * <p>구간 조회의 종료일 지도는 전일 종가 칸을 쓰지 않는다는 프런트 가정 아래 호출을 구분하지 않고 날짜로만 나눈다.
      */
     private Map<String, CachedStockPrice> findPrices(
             List<Market> markets, LocalDateTime snapshotTime, ChangeRateMode basis) {
@@ -716,7 +721,8 @@ public class MarketMapQueryService {
         }
         Map<String, CachedStockPrice> snapshotPrices =
                 applyBasis(findPriceByStockCode(markets, snapshotTime), snapshotTime, basis);
-        return withLastPrices(snapshotPrices, previous);
+        return withLastPrices(
+                snapshotPrices, previous, date.equals(KstClock.now().toLocalDate()));
     }
 
     private Map<String, CachedStockPrice> findOfficialClosePrices(
@@ -728,19 +734,25 @@ public class MarketMapQueryService {
                 .forEach((stockCode, close) ->
                         closes.put(stockCode, new CachedStockPrice(close, BigDecimal.ZERO, snapshotTime)));
         // 전일 종가 대비 등락률 계산식과 기준가 없음·0 제외 규칙은 시간외 등락률과 같다.
-        return withLastPrices(AfterHoursChangeRates.apply(closes, previous), previous);
+        return withLastPrices(AfterHoursChangeRates.apply(closes, previous), previous, false);
     }
 
+    /**
+     * 전일 종가를 채운다. 현재가 데이터의 값(현재가 − 변동액)을 쓰는 경우(오늘 지도)는 그 값을 먼저 쓰고, 없거나 쓰지 않는 경우는
+     * 직전 거래일 종가로 채운다. 둘 다 없으면 비워 두어 종목 정보의 전일 종가를 쓰게 한다.
+     */
     private Map<String, CachedStockPrice> withLastPrices(
-            Map<String, CachedStockPrice> priceMap, ClosingPrices previous) {
-        Map<String, CachedStockPrice> result = new HashMap<>();
-        priceMap.forEach((stockCode, price) -> {
-            BigDecimal lastPrice = previous.priceByStockCode().get(stockCode);
-            if (lastPrice == null || lastPrice.signum() <= 0) {
-                result.put(stockCode, price);
-                return;
+            Map<String, CachedStockPrice> priceMap, ClosingPrices previous, boolean useOwnLastPrice) {
+        Map<String, CachedStockPrice> result = new HashMap<>(priceMap);
+        result.replaceAll((stockCode, price) -> {
+            if (useOwnLastPrice && price.lastPrice() != null) {
+                return price;
             }
-            result.put(stockCode, price.withLastPrice(lastPrice));
+            BigDecimal previousClose = previous.priceByStockCode().get(stockCode);
+            if (previousClose != null && previousClose.signum() > 0) {
+                return price.withLastPrice(previousClose);
+            }
+            return price.withLastPrice(null);
         });
         return result;
     }

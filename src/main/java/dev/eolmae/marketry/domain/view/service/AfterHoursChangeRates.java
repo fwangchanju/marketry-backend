@@ -43,7 +43,9 @@ final class AfterHoursChangeRates {
                     .subtract(base)
                     .multiply(HUNDRED)
                     .divide(base, RATE_SCALE, RoundingMode.HALF_UP);
-            result.put(stockCode, new CachedStockPrice(price.currentPrice(), rate, price.snapshotTime()));
+            result.put(
+                    stockCode,
+                    new CachedStockPrice(price.currentPrice(), rate, price.snapshotTime(), price.lastPrice()));
         });
         return result;
     }

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.enums.Market;
+import dev.eolmae.marketry.common.enums.Zone;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
@@ -1504,6 +1505,7 @@ class MarketMapQueryServiceTest {
 
     private static final LocalDate PREVIOUS_DAY = LocalDate.of(2026, 10, 7);
     private static final LocalDate OFFICIAL_DAY = LocalDate.of(2026, 10, 8);
+    private static final LocalDate TODAY = LocalDate.now(Zone.KST.zoneId());
 
     private void stubOfficialClose(Map<String, BigDecimal> closes, Map<String, BigDecimal> previousCloses) {
         when(closingPriceReader.hasOfficialClose(OFFICIAL_DAY)).thenReturn(true);
@@ -1570,7 +1572,7 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void 종가_데이터가_없는_날짜는_현재가_데이터의_현재가와_등락률을_쓰고_전일_종가만_직전_거래일_종가로_바꾼다() {
+    void 종가_데이터가_없는_날짜에_전일_종가를_못_구하면_직전_거래일_종가_종목정보_순으로_대체한다() {
         LocalDateTime time = OFFICIAL_DAY.atTime(10, 0);
         StockInfo withClose = stockInfo("005930", "삼성전자", 10L, BigDecimal.valueOf(1));
         StockInfo withoutClose = stockInfo("000660", "SK하이닉스", 10L, BigDecimal.valueOf(7));
@@ -1594,5 +1596,101 @@ class MarketMapQueryServiceTest {
         assertThat(items.get("005930").lastPrice()).isEqualByComparingTo("100");
         // 직전 거래일 종가를 구하지 못한 종목은 종목 정보의 전일 종가를 쓴다.
         assertThat(items.get("000660").lastPrice()).isEqualByComparingTo("7");
+    }
+
+    @Test
+    void 오늘_지도는_전일_종가를_같은_출처로_맞추고_기업행위_종목의_등락률을_유지한다() {
+        // 병합으로 종가 데이터의 직전 거래일 종가(676)가 키움 기준 전일 종가(3380)와 다른 종목
+        LocalDateTime time = TODAY.atTime(10, 0);
+        StockInfo merged = stockInfo("203400", "에이비온", 10L, BigDecimal.valueOf(676));
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("203400", merged));
+        when(closingPriceReader.previousClosingPricesFor(TODAY))
+                .thenReturn(new ClosingPrices(PREVIOUS_DAY, Map.of("203400", BigDecimal.valueOf(676))));
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(true);
+        when(sectorPriceCacheService.getCache(Market.KOSPI, time))
+                .thenReturn(Map.of(
+                        "203400",
+                        new CachedStockPrice(
+                                BigDecimal.valueOf(3380), BigDecimal.ZERO, time, BigDecimal.valueOf(3380))));
+
+        var item = service.getDefaultMarketMap(MarketQuery.KOSPI, time)
+                .items()
+                .get(0)
+                .items()
+                .get(0);
+
+        assertThat(item.currentPrice()).isEqualByComparingTo("3380");
+        assertThat(item.lastPrice()).isEqualByComparingTo("3380");
+        assertThat(item.changeRate()).isEqualByComparingTo("0");
+    }
+
+    @Test
+    void 오늘_지도에서_현재가_데이터의_전일_종가를_못_구한_종목만_직전_거래일_종가로_채운다() {
+        LocalDateTime time = TODAY.atTime(10, 0);
+        StockInfo noChangeValue = stockInfo("000001", "변동액없음", 10L, BigDecimal.valueOf(7));
+        StockInfo withChangeValue = stockInfo("000002", "변동액있음", 10L, BigDecimal.valueOf(7));
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("000001", noChangeValue, "000002", withChangeValue));
+        when(closingPriceReader.previousClosingPricesFor(TODAY))
+                .thenReturn(new ClosingPrices(
+                        PREVIOUS_DAY, Map.of("000001", BigDecimal.valueOf(95), "000002", BigDecimal.valueOf(500))));
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(true);
+        when(sectorPriceCacheService.getCache(Market.KOSPI, time))
+                .thenReturn(Map.of(
+                        "000001", new CachedStockPrice(BigDecimal.valueOf(100), BigDecimal.ONE, time),
+                        "000002",
+                                new CachedStockPrice(
+                                        BigDecimal.valueOf(100), BigDecimal.ONE, time, BigDecimal.valueOf(99))));
+
+        var items = service.getDefaultMarketMap(MarketQuery.KOSPI, time).items().stream()
+                .flatMap(node -> node.items().stream())
+                .collect(Collectors.toMap(item -> item.stockCode(), Function.identity()));
+
+        assertThat(items.get("000001").lastPrice()).isEqualByComparingTo("95");
+        assertThat(items.get("000002").lastPrice()).isEqualByComparingTo("99");
+    }
+
+    @Test
+    void 종가_데이터가_있는_날짜는_현재가_데이터의_전일_종가를_쓰지_않는다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
+        StockInfo stock = stockInfo("203400", "에이비온", 10L, BigDecimal.ONE);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("203400", stock));
+        stubOfficialClose(Map.of("203400", BigDecimal.valueOf(3380)), Map.of("203400", BigDecimal.valueOf(676)));
+
+        var item = service.getDefaultMarketMap(MarketQuery.KOSPI, time)
+                .items()
+                .get(0)
+                .items()
+                .get(0);
+
+        assertThat(item.lastPrice()).isEqualByComparingTo("676");
+        Mockito.verifyNoInteractions(sectorPriceCacheService);
+    }
+
+    @Test
+    void 오늘이_아닌_날짜는_종가_데이터가_없어도_현재가_데이터의_변동액이_아닌_직전_거래일_종가를_전일_종가로_쓴다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(10, 0);
+        StockInfo stock = stockInfo("203400", "에이비온", 10L, BigDecimal.ONE);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("203400", stock));
+        when(closingPriceReader.previousClosingPricesFor(OFFICIAL_DAY))
+                .thenReturn(new ClosingPrices(PREVIOUS_DAY, Map.of("203400", BigDecimal.valueOf(676))));
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(true);
+        when(sectorPriceCacheService.getCache(Market.KOSPI, time))
+                .thenReturn(Map.of(
+                        "203400",
+                        new CachedStockPrice(
+                                BigDecimal.valueOf(3380), BigDecimal.ZERO, time, BigDecimal.valueOf(3380))));
+
+        var item = service.getDefaultMarketMap(MarketQuery.KOSPI, time)
+                .items()
+                .get(0)
+                .items()
+                .get(0);
+
+        assertThat(item.currentPrice()).isEqualByComparingTo("3380");
+        assertThat(item.lastPrice()).isEqualByComparingTo("676");
+        assertThat(item.changeRate()).isEqualByComparingTo("0");
     }
 }
