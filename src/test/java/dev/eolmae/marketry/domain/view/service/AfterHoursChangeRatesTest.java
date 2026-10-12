@@ -54,6 +54,16 @@ class AfterHoursChangeRatesTest {
     }
 
     @Test
+    void 결과의_전일_종가_자리에는_기준이_된_종가가_들어간다() {
+        Map<String, CachedStockPrice> prices = Map.of("A", price("101", "1.0").withLastPrice(new BigDecimal("90")));
+
+        Map<String, CachedStockPrice> result =
+                AfterHoursChangeRates.apply(prices, closing(Map.of("A", new BigDecimal("100"))));
+
+        assertThat(result.get("A").lastPrice()).isEqualByComparingTo("100");
+    }
+
+    @Test
     void 종가가_없거나_0인_종목은_결과에서_빠진다() {
         Map<String, CachedStockPrice> prices =
                 Map.of("NO_BASE", price("100", "1.0"), "ZERO_BASE", price("100", "1.0"), "OK", price("100", "1.0"));
