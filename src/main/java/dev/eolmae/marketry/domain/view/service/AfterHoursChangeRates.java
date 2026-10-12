@@ -30,7 +30,7 @@ final class AfterHoursChangeRates {
     /**
      * 종목별 등락률을 {@code (현재가 − 종가) ÷ 종가 × 100}으로 바꾼다. 종가가 없는 종목(15:35에는 없다가 이후에
      * 나타난 종목 등)은 결과에서 뺀다 — 0으로 채우면 "안 움직였다"와 "값이 없다"가 구분되지 않는다. 종가가 0이어도
-     * 뺀다(나눌 수 없다).
+     * 뺀다(나눌 수 없다). 기준이 되는 가격을 보여 줄 수 있게 결과의 전일 종가 자리에는 그 종가를 넣는다.
      */
     static Map<String, CachedStockPrice> apply(Map<String, CachedStockPrice> priceByStockCode, ClosingPrices closing) {
         Map<String, CachedStockPrice> result = new HashMap<>();
@@ -43,9 +43,7 @@ final class AfterHoursChangeRates {
                     .subtract(base)
                     .multiply(HUNDRED)
                     .divide(base, RATE_SCALE, RoundingMode.HALF_UP);
-            result.put(
-                    stockCode,
-                    new CachedStockPrice(price.currentPrice(), rate, price.snapshotTime(), price.lastPrice()));
+            result.put(stockCode, new CachedStockPrice(price.currentPrice(), rate, price.snapshotTime(), base));
         });
         return result;
     }
