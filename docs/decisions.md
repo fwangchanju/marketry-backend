@@ -318,9 +318,6 @@ sha를 넘겨 `ARG ASSETS_TAG`로 빌드하면, 스킵 최적화가 다시 의�
 
 | 대상 | 사유 |
 |---|---|
-| `MarketQueryService`의 주석 처리된 메서드 본문 | 관심종목 구조 정리 후 되살릴 가능성 |
-| `CollectionScheduler`의 주석 처리된 스케줄 메서드 | 위와 동일 |
-| `StartupRunner`의 주석 처리된 startup 단계 | 위와 동일 |
 | `ImageStitcher` | 지금은 안 쓰지만 이미지를 이어붙일 상황이 다시 생길 수 있음 |
 | `okhttp` 의존성 | KRX 크롤러용. 크롤러를 남겨두므로 같이 유지 |
 | `domain/krx` 전체 | 위 "KRX 크롤러" 항목 참고 |
