@@ -1,14 +1,8 @@
 package dev.eolmae.marketry.domain.stock.collector;
 
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
-
-import dev.eolmae.marketry.common.enums.Market;
 import dev.eolmae.marketry.domain.stock.client.KiwoomApiClient;
 import dev.eolmae.marketry.domain.stock.dto.*;
-import dev.eolmae.marketry.domain.stock.entity.IndexContributionRankingSnapshot;
-import dev.eolmae.marketry.domain.stock.repository.IndexContributionRankingSnapshotRepository;
 import dev.eolmae.marketry.domain.stock.repository.MarketOverviewSnapshotRepository;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -56,12 +50,6 @@ class KiwoomApiVerificationTest {
 
     @Autowired
     KiwoomApiClient kiwoomApiClient;
-
-    @Autowired
-    IndexContributionRankingCollector indexContributionRankingCollector;
-
-    @Autowired
-    IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository;
 
     @Autowired
     MarketOverviewSnapshotRepository marketOverviewSnapshotRepository;
@@ -118,64 +106,6 @@ class KiwoomApiVerificationTest {
         }
     }
 
-    /**
-     * 지수기여도 수집기 검증 — KRX MDCSTAT01501 크롤링 기반
-     *
-     * 확인 포인트:
-     *   - KOSPI/KOSDAQ 각 상위 50종목 스냅샷 저장 확인
-     *   - 기여도 합산 검증: Σ(종목 기여도) ≈ 당일 지수 등락폭(pt)
-     *     → 일치하면 연산 공식 정합성 OK
-     *     → 편차 크면 유동시총 vs 전체시총 혼용 등 점검 필요
-     */
-    //    @Test
-    void indexContributionRanking_수집_및_공식검증() {
-        assumeTrue(!krxLoginId.isBlank(), "KRX 로그인 정보 미설정 — KRX_ID/KRX_PW 환경변수 확인 후 재실행");
-
-        LocalDateTime snapshotTime =
-                LocalDateTime.now(KST).withMinute(0).withSecond(0).withNano(0);
-        log.info("=== 지수기여도 수집 시작 | snapshotTime={} ===", snapshotTime);
-
-        // IndexContributionRankingCollector가 MarketOverviewSnapshot/SectorPriceSnapshot도 함께 저장함
-        indexContributionRankingCollector.collect(snapshotTime);
-
-        for (Market market : List.of(Market.KOSPI, Market.KOSDAQ)) {
-            List<IndexContributionRankingSnapshot> snapshots =
-                    indexContributionRankingSnapshotRepository.findByMarketTypeAndSnapshotTimeOrderByRankAsc(
-                            market, snapshotTime);
-
-            log.info("[{}] 저장 건수={}", market, snapshots.size());
-
-            BigDecimal sumContribution = snapshots.stream()
-                    .map(IndexContributionRankingSnapshot::getContributionScore)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            log.info("[{}] 상위 {}종목 기여도 합산={}", market, snapshots.size(), sumContribution);
-
-            // 실제 지수 등락폭과 비교 (MarketOverviewSnapshot의 changeValue)
-            marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime).stream()
-                    .filter(overview -> overview.getMarketType() == market)
-                    .findFirst()
-                    .ifPresent(overview -> log.info(
-                            "[{}] 실제 지수등락={} | 기여도합산={} | 편차={}",
-                            market,
-                            overview.getChangeValue(),
-                            sumContribution,
-                            sumContribution.subtract(overview.getChangeValue()).abs()));
-
-            if (!snapshots.isEmpty()) {
-                log.info("[{}] 상위 5종목:", market);
-                snapshots.stream()
-                        .limit(5)
-                        .forEach(s -> log.info(
-                                "  {}위 {} {} 기여도={} 등락률={}%",
-                                s.getRank(),
-                                s.getStockCode(),
-                                s.getStockName(),
-                                s.getContributionScore(),
-                                s.getPriceChangeRate()));
-            }
-        }
-    }
     //    @Test
     void ka20002_업종별주가() {
         for (var market : List.of(new String[] {"KOSPI", "0", "001"}, new String[] {"KOSDAQ", "1", "101"})) {

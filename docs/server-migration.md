@@ -142,7 +142,7 @@ macOS `/bin/bash` 3.2에서 구문과 회귀 검사를 실행한다. 게이트 �
 
 전용 검사는 `KiwoomProxyManualTest`로 작성하고 `kiwoomProxyTest` 태스크로 그 클래스만 실행한다.
 Spring 컨텍스트·DB·수집기·스케줄러를 기동하지 않고 `ApplicationConfig`의 키움 클라이언트와 실제 토큰 관리자를 직접 구성한다.
-지수기여도 수집기의 `SectorCurrentPriceRequest`로 코스피 종합 지수 조회를 한 번만 요청한다. 연속조회와 재시도는 하지 않는다.
+시장 스냅샷 수집기의 `SectorCurrentPriceRequest`로 코스피 종합 지수 조회를 한 번만 요청한다. 연속조회와 재시도는 하지 않는다.
 이 API는 날짜를 받지 않으므로 지정일 조회로 표현하지 않는다. 성공 시 성공 코드와 비밀이 아닌 지수값만 출력한다.
 JUnit 검사는 프로세스에 주입된 키움 인증 변수와 프록시 변수만 사용한다.
 사용자 실행용 `KiwoomProxyCheck`는 `--env-file`로 명시한 파일에서 인증·프록시 네 변수만 선별한다. 파일을 셸로 실행하지 않는다.
