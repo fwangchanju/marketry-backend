@@ -17,6 +17,7 @@ public enum ErrorCode {
     TOSS_AUTH_NOT_CONFIGURED("토스 API 인증 설정이 없습니다."),
     TOSS_TOKEN_ISSUE_FAILED("토스 토큰 발급에 실패했습니다."),
     TOSS_CALENDAR_FETCH_FAILED("토스 시장 시간표 조회에 실패했습니다."),
+    TOSS_STOCK_LIST_FETCH_FAILED("토스 종목 목록 조회에 실패했습니다."),
 
     // Kiwoom API
     KIWOOM_HTTP_ERROR("키움 API HTTP 오류가 발생했습니다."),

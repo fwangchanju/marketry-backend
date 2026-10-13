@@ -8,6 +8,7 @@ import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.common.util.Strings;
 import dev.eolmae.marketry.domain.stock.client.KiwoomApiClient;
 import dev.eolmae.marketry.domain.stock.client.NextradeStockListClient;
+import dev.eolmae.marketry.domain.stock.client.TossStockListClient;
 import dev.eolmae.marketry.domain.stock.dto.StockInfoRequest;
 import dev.eolmae.marketry.domain.stock.dto.StockInfoResponse;
 import dev.eolmae.marketry.domain.stock.entity.IndustryInfo;
@@ -39,8 +40,12 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @RequiredArgsConstructor
 public class StockInfoCollector {
 
+    // 키움 응답 중 토스가 상장폐지라고 하는 종목이 이 비율을 넘으면 어느 한쪽 응답이 이상한 것으로 본다.
+    private static final double MAX_DELISTED_RATIO = 0.05;
+
     private final KiwoomApiClient kiwoomApiClient;
     private final NextradeStockListClient nextradeStockListClient;
+    private final TossStockListClient tossStockListClient;
     private final StockInfoRepository stockInfoRepository;
     private final IndustryInfoRepository industryInfoRepository;
     private final StockInfoCacheService stockInfoCacheService;
@@ -60,6 +65,9 @@ public class StockInfoCollector {
         }
 
         int fetchedCount = fetchedStocks.size();
+        // 키움은 상장폐지된 종목을 응답에 오래 남겨 둔다 — 토스가 상장폐지로 알리는 종목은 응답에 없는 것처럼 다뤄 비활성으로 돌린다.
+        Set<String> delistedStockCodes = findDelistedStockCodes(fetchedStocks.keySet());
+        delistedStockCodes.forEach(fetchedStocks::remove);
 
         Map<String, IndustryInfo> industryByName = syncIndustryInfo(fetchedStocks.values());
         // null이면 이번에는 NXT 거래 가능 여부를 알 수 없다는 뜻이라 기존 값을 그대로 둔다.
@@ -111,9 +119,33 @@ public class StockInfoCollector {
         evictCacheAfterCommit();
 
         log.info(
-                "종목 정보 동기화 완료: 조회 종목 수={}, NXT 거래 가능={}",
+                "종목 정보 동기화 완료: 조회 종목 수={}, 상장폐지로 제외={}, NXT 거래 가능={}",
                 fetchedCount,
+                delistedStockCodes.size(),
                 nxtStockCodes == null ? "알 수 없음(기존 값 유지)" : nxtStockCodes.size());
+    }
+
+    /**
+     * 키움이 돌려준 종목 중 토스가 상장폐지로 알리는 종목코드를 찾는다. 토스 조회에 실패하면 이번에는 거르지 않는다(키움 동기화는
+     * 그대로 진행한다). 토스가 상장 종목의 일정 비율을 넘게 폐지라고 하면 응답 이상으로 보고 거르지 않는다.
+     */
+    private Set<String> findDelistedStockCodes(Set<String> fetchedStockCodes) {
+        Set<String> tossDelisted;
+        try {
+            tossDelisted = tossStockListClient.fetchDelistedStockCodes();
+        } catch (Exception e) {
+            log.warn("토스 상장폐지 종목 조회 실패, 이번에는 상장폐지 종목을 거르지 않는다: {}", e.getMessage());
+            return Set.of();
+        }
+        Set<String> delisted = new HashSet<>(tossDelisted);
+        delisted.retainAll(fetchedStockCodes);
+        if (delisted.size() > fetchedStockCodes.size() * MAX_DELISTED_RATIO) {
+            log.error(
+                    "토스 상장폐지 종목이 키움 응답의 {}%를 넘어 응답 이상으로 보고 거르지 않는다: 폐지={}, 키움 응답={}",
+                    (int) (MAX_DELISTED_RATIO * 100), delisted.size(), fetchedStockCodes.size());
+            return Set.of();
+        }
+        return delisted;
     }
 
     /**
