@@ -136,6 +136,21 @@ DB 마이그레이션이 끼어 있으면 이미지 롤백만으로는 부족하
 `docs/rules/process.md`의 마이그레이션 규칙대로 **하위호환 추가만** 하고, 스키마 PR을 먼저 병합·배포한다.
 그래야 롤백한 옛 이미지도 새 스키마에서 뜬다.
 
+### 테이블·데이터 삭제는 마이그레이션이 아니라 소유자가 DB에서 직접 한다
+
+CI의 `Migration guard`가 마이그레이션 SQL의 `DROP`·`TRUNCATE`·`DELETE`를 막는다("파괴적 변경은 PR이 아니라 소유자가 DB에서 직접 한다"). 필수 체크라서 우회하지 않는다.
+쓰는 코드를 먼저 걷어내 배포한 뒤, 소유자가 `deploy` 계정에서 직접 지운다. 되돌릴 수 없으니 지우기 전에 04:30 백업이 만들어졌는지 확인하고, 하나의 트랜잭션으로 묶는다.
+
+```
+docker exec -i marketry-postgres psql -U marketry -d marketry_db -v ON_ERROR_STOP=1 <<'SQL'
+BEGIN;
+DROP TABLE IF EXISTS <테이블>;
+COMMIT;
+SQL
+```
+
+직접 지우면 `flyway_schema_history`와 앱 시작에는 영향이 없다. 엔티티가 남아 있는 상태에서 테이블을 지우면 `ddl-auto=validate`가 시작을 거부하므로, 엔티티를 지운 이미지를 배포한 뒤에 지운다.
+
 ### 이미 적용된 V1을 다시 고쳐야 할 때 (예외)
 
 V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다(`validate-on-migrate`). 순서:
