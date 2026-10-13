@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.enums.Market;
+import dev.eolmae.marketry.domain.stock.entity.SectorPriceSnapshot;
 import dev.eolmae.marketry.domain.stock.entity.StockInfo;
 import dev.eolmae.marketry.domain.stock.entity.StockTradingSuspension;
 import dev.eolmae.marketry.domain.stock.repository.StockTradingSuspensionRepository;
+import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.view.dto.MarketNoticeItem;
 import dev.eolmae.marketry.domain.view.enums.MarketNoticeType;
@@ -25,7 +27,10 @@ class MarketNoticeServiceTest {
     private final StockTradingSuspensionRepository suspensionRepository =
             Mockito.mock(StockTradingSuspensionRepository.class);
     private final StockInfoCacheService stockInfoCacheService = Mockito.mock(StockInfoCacheService.class);
-    private final MarketNoticeService service = new MarketNoticeService(suspensionRepository, stockInfoCacheService);
+    private final SectorPriceSnapshotService sectorPriceSnapshotService =
+            Mockito.mock(SectorPriceSnapshotService.class);
+    private final MarketNoticeService service =
+            new MarketNoticeService(suspensionRepository, stockInfoCacheService, sectorPriceSnapshotService);
 
     private StockInfo stock(String code, String name, String marketCode, LocalDate createdOn) {
         StockInfo stock = StockInfo.create(code, name, Market.KOSPI, marketCode, null, 100L, BigDecimal.TEN, false);
@@ -145,5 +150,27 @@ class MarketNoticeServiceTest {
                 .thenReturn(List.of(excludedOn("111111", TODAY), notYetExcluded, excludedOn("333333", TODAY)));
 
         assertThat(service.getNotices(TODAY).currentSuspensionCount()).isEqualTo(2);
+    }
+
+    @Test
+    void 시가총액_합은_최신_현재가와_상장주식수로_계산하고_가격이_없는_종목은_뺀다() {
+        Map<String, StockInfo> stocks = new HashMap<>();
+        stocks.put("100001", stock("100001", "신규1", "0", TODAY)); // 상장주식수 100
+        stocks.put("100002", stock("100002", "신규2", "0", TODAY)); // 가격 없음
+        stocks.put("111111", stock("111111", "정지1", "0", LocalDate.of(2020, 1, 1)));
+        when(stockInfoCacheService.getCache()).thenReturn(stocks);
+        when(suspensionRepository.findByExcludedFrom(TODAY)).thenReturn(List.of());
+        when(suspensionRepository.findByEndedOnIsNull()).thenReturn(List.of(excludedOn("111111", TODAY)));
+        var price1 = Mockito.mock(SectorPriceSnapshot.class);
+        when(price1.getCurrentPrice()).thenReturn(new BigDecimal("1500"));
+        var price3 = Mockito.mock(SectorPriceSnapshot.class);
+        when(price3.getCurrentPrice()).thenReturn(new BigDecimal("200"));
+        when(sectorPriceSnapshotService.findLatestPriceByStockCode())
+                .thenReturn(Map.of("100001", price1, "111111", price3));
+
+        var response = service.getNotices(TODAY);
+
+        assertThat(response.recentNewListingMarketValue()).isEqualTo(150_000L);
+        assertThat(response.currentSuspensionMarketValue()).isEqualTo(20_000L);
     }
 }

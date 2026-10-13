@@ -1,13 +1,16 @@
 package dev.eolmae.marketry.domain.view.service;
 
+import dev.eolmae.marketry.domain.stock.entity.SectorPriceSnapshot;
 import dev.eolmae.marketry.domain.stock.entity.StockInfo;
 import dev.eolmae.marketry.domain.stock.entity.StockTradingSuspension;
 import dev.eolmae.marketry.domain.stock.enums.StockMarketCode;
 import dev.eolmae.marketry.domain.stock.repository.StockTradingSuspensionRepository;
+import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.view.dto.MarketNoticeItem;
 import dev.eolmae.marketry.domain.view.dto.MarketNoticeResponse;
 import dev.eolmae.marketry.domain.view.enums.MarketNoticeType;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -38,14 +41,23 @@ public class MarketNoticeService {
 
     private final StockTradingSuspensionRepository suspensionRepository;
     private final StockInfoCacheService stockInfoCacheService;
+    private final SectorPriceSnapshotService sectorPriceSnapshotService;
 
     public MarketNoticeResponse getNotices(LocalDate date) {
         Map<String, StockInfo> stocks = stockInfoCacheService.getCache();
         List<MarketNoticeItem> items = new ArrayList<>();
         items.addAll(suspensionNotices(date, stocks));
         items.addAll(newListingNotices(date, stocks));
+        List<StockInfo> recentListings = recentNewListings(date, stocks);
+        List<StockInfo> suspended = currentSuspendedStocks(stocks);
+        Map<String, SectorPriceSnapshot> prices = sectorPriceSnapshotService.findLatestPriceByStockCode();
         return new MarketNoticeResponse(
-                date, items, countRecentNewListings(date, stocks), countCurrentSuspensions(stocks));
+                date,
+                items,
+                recentListings.size(),
+                suspended.size(),
+                totalMarketValue(recentListings, prices),
+                totalMarketValue(suspended, prices));
     }
 
     private List<MarketNoticeItem> suspensionNotices(LocalDate date, Map<String, StockInfo> stocks) {
@@ -71,24 +83,39 @@ public class MarketNoticeService {
         return listings;
     }
 
-    /** 최근 3개월(기준일 포함) 신규 상장 수. 종목이 한꺼번에 들어온 날(첫 종목 동기화)은 신규 상장이 아니므로 센다. 세지 않는다. */
-    private int countRecentNewListings(LocalDate date, Map<String, StockInfo> stocks) {
+    /** 최근 3개월(기준일 포함) 신규 상장 종목. 종목이 한꺼번에 들어온 날(첫 종목 동기화)은 신규 상장이 아니므로 세지 않는다. */
+    private List<StockInfo> recentNewListings(LocalDate date, Map<String, StockInfo> stocks) {
         LocalDate since = date.minusMonths(RECENT_LISTING_MONTHS);
-        Map<LocalDate, Long> perDay = newListingTargets(stocks)
-                .map(stock -> stock.getCreatedAt().toLocalDate())
-                .filter(day -> day.isAfter(since) && !day.isAfter(date))
-                .collect(Collectors.groupingBy(day -> day, Collectors.counting()));
-        return perDay.values().stream()
-                .filter(count -> count <= MAX_NEW_LISTINGS_PER_DAY)
-                .mapToInt(Long::intValue)
-                .sum();
+        List<StockInfo> inPeriod = newListingTargets(stocks)
+                .filter(stock -> {
+                    LocalDate day = stock.getCreatedAt().toLocalDate();
+                    return day.isAfter(since) && !day.isAfter(date);
+                })
+                .toList();
+        Map<LocalDate, Long> perDay = inPeriod.stream()
+                .collect(Collectors.groupingBy(stock -> stock.getCreatedAt().toLocalDate(), Collectors.counting()));
+        return inPeriod.stream()
+                .filter(stock -> perDay.get(stock.getCreatedAt().toLocalDate()) <= MAX_NEW_LISTINGS_PER_DAY)
+                .toList();
     }
 
-    private int countCurrentSuspensions(Map<String, StockInfo> stocks) {
-        return (int) suspensionRepository.findByEndedOnIsNull().stream()
+    private List<StockInfo> currentSuspendedStocks(Map<String, StockInfo> stocks) {
+        return suspensionRepository.findByEndedOnIsNull().stream()
                 .map(suspension -> stocks.get(suspension.getStockCode()))
                 .filter(stock -> stock != null && stock.isActiveAndOrdinary())
-                .count();
+                .toList();
+    }
+
+    /** 지도와 같은 방식의 현시점 시가총액 합(원) — 최신 현재가 × 상장주식수. 가격이 아직 없는 종목은 뺀다. */
+    private static long totalMarketValue(List<StockInfo> stocks, Map<String, SectorPriceSnapshot> prices) {
+        BigDecimal sum = BigDecimal.ZERO;
+        for (StockInfo stock : stocks) {
+            SectorPriceSnapshot price = prices.get(stock.getStockCode());
+            if (price != null) {
+                sum = sum.add(price.getCurrentPrice().multiply(BigDecimal.valueOf(stock.getListCount())));
+            }
+        }
+        return sum.longValue();
     }
 
     private static Stream<StockInfo> newListingTargets(Map<String, StockInfo> stocks) {
