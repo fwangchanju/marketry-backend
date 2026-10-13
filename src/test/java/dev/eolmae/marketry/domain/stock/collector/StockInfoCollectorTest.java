@@ -1,5 +1,6 @@
 package dev.eolmae.marketry.domain.stock.collector;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -11,6 +12,7 @@ import dev.eolmae.marketry.common.event.IndustryInfoCreatedEvent;
 import dev.eolmae.marketry.common.event.StockInfoSyncedEvent;
 import dev.eolmae.marketry.domain.stock.client.KiwoomApiClient;
 import dev.eolmae.marketry.domain.stock.client.NextradeStockListClient;
+import dev.eolmae.marketry.domain.stock.client.TossStockListClient;
 import dev.eolmae.marketry.domain.stock.dto.StockInfoRequest;
 import dev.eolmae.marketry.domain.stock.dto.StockInfoResponse;
 import dev.eolmae.marketry.domain.stock.entity.StockInfo;
@@ -33,6 +35,7 @@ class StockInfoCollectorTest {
 
     private final KiwoomApiClient kiwoomApiClient = Mockito.mock(KiwoomApiClient.class);
     private final NextradeStockListClient nextradeStockListClient = Mockito.mock(NextradeStockListClient.class);
+    private final TossStockListClient tossStockListClient = Mockito.mock(TossStockListClient.class);
     private final StockInfoRepository stockInfoRepository = Mockito.mock(StockInfoRepository.class);
     private final IndustryInfoRepository industryInfoRepository = Mockito.mock(IndustryInfoRepository.class);
     private final JdbcTemplate jdbcTemplate = Mockito.mock(JdbcTemplate.class);
@@ -41,6 +44,7 @@ class StockInfoCollectorTest {
     private final StockInfoCollector collector = new StockInfoCollector(
             kiwoomApiClient,
             nextradeStockListClient,
+            tossStockListClient,
             stockInfoRepository,
             industryInfoRepository,
             stockInfoCacheService,
@@ -244,6 +248,71 @@ class StockInfoCollectorTest {
         collector.sync();
 
         verify(eventPublisher, never()).publishEvent(any(StockInfoSyncedEvent.class));
+    }
+
+    @Test
+    void sync_토스가_상장폐지로_알리는_종목은_응답에_없는_것처럼_비활성으로_돌린다() {
+        StockInfo delisted = StockInfo.create("100005", "폐지종목", Market.KOSPI, "0", null, 100L, null, false);
+        StockInfo listed = StockInfo.create("100001", "상장종목", Market.KOSPI, "0", null, 100L, null, false);
+        when(kiwoomApiClient.post(any(StockInfoRequest.class), eq(StockInfoResponse.class)))
+                .thenReturn(new StockInfoResponse("0", "정상", kiwoomItems(20)));
+        when(tossStockListClient.fetchDelistedStockCodes()).thenReturn(Set.of("100005"));
+        when(stockInfoRepository.findAll()).thenReturn(List.of(delisted, listed));
+
+        collector.sync();
+
+        assertThat(delisted.isActive()).isFalse();
+        assertThat(listed.isActive()).isTrue();
+    }
+
+    @Test
+    void sync_토스가_상장폐지로_알리는_신규_종목은_저장하지_않는다() {
+        when(kiwoomApiClient.post(any(StockInfoRequest.class), eq(StockInfoResponse.class)))
+                .thenReturn(new StockInfoResponse("0", "정상", kiwoomItems(20)));
+        when(tossStockListClient.fetchDelistedStockCodes()).thenReturn(Set.of("100005"));
+        when(stockInfoRepository.findAll()).thenReturn(List.of());
+
+        collector.sync();
+
+        verify(stockInfoRepository)
+                .saveAllAndFlush(Mockito.<List<StockInfo>>argThat(saved -> saved.size() == 19
+                        && saved.stream()
+                                .noneMatch(stock -> stock.getStockCode().equals("100005"))));
+    }
+
+    @Test
+    void sync_토스_조회가_실패하면_상장폐지를_거르지_않고_동기화는_계속한다() {
+        StockInfo existing = StockInfo.create("100001", "종목1", Market.KOSPI, "0", null, 100L, null, false);
+        when(kiwoomApiClient.post(any(StockInfoRequest.class), eq(StockInfoResponse.class)))
+                .thenReturn(new StockInfoResponse("0", "정상", kiwoomItems(20)));
+        when(tossStockListClient.fetchDelistedStockCodes()).thenThrow(new IllegalStateException("조회 실패"));
+        when(stockInfoRepository.findAll()).thenReturn(List.of(existing));
+
+        collector.sync();
+
+        assertThat(existing.isActive()).isTrue();
+        verify(stockInfoRepository).saveAllAndFlush(Mockito.<List<StockInfo>>argThat(saved -> saved.size() == 19));
+    }
+
+    @Test
+    void sync_토스_상장폐지가_키움_응답의_5퍼센트를_넘으면_응답_이상으로_보고_거르지_않는다() {
+        StockInfo existing = StockInfo.create("100001", "종목1", Market.KOSPI, "0", null, 100L, null, false);
+        when(kiwoomApiClient.post(any(StockInfoRequest.class), eq(StockInfoResponse.class)))
+                .thenReturn(new StockInfoResponse("0", "정상", kiwoomItems(20)));
+        // 20개 중 2개(10%)가 폐지라고 하면 5%를 넘는다.
+        when(tossStockListClient.fetchDelistedStockCodes()).thenReturn(Set.of("100001", "100002"));
+        when(stockInfoRepository.findAll()).thenReturn(List.of(existing));
+
+        collector.sync();
+
+        assertThat(existing.isActive()).isTrue();
+    }
+
+    private static List<StockInfoResponse.StockItem> kiwoomItems(int count) {
+        return java.util.stream.IntStream.rangeClosed(1, count)
+                .mapToObj(index -> new StockInfoResponse.StockItem(
+                        String.valueOf(100_000 + index), "종목" + index, "0", "", "100", "10000", null))
+                .toList();
     }
 
     @Test
