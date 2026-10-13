@@ -14,11 +14,13 @@ import dev.eolmae.marketry.domain.custom.service.CustomSectorService;
 import dev.eolmae.marketry.domain.custom.service.CustomValueTierThresholdService;
 import dev.eolmae.marketry.domain.stock.enums.MarketCalendarStatus;
 import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
+import dev.eolmae.marketry.domain.view.dto.MarketNoticeResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse.TimeWindow;
 import dev.eolmae.marketry.domain.view.enums.ChangeRateMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
 import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
+import dev.eolmae.marketry.domain.view.service.MarketNoticeService;
 import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -33,12 +35,14 @@ class MarketMapControllerTest {
 
     private final MarketMapQueryService marketMapQueryService = mock(MarketMapQueryService.class);
     private final MarketTradingScheduleService tradingScheduleService = mock(MarketTradingScheduleService.class);
+    private final MarketNoticeService marketNoticeService = mock(MarketNoticeService.class);
     private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketMapController(
                     marketMapQueryService,
                     mock(CustomSectorService.class),
                     mock(CustomScaleService.class),
                     mock(CustomValueTierThresholdService.class),
-                    tradingScheduleService))
+                    tradingScheduleService,
+                    marketNoticeService))
             .build();
 
     @Test
@@ -61,6 +65,36 @@ class MarketMapControllerTest {
                 .andExpect(jsonPath("$.regularMarket.endTime").value("2025-11-13T16:30:00"))
                 .andExpect(jsonPath("$.nxtOnlyWindows[0].startTime").value("2025-11-13T16:40:00"))
                 .andExpect(jsonPath("$.nxtOnlyWindows[0].endTime").value("2025-11-13T17:00:00"));
+    }
+
+    @Test
+    void 안내_조회는_날짜를_바인딩하고_종목_안내를_내려준다() throws Exception {
+        LocalDate date = LocalDate.of(2026, 10, 14);
+        when(marketNoticeService.getNotices(date))
+                .thenReturn(new MarketNoticeResponse(
+                        date,
+                        List.of(new dev.eolmae.marketry.domain.view.dto.MarketNoticeItem(
+                                dev.eolmae.marketry.domain.view.enums.MarketNoticeType.TRADING_SUSPENSION,
+                                "005930",
+                                "삼성전자",
+                                dev.eolmae.marketry.common.enums.Market.KOSPI,
+                                date))));
+
+        mockMvc.perform(get("/api/map/notices?date=2026-10-14"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.date").value("2026-10-14"))
+                .andExpect(jsonPath("$.items[0].type").value("TRADING_SUSPENSION"))
+                .andExpect(jsonPath("$.items[0].stockCode").value("005930"));
+    }
+
+    @Test
+    void 안내_조회는_날짜가_없으면_오늘_날짜로_조회한다() throws Exception {
+        when(marketNoticeService.getNotices(org.mockito.ArgumentMatchers.any(LocalDate.class)))
+                .thenReturn(new MarketNoticeResponse(LocalDate.of(2026, 10, 14), List.of()));
+
+        mockMvc.perform(get("/api/map/notices")).andExpect(status().isOk());
+
+        verify(marketNoticeService).getNotices(org.mockito.ArgumentMatchers.any(LocalDate.class));
     }
 
     @Test

@@ -13,6 +13,9 @@ public interface StockTradingSuspensionRepository extends JpaRepository<StockTra
     /** 제외가 시작됐고 아직 재개되지 않은 거래정지. */
     List<StockTradingSuspension> findByExcludedFromLessThanEqualAndEndedOnIsNull(LocalDate date);
 
+    /** {@code date}에 제외가 시작된 거래정지. */
+    List<StockTradingSuspension> findByExcludedFrom(LocalDate date);
+
     /** 제외가 시작됐고 {@code date} 이후에 재개된 거래정지. */
     List<StockTradingSuspension> findByExcludedFromLessThanEqualAndEndedOnGreaterThan(
             LocalDate date, LocalDate endedAfter);
