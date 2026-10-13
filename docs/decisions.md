@@ -462,6 +462,8 @@ sha를 넘겨 `ARG ASSETS_TAG`로 빌드하면, 스킵 최적화가 다시 의�
 
 **API**: `GET /api/map/notices?date=yyyy-MM-dd`(날짜가 없으면 오늘 KST, 로그인 없이 읽는다). 응답은 `{date, items: [{type, stockCode, stockName, market, baseDate}]}`이고 `type`은 `TRADING_SUSPENSION`·`NEW_LISTING`이다. 수집이나 테이블을 새로 만들지 않고 이미 있는 기록(`stock_trading_suspension`, `stock_info.created_at`)으로 만든다.
 
+**건수 두 개 (2026-10-14)**: 응답에 날짜와 무관한 현황 `recentNewListingCount`(기준일 포함 최근 3개월 신규 상장 수)와 `currentSuspensionCount`(재개되지 않은 활성 보통주 수, 아직 5거래일이 안 돼 지도에서 빠지기 전인 종목 포함)를 더했다. 요청 때 캐시·DB로 계산하므로 별도 배치는 없다. 신규 상장은 `stock_info.created_at`(우리가 처음 수집한 날)으로 세는데, 이 환경은 2026-07-24에 종목이 한꺼번에 들어왔으므로 하루 100개를 넘은 날은 세지 않는다.
+
 **한계**: 그날이 지나면 사라지므로 지난날의 안내를 다시 볼 수 없다. 종목 정보 동기화가 07:00에 한 번이라 그날의 안내는 그 동기화 뒤에 생긴다. 종목 정보 캐시는 동기화 직후 비워진다.
 
 ## 로그인과 사용자별 데이터

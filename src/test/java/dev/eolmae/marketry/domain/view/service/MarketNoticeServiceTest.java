@@ -111,4 +111,39 @@ class MarketNoticeServiceTest {
 
         assertThat(service.getNotices(TODAY).items()).isEmpty();
     }
+
+    @Test
+    void 최근_3개월_신규_상장_수는_기간_밖과_한꺼번에_들어온_날을_뺀다() {
+        Map<String, StockInfo> stocks = new HashMap<>();
+        stocks.put("100001", stock("100001", "오늘상장", "0", TODAY));
+        stocks.put("100002", stock("100002", "두달전", "0", TODAY.minusMonths(2)));
+        stocks.put("100003", stock("100003", "석달하루전", "0", TODAY.minusMonths(3).minusDays(1)));
+        stocks.put("100004", stock("100004", "ETF", "8", TODAY));
+        LocalDate bulkDay = TODAY.minusMonths(1);
+        for (int index = 0; index <= MarketNoticeService.MAX_NEW_LISTINGS_PER_DAY; index++) {
+            String code = String.format("2%05d", index);
+            stocks.put(code, stock(code, "한꺼번에" + index, "0", bulkDay));
+        }
+        when(stockInfoCacheService.getCache()).thenReturn(stocks);
+        when(suspensionRepository.findByExcludedFrom(TODAY)).thenReturn(List.of());
+        when(suspensionRepository.findByEndedOnIsNull()).thenReturn(List.of());
+
+        assertThat(service.getNotices(TODAY).recentNewListingCount()).isEqualTo(2);
+    }
+
+    @Test
+    void 현재_거래정지_수는_재개되지_않은_활성_주권만_센다() {
+        Map<String, StockInfo> stocks = new HashMap<>();
+        stocks.put("111111", stock("111111", "정지1", "0", LocalDate.of(2020, 1, 1)));
+        stocks.put("222222", stock("222222", "정지2", "0", LocalDate.of(2020, 1, 1)));
+        stocks.put("333333", stock("333333", "ETF", "8", LocalDate.of(2020, 1, 1)));
+        when(stockInfoCacheService.getCache()).thenReturn(stocks);
+        when(suspensionRepository.findByExcludedFrom(TODAY)).thenReturn(List.of());
+        // 아직 5거래일이 안 돼 지도에서 빠지기 전인 정지도 센다.
+        var notYetExcluded = StockTradingSuspension.start("222222", TODAY, LocalDateTime.of(2026, 10, 14, 7, 0));
+        when(suspensionRepository.findByEndedOnIsNull())
+                .thenReturn(List.of(excludedOn("111111", TODAY), notYetExcluded, excludedOn("333333", TODAY)));
+
+        assertThat(service.getNotices(TODAY).currentSuspensionCount()).isEqualTo(2);
+    }
 }
