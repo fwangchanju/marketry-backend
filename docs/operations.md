@@ -161,7 +161,7 @@ V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다
 |---|---|
 | 정적 페이지, 기본 지도·섹터 | 누구나 |
 | `/api/custom/**`, `isCustom=true` | 로그인 사용자, 자기 데이터만 |
-| `/api/admin/**`, `/api/watch-stocks/**` | `users.role = ADMIN` |
+| `/api/admin/**` | `users.role = ADMIN` |
 
 관리자 권한은 DB에서 직접 준다: `UPDATE users SET role = 'ADMIN' WHERE id = ?;` 역할은 토큰에 담기므로
 대상 사용자가 다시 로그인해야 적용된다.

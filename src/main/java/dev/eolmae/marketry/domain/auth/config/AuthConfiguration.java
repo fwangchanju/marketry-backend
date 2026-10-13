@@ -44,7 +44,7 @@ public class AuthConfiguration {
                         .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**")
                         .permitAll()
-                        .requestMatchers("/api/admin/**", "/api/watch-stocks", "/api/watch-stocks/**")
+                        .requestMatchers("/api/admin/**")
                         .hasRole("ADMIN")
                         // 종목명 약칭 지정은 관리자 전용이다 — 종목 이름을 바꿔 악용할 소지가 있어 일반 사용자에게 열지 않는다.
                         // 아래 /api/custom/** 규칙보다 앞에 둬야 한다(먼저 일치한 규칙이 적용된다).

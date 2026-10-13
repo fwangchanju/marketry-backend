@@ -79,10 +79,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     }
 
     private boolean isAdminRoute(String path) {
-        return "/api/admin".equals(path)
-                || path.startsWith("/api/admin/")
-                || "/api/watch-stocks".equals(path)
-                || path.startsWith("/api/watch-stocks/");
+        return "/api/admin".equals(path) || path.startsWith("/api/admin/");
     }
 
     private String bearerToken(HttpServletRequest request) {

@@ -19,9 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 하루 세 번(telegram.map-send-times) 코스피+코스닥 맵을 앨범 하나로 묶어 보낸다. 기존
- * {@link MarketMapTelegramReportSender}(마켓 하나, {@link TelegramReportSender} 상속,
- * collectMarketDataHourly 전용이라 지금은 비활성)와는 별개의 발송기다. 그쪽은 건드리지 않는다.
+ * 하루 세 번(telegram.map-send-times) 코스피+코스닥 맵을 앨범 하나로 묶어 보낸다.
  */
 @Slf4j
 @Component
