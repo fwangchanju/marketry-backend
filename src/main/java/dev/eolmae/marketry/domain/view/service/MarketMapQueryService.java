@@ -28,6 +28,7 @@ import dev.eolmae.marketry.domain.stock.service.SectorPriceCacheService.CachedSt
 import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.stock.service.StockIndustryNameResolver;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
+import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
 import dev.eolmae.marketry.domain.view.dto.MarketIndexChangeRate;
 import dev.eolmae.marketry.domain.view.dto.MarketMapItem;
 import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
@@ -92,6 +93,7 @@ public class MarketMapQueryService {
     private final MarketryProperties marketryProperties;
     private final ClosingPriceReader closingPriceReader;
     private final MarketCalendarTimeService marketCalendarTimeService;
+    private final StockTradingSuspensionService stockTradingSuspensionService;
 
     /** 회원과 무관한 종목 공통 정보(시장·NXT 거래 가능 여부·거래소 업종명). 읽기 전용 시트가 로그인 없이도 쓴다. */
     public List<StockCatalogItem> getStockCatalog() {
@@ -130,7 +132,7 @@ public class MarketMapQueryService {
 
     private MarketMapResponse buildDefaultMarketMap(
             List<Market> markets, LocalDateTime latestSnapshotTime, boolean nxtOnly, ChangeRateMode basis) {
-        List<StockInfo> candidates = filterCandidates(markets).stream()
+        List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime).stream()
                 .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
                 .toList();
         Map<String, CachedStockPrice> priceMap = findPrices(markets, latestSnapshotTime, basis);
@@ -644,7 +646,7 @@ public class MarketMapQueryService {
             Long userId,
             boolean nxtOnly,
             ChangeRateMode basis) {
-        List<StockInfo> candidates = filterCandidates(markets).stream()
+        List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime).stream()
                 .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
                 .toList();
         List<CustomSector> sectors = customSectorRepository.findAllByUserId(userId);
@@ -794,10 +796,17 @@ public class MarketMapQueryService {
         return AfterHoursChangeRates.apply(priceMap, closing);
     }
 
-    private List<StockInfo> filterCandidates(List<Market> markets) {
+    /**
+     * 지도와 평균에 담을 종목. 거래정지가 연속 5거래일 이상 이어진 종목은 그 스냅샷 날짜 기준으로 뺀다 — 가격이 움직이지 않아
+     * 등락률 0%로 평균을 끌어당기기 때문이다. 정지가 풀리면 가격이 다시 들어온 날부터 돌아온다.
+     */
+    private List<StockInfo> filterCandidates(List<Market> markets, LocalDateTime snapshotTime) {
+        Set<String> suspendedStockCodes =
+                stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate());
         return stockInfoCacheService.getCache().values().stream()
                 .filter(stockInfo -> markets.contains(stockInfo.getMarketType()))
                 .filter(StockInfo::isActiveAndOrdinary)
+                .filter(stockInfo -> !suspendedStockCodes.contains(stockInfo.getStockCode()))
                 .toList();
     }
 
