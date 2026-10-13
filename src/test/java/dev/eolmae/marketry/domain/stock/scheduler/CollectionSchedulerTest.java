@@ -13,7 +13,7 @@ import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.schedule.TelegramSendSchedule;
 import dev.eolmae.marketry.domain.notification.service.TelegramCollectionFailureNotifier;
 import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
-import dev.eolmae.marketry.domain.stock.collector.IndexContributionRankingCollector;
+import dev.eolmae.marketry.domain.stock.collector.MarketSnapshotCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
@@ -26,8 +26,7 @@ import org.mockito.Mockito;
 
 class CollectionSchedulerTest {
     private static final LocalDate DATE = LocalDate.of(2026, 1, 2);
-    private final IndexContributionRankingCollector indexCollector =
-            Mockito.mock(IndexContributionRankingCollector.class);
+    private final MarketSnapshotCollector snapshotCollector = Mockito.mock(MarketSnapshotCollector.class);
     private final TelegramReportDispatcher dispatcher = Mockito.mock(TelegramReportDispatcher.class);
     private final TelegramCollectionFailureNotifier failureNotifier =
             Mockito.mock(TelegramCollectionFailureNotifier.class);
@@ -36,7 +35,7 @@ class CollectionSchedulerTest {
     private final EscalationPublisher escalationPublisher = Mockito.mock(EscalationPublisher.class);
     private final StockInfoCollector stockInfoCollector = Mockito.mock(StockInfoCollector.class);
     private final CollectionScheduler scheduler = new CollectionScheduler(
-            indexCollector,
+            snapshotCollector,
             stockInfoCollector,
             dispatcher,
             failureNotifier,
@@ -65,10 +64,10 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(20, 0));
         scheduler.collectMarketData(DATE.atTime(20, 5));
 
-        verify(indexCollector, never()).collect(DATE.atTime(7, 55));
-        verify(indexCollector).collect(DATE.atTime(8, 0));
-        verify(indexCollector).collect(DATE.atTime(20, 0));
-        verify(indexCollector, never()).collect(DATE.atTime(20, 5));
+        verify(snapshotCollector, never()).collect(DATE.atTime(7, 55));
+        verify(snapshotCollector).collect(DATE.atTime(8, 0));
+        verify(snapshotCollector).collect(DATE.atTime(20, 0));
+        verify(snapshotCollector, never()).collect(DATE.atTime(20, 5));
     }
 
     @Test
@@ -85,9 +84,9 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(8, 15));
         scheduler.collectMarketData(DATE.atTime(9, 15));
 
-        verifyNoInteractions(indexCollector, dispatcher);
+        verifyNoInteractions(snapshotCollector, dispatcher);
         scheduler.collectMarketData(DATE.atTime(10, 0));
-        verify(indexCollector).collect(DATE.atTime(10, 0));
+        verify(snapshotCollector).collect(DATE.atTime(10, 0));
     }
 
     @Test
@@ -98,7 +97,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(8, 15));
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
-        verifyNoInteractions(indexCollector, dispatcher, failureNotifier, schedule);
+        verifyNoInteractions(snapshotCollector, dispatcher, failureNotifier, schedule);
     }
 
     @Test
@@ -109,7 +108,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
         verify(dispatcher).sendSector(DATE.atTime(19, 55));
-        verify(indexCollector, never()).collect(DATE.atTime(20, 10));
+        verify(snapshotCollector, never()).collect(DATE.atTime(20, 10));
     }
 
     @Test
@@ -125,7 +124,9 @@ class CollectionSchedulerTest {
 
     @Test
     void 마지막_수집실패는_20시10분에_당일_실패알림을_보낸다() {
-        doThrow(new RuntimeException("collection failed")).when(indexCollector).collect(DATE.atTime(20, 0));
+        doThrow(new RuntimeException("collection failed"))
+                .when(snapshotCollector)
+                .collect(DATE.atTime(20, 0));
         when(schedule.due(DATE.atTime(20, 10), false)).thenReturn(true);
 
         scheduler.collectMarketData(DATE.atTime(20, 0));
@@ -138,7 +139,7 @@ class CollectionSchedulerTest {
     @Test
     void 전날_실패결과가_오늘_성공발송을_막지_않는다() {
         doThrow(new RuntimeException("collection failed"))
-                .when(indexCollector)
+                .when(snapshotCollector)
                 .collect(DATE.minusDays(1).atTime(20, 0));
         when(schedule.due(DATE.atTime(8, 10), true)).thenReturn(true);
         scheduler.collectMarketData(DATE.minusDays(1).atTime(20, 0));
@@ -152,7 +153,9 @@ class CollectionSchedulerTest {
     @Test
     void 수집실패여도_지도발송_정책은_유지한다() {
         LocalDateTime tick = DATE.atTime(8, 15);
-        doThrow(new RuntimeException("collection failed")).when(indexCollector).collect(tick);
+        doThrow(new RuntimeException("collection failed"))
+                .when(snapshotCollector)
+                .collect(tick);
         when(schedule.dueForMap(tick, true, DATE.atTime(15, 30))).thenReturn(true);
 
         scheduler.collectMarketData(tick);
@@ -175,8 +178,8 @@ class CollectionSchedulerTest {
 
         scheduler.collectMarketData(tick);
 
-        InOrder order = inOrder(indexCollector, dispatcher);
-        order.verify(indexCollector).collect(tick);
+        InOrder order = inOrder(snapshotCollector, dispatcher);
+        order.verify(snapshotCollector).collect(tick);
         order.verify(dispatcher).sendMap(tick);
     }
 
@@ -215,8 +218,8 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(8, 0));
         scheduler.collectMarketData(DATE.atTime(8, 5));
 
-        verify(indexCollector).collect(DATE.atTime(8, 0));
-        verify(indexCollector, never()).collect(DATE.atTime(8, 5));
+        verify(snapshotCollector).collect(DATE.atTime(8, 0));
+        verify(snapshotCollector, never()).collect(DATE.atTime(8, 5));
     }
 
     @Test

@@ -8,7 +8,7 @@ import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.schedule.TelegramSendSchedule;
 import dev.eolmae.marketry.domain.notification.service.TelegramCollectionFailureNotifier;
 import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
-import dev.eolmae.marketry.domain.stock.collector.IndexContributionRankingCollector;
+import dev.eolmae.marketry.domain.stock.collector.MarketSnapshotCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CollectionScheduler {
 
-    private final IndexContributionRankingCollector indexContributionRankingCollector;
+    private final MarketSnapshotCollector marketSnapshotCollector;
     private final StockInfoCollector stockInfoCollector;
     private final TelegramReportDispatcher telegramReportDispatcher;
     private final TelegramCollectionFailureNotifier telegramCollectionFailureNotifier;
@@ -64,7 +64,7 @@ public class CollectionScheduler {
         if (shouldCollect) {
             log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
 
-            boolean success = run("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
+            boolean success = run("시장스냅샷", () -> marketSnapshotCollector.collect(snapshotTime));
             lastCollection = new CollectionResult(snapshotTime, success);
 
             log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
@@ -86,7 +86,7 @@ public class CollectionScheduler {
         }
 
         // 맵 발송은 섹터와 별개 시각(telegram.map-send-times)에, 별개 판정으로 돈다. 맵 이미지는
-        // sector_price_snapshot(IndexContributionRankingCollector.collectSectorPrice가 씀)으로
+        // sector_price_snapshot(MarketSnapshotCollector.collectSectorPrice가 씀)으로
         // 그려지므로, 수집이 실패해도 맵 페이지는 최신 공통 시각으로 그대로 그려진다 — 그래서
         // 마지막 수집 성공 여부로 가두지 않는다. 캡션은 그 시각 랭킹이 비면 자연히
         // 빠진다(MarketMapAlbumReportSender.buildCaption).

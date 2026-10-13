@@ -404,7 +404,7 @@ sha를 넘겨 `ARG ASSETS_TAG`로 빌드하면, 스킵 최적화가 다시 의�
 
 ## 대량 insert 배치화를 검토했고 미뤘다
 
-`IndexContributionRankingCollector`가 종목당 `save()`를 호출한다. PK가 IDENTITY라 Hibernate 배치가
+`MarketSnapshotCollector`가 종목당 `save()`를 호출한다. PK가 IDENTITY라 Hibernate 배치가
 구조적으로 불가능하다.
 
 **미룬 이유**: 초당 20건 수준이라 장애로 이어지지 않는다(수집 사이클이 1~3초 더 걸리는 정도). 반면

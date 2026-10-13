@@ -412,7 +412,7 @@ KST 기준을 유지해야 하므로 `DateTimeProvider` 빈을 만들고
 
 ## 대량 insert 성능 개선 (검토 후 보류)
 
-`IndexContributionRankingCollector`가 종목당 `save()`를 호출해 5분마다 약 5,600번의 개별 INSERT가
+`MarketSnapshotCollector`가 종목당 `save()`를 호출해 5분마다 약 5,600번의 개별 INSERT가
 발생한다. PK가 `GENERATED ALWAYS AS IDENTITY`라 Hibernate 배치가 구조적으로 불가능하다
 (INSERT를 실행해야 번호가 나오므로 한 건씩 보낼 수밖에 없다).
 
@@ -579,7 +579,7 @@ suffix가 붙는다. KRX와 NXT 중 유리한 쪽 호가를 알아서 물어다 
 그래서 이런 것들이 따라온다.
 
 - **`sector_price_snapshot.exchange_type`은 전 행이 `SOR`이다.** 정보량이 0이다
-- **`ExchangeType.KRX`/`NXT` 분기는 죽은 코드다.** `IndexContributionRankingCollector`의
+- **`ExchangeType.KRX`/`NXT` 분기는 죽은 코드다.** `MarketSnapshotCollector`의
   "종목당 KRX 줄을 우선 채택" 규칙(`isKrx()`)은 한 번도 참이 된 적이 없다
 - **어느 거래소 가격인지 시간으로 추론할 수 있는 구간은 하나뿐이다.** NXT가 정규장 시간에도 열려
   있어서 10:00 스냅샷의 SOR 값은 출처가 미상이고, 16:00 이후는 KRX 애프터마켓까지 겹쳐 역시
@@ -737,7 +737,7 @@ suffix가 붙는다. KRX와 NXT 중 유리한 쪽 호가를 알아서 물어다 
 
 | 지점 | 무엇을 하나 |
 |---|---|
-| `IndexContributionRankingCollector.toSectorPriceEntity` | 키움 `flu_rt`를 그대로 `change_rate`에 **저장** |
+| `MarketSnapshotCollector.toSectorPriceEntity` | 키움 `flu_rt`를 그대로 `change_rate`에 **저장** |
 | `MarketMapQueryService.toMarketMapItem` | 그 값을 읽어 `MarketMapItem.changeRate`로 |
 | ~~`MarketMapCategoryChangeRateSnapshotService.computeRawSums`~~ | (집계 테이블 제거로 없어졌다 — 지금은 `SectorTierAggregationService`가 조회 시점에 합산) |
 
@@ -1041,7 +1041,7 @@ market.after-hours-start=15:40
 2026-08-28  15:35 없음 (15:30은 있음)
 ```
 
-두 테이블은 같은 수집 tick(`IndexContributionRankingCollector`)이 쓰므로 종목 쪽도 같이 비어
+두 테이블은 같은 수집 tick(`MarketSnapshotCollector`)이 쓰므로 종목 쪽도 같이 비어
 있다. **8/28은 위 윈도우 규칙이 알아서 15:30을 잡아준다. 8/27은 윈도우가 통째로 비어 기준가가
 없다.**
 
@@ -1166,8 +1166,8 @@ Redis로 가면 매 조회마다 수천 건을 직렬화/역직렬화한다. 종
 - 백엔드 변경은 없다. `/api/map` 최신 1회로 좌우 둘 다 그린다. 우측 그래프의 카테고리별 평균은
   좌측 헤더에 찍는 값과 같은 유틸에서 나온다
 
-기존 `/api/summary` 섹션들(투자자 매매, 프로그램 매매, 지수 기여도 등)을 어디로 보낼지는 안
-정했다. 이 페이지에서 빼는 것인지 아래로 내리는 것인지 착수할 때 정한다.
+기존 `/api/summary` 섹션들(투자자 매매, 프로그램 매매, 지수 기여도 등)은 위젯과 함께 지웠다.
+`/api/summary`는 홈이 쓰는 지수 요약(`marketOverviews`)만 돌려준다.
 
 구획 1 프론트 PR과 같은 시기에 한다. 섹터 페이지를 지도 응답 위로 옮기는 작업과 같은 유틸을
 만들기 때문이다.

@@ -17,7 +17,6 @@ import dev.eolmae.marketry.domain.stock.dto.SectorPriceListRequest;
 import dev.eolmae.marketry.domain.stock.dto.SectorPriceListResponse;
 import dev.eolmae.marketry.domain.stock.entity.SectorPriceSnapshot;
 import dev.eolmae.marketry.domain.stock.entity.StockInfo;
-import dev.eolmae.marketry.domain.stock.repository.IndexContributionRankingSnapshotRepository;
 import dev.eolmae.marketry.domain.stock.repository.MarketOverviewSnapshotRepository;
 import dev.eolmae.marketry.domain.stock.repository.SectorPriceSnapshotRepository;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceCacheService;
@@ -35,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 // transactionTemplate을 mock해 collectForMarket(실제 수집)이 돌지 않게 막고, 마켓 트랜잭션 직후의
 // 캐시 적재(warmSectorPriceCache, 결정 5) 부분만 따로 검증한다.
-class IndexContributionRankingCollectorTest {
+class MarketSnapshotCollectorTest {
 
     private final KiwoomApiClient kiwoomApiClient = Mockito.mock(KiwoomApiClient.class);
     private final StockInfoCacheService stockInfoCacheService = Mockito.mock(StockInfoCacheService.class);
@@ -43,18 +42,15 @@ class IndexContributionRankingCollectorTest {
             Mockito.mock(MarketOverviewSnapshotRepository.class);
     private final SectorPriceSnapshotRepository sectorPriceSnapshotRepository =
             Mockito.mock(SectorPriceSnapshotRepository.class);
-    private final IndexContributionRankingSnapshotRepository indexContributionRankingSnapshotRepository =
-            Mockito.mock(IndexContributionRankingSnapshotRepository.class);
     private final SectorPriceCacheService sectorPriceCacheService = Mockito.mock(SectorPriceCacheService.class);
     // executeWithoutResult는 void라 stub 없이도 mock이 아무 것도 안 한다 — collectForMarket이 실행되지
     // 않으므로 kiwoomApiClient 등 나머지 mock은 스텁할 필요가 없다.
     private final TransactionTemplate transactionTemplate = Mockito.mock(TransactionTemplate.class);
-    private final IndexContributionRankingCollector collector = new IndexContributionRankingCollector(
+    private final MarketSnapshotCollector collector = new MarketSnapshotCollector(
             kiwoomApiClient,
             stockInfoCacheService,
             marketOverviewSnapshotRepository,
             sectorPriceSnapshotRepository,
-            indexContributionRankingSnapshotRepository,
             sectorPriceCacheService,
             transactionTemplate);
 
@@ -138,10 +134,6 @@ class IndexContributionRankingCollectorTest {
                 List.of());
         when(kiwoomApiClient.post(any(SectorCurrentPriceRequest.class), eq(SectorCurrentPriceResponse.class)))
                 .thenReturn(sectorCurrentPriceResponse);
-
-        // 랭킹 단계는 건너뛴다 — 이 테스트의 관심사가 아니고, 건너뛰지 않으면 전일 시가총액 0 예외가 난다.
-        when(indexContributionRankingSnapshotRepository.existsBySnapshotTimeAndMarketType(any(), any()))
-                .thenReturn(true);
 
         collector.collect(snapshotTime);
 
