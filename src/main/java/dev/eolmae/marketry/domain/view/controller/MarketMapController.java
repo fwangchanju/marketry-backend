@@ -1,5 +1,6 @@
 package dev.eolmae.marketry.domain.view.controller;
 
+import dev.eolmae.marketry.common.util.KstClock;
 import dev.eolmae.marketry.domain.custom.dto.CustomScaleResponse;
 import dev.eolmae.marketry.domain.custom.dto.CustomValueTierItem;
 import dev.eolmae.marketry.domain.custom.service.CustomScaleService;
@@ -7,6 +8,7 @@ import dev.eolmae.marketry.domain.custom.service.CustomSectorService;
 import dev.eolmae.marketry.domain.custom.service.CustomValueTierThresholdService;
 import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketMapSnapshotDay;
+import dev.eolmae.marketry.domain.view.dto.MarketNoticeResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import dev.eolmae.marketry.domain.view.dto.StockCatalogItem;
 import dev.eolmae.marketry.domain.view.dto.TradingDayGapResponse;
@@ -14,6 +16,7 @@ import dev.eolmae.marketry.domain.view.enums.ChangeRateMode;
 import dev.eolmae.marketry.domain.view.enums.ClassificationSource;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
 import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
+import dev.eolmae.marketry.domain.view.service.MarketNoticeService;
 import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,6 +42,7 @@ public class MarketMapController {
     private final CustomScaleService customScaleService;
     private final CustomValueTierThresholdService customValueTierThresholdService;
     private final MarketTradingScheduleService marketTradingScheduleService;
+    private final MarketNoticeService marketNoticeService;
 
     @GetMapping
     public MarketMapResponse getMarketMap(
@@ -58,6 +62,14 @@ public class MarketMapController {
             case MARKETRY -> marketMapQueryService.getPublishedMarketMap(market, snapshotTime, nxtOnly, changeRateMode);
             case MINE -> marketMapQueryService.getCustomMarketMap(market, snapshotTime, nxtOnly, changeRateMode);
         };
+    }
+
+    /** 홈의 안내 틀에 띄울 그날의 특수한 종목(거래정지로 빠지기 시작한 종목, 신규 상장) — date가 없으면 오늘(KST)이다. */
+    @GetMapping("/notices")
+    public MarketNoticeResponse getNotices(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return marketNoticeService.getNotices(
+                date != null ? date : KstClock.now().toLocalDate());
     }
 
     /** 달력에 쓰는 날짜 목록 — month는 yyyy-MM. */
