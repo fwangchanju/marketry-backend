@@ -11,15 +11,9 @@ import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.schedule.TelegramSendSchedule;
-import dev.eolmae.marketry.domain.notification.service.MarketMapTelegramReportSender;
 import dev.eolmae.marketry.domain.notification.service.TelegramCollectionFailureNotifier;
 import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
-import dev.eolmae.marketry.domain.stock.collector.HoldingsSyncService;
 import dev.eolmae.marketry.domain.stock.collector.IndexContributionRankingCollector;
-import dev.eolmae.marketry.domain.stock.collector.IntradayInvestorRankingCollector;
-import dev.eolmae.marketry.domain.stock.collector.ProgramTradeDailyCollector;
-import dev.eolmae.marketry.domain.stock.collector.ProgramTradeIntradayCollector;
-import dev.eolmae.marketry.domain.stock.collector.ShortSellingTrendCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
@@ -42,14 +36,8 @@ class CollectionSchedulerTest {
     private final EscalationPublisher escalationPublisher = Mockito.mock(EscalationPublisher.class);
     private final StockInfoCollector stockInfoCollector = Mockito.mock(StockInfoCollector.class);
     private final CollectionScheduler scheduler = new CollectionScheduler(
-            Mockito.mock(HoldingsSyncService.class),
-            Mockito.mock(IntradayInvestorRankingCollector.class),
-            Mockito.mock(ProgramTradeIntradayCollector.class),
-            Mockito.mock(ProgramTradeDailyCollector.class),
             indexCollector,
-            Mockito.mock(ShortSellingTrendCollector.class),
             stockInfoCollector,
-            Mockito.mock(MarketMapTelegramReportSender.class),
             dispatcher,
             failureNotifier,
             schedule,

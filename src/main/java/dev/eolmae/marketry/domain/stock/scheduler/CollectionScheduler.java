@@ -6,22 +6,14 @@ import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.common.util.KstClock;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.schedule.TelegramSendSchedule;
-import dev.eolmae.marketry.domain.notification.service.MarketMapTelegramReportSender;
 import dev.eolmae.marketry.domain.notification.service.TelegramCollectionFailureNotifier;
 import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
-import dev.eolmae.marketry.domain.stock.collector.HoldingsSyncService;
 import dev.eolmae.marketry.domain.stock.collector.IndexContributionRankingCollector;
-import dev.eolmae.marketry.domain.stock.collector.IntradayInvestorRankingCollector;
-import dev.eolmae.marketry.domain.stock.collector.ProgramTradeDailyCollector;
-import dev.eolmae.marketry.domain.stock.collector.ProgramTradeIntradayCollector;
-import dev.eolmae.marketry.domain.stock.collector.ShortSellingTrendCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
-import dev.eolmae.marketry.domain.view.enums.MarketQuery;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -32,14 +24,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CollectionScheduler {
 
-    private final HoldingsSyncService holdingsSyncService;
-    private final IntradayInvestorRankingCollector intradayInvestorRankingCollector;
-    private final ProgramTradeIntradayCollector programTradeIntradayCollector;
-    private final ProgramTradeDailyCollector programTradeDailyCollector;
     private final IndexContributionRankingCollector indexContributionRankingCollector;
-    private final ShortSellingTrendCollector shortSellingTrendCollector;
     private final StockInfoCollector stockInfoCollector;
-    private final MarketMapTelegramReportSender marketMapTelegramReportSender;
     private final TelegramReportDispatcher telegramReportDispatcher;
     private final TelegramCollectionFailureNotifier telegramCollectionFailureNotifier;
     private final TelegramSendSchedule telegramSendSchedule;
@@ -107,50 +93,6 @@ public class CollectionScheduler {
         if (telegramSendSchedule.dueForMap(snapshotTime, shouldCollect, dayTimes.regularMarketEnd())) {
             run("맵텔레그램발송", () -> telegramReportDispatcher.sendMap(dataTime));
         }
-    }
-
-    /**
-     * [구버전] 장중 시장 데이터 수집: 평일 08:00~20:00, 1시간 간격.
-     * 관심종목 구조 정리가 아직 안 끝나서 collectMarketData()로 완전히 대체하지 않고 당분간
-     * 비활성화 상태로 남겨둔다 — 나중에 참고하거나 필요하면 되살리기 쉽도록 코드는 그대로 유지.
-     */
-    // @Scheduled(cron = "0 0 8-20 * * MON-FRI", zone = KST_ZONE_ID)
-    public void collectMarketDataHourly() {
-        LocalDateTime snapshotTime = LocalDateTime.now(Zone.KST.zoneId()).truncatedTo(ChronoUnit.HOURS);
-        log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
-
-        run("보유종목동기화", holdingsSyncService::sync);
-        run("장중투자자랭킹", () -> intradayInvestorRankingCollector.collect(snapshotTime));
-        run("프로그램매매히스토리", () -> programTradeIntradayCollector.collect(snapshotTime));
-        run("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
-        run("마켓맵텔레그램발송", () -> marketMapTelegramReportSender.send(snapshotTime, MarketQuery.KOSPI));
-
-        log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
-    }
-
-    /**
-     * 프로그램매매 일별 이력 수집: 평일 21:00 (장 마감 후 1회)
-     * 관심종목 구조 정리 전까지 비활성화.
-     */
-    // @Scheduled(cron = "0 0 21 * * MON-FRI", zone = KST_ZONE_ID)
-    public void collectProgramTradingDaily() {
-        log.info("프로그램매매 일별 이력 수집 시작");
-        run("프로그램매매일별", programTradeDailyCollector::collect);
-        log.info("프로그램매매 일별 이력 수집 완료");
-    }
-
-    /**
-     * 공매도 데이터 수집: 평일 20:30 (당일 자료 18:30 이후 제공)
-     * 관심종목 구조 정리 전까지 비활성화.
-     */
-    // @Scheduled(cron = "0 30 20 * * MON-FRI", zone = KST_ZONE_ID)
-    public void collectShortSelling() {
-        LocalDateTime snapshotTime = LocalDateTime.now(Zone.KST.zoneId()).truncatedTo(ChronoUnit.HOURS);
-        log.info("공매도 데이터 수집 시작: snapshotTime={}", snapshotTime);
-
-        run("공매도", () -> shortSellingTrendCollector.collect(snapshotTime));
-
-        log.info("공매도 데이터 수집 완료: snapshotTime={}", snapshotTime);
     }
 
     /**

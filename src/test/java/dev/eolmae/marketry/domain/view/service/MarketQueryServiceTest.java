@@ -10,16 +10,9 @@ import dev.eolmae.marketry.domain.stock.enums.AmtQty;
 import dev.eolmae.marketry.domain.stock.enums.ExchangeType;
 import dev.eolmae.marketry.domain.stock.enums.ProgramRanking;
 import dev.eolmae.marketry.domain.stock.repository.IndexContributionRankingSnapshotRepository;
-import dev.eolmae.marketry.domain.stock.repository.IntradayInvestorRankingSnapshotRepository;
 import dev.eolmae.marketry.domain.stock.repository.InvestorTradingSummarySnapshotRepository;
 import dev.eolmae.marketry.domain.stock.repository.MarketOverviewSnapshotRepository;
-import dev.eolmae.marketry.domain.stock.repository.ProgramTradingDailyHistoryRepository;
-import dev.eolmae.marketry.domain.stock.repository.ProgramTradingHistoryRepository;
 import dev.eolmae.marketry.domain.stock.repository.ProgramTradingRankingSnapshotRepository;
-import dev.eolmae.marketry.domain.stock.repository.ShortSellingDailyHistoryRepository;
-import dev.eolmae.marketry.domain.stock.repository.StockInfoRepository;
-import dev.eolmae.marketry.domain.stock.repository.WatchStockRepository;
-import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.view.dto.ProgramTradingRankingItem;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
 import dev.eolmae.marketry.domain.view.enums.RankingType;
@@ -37,15 +30,8 @@ class MarketQueryServiceTest {
     private final MarketQueryService service = new MarketQueryService(
             Mockito.mock(MarketOverviewSnapshotRepository.class),
             Mockito.mock(InvestorTradingSummarySnapshotRepository.class),
-            Mockito.mock(IntradayInvestorRankingSnapshotRepository.class),
             programTradingRankingSnapshotRepository,
-            Mockito.mock(IndexContributionRankingSnapshotRepository.class),
-            Mockito.mock(StockInfoRepository.class),
-            Mockito.mock(ProgramTradingHistoryRepository.class),
-            Mockito.mock(ProgramTradingDailyHistoryRepository.class),
-            Mockito.mock(ShortSellingDailyHistoryRepository.class),
-            Mockito.mock(WatchStockRepository.class),
-            Mockito.mock(StockInfoCacheService.class));
+            Mockito.mock(IndexContributionRankingSnapshotRepository.class));
 
     private final LocalDateTime snapshotTime = LocalDateTime.of(2025, 6, 2, 10, 0);
 

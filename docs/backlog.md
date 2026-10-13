@@ -385,18 +385,6 @@ FlywayMigrationStrategy repairThenMigrate() {
 
 ---
 
-## 관심종목(WatchStock) 구조 정리
-
-여러 수집기와 startup 단계가 이것 때문에 비활성 상태다.
-
-- `CollectionScheduler`의 주석 처리된 스케줄 메서드들
-- `StartupRunner`의 주석 처리된 단계(보유종목 동기화, 관심종목 캐시, 백필)
-- `MarketQueryService`의 주석 처리된 조회 메서드 4개
-
-이 코드들은 의도적으로 남겨둔 것이다. 구조가 정리되면 되살린다.
-
----
-
 ## JPA Auditing 전환 (검토 후 보류)
 
 엔티티가 `createdAt` / `updatedAt`을 직접 대입하고 있다. `this.updatedAt = LocalDateTime.now(...)`
