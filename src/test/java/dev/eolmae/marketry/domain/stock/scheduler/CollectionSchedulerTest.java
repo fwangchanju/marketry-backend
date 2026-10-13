@@ -15,6 +15,7 @@ import dev.eolmae.marketry.domain.notification.service.TelegramCollectionFailure
 import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
 import dev.eolmae.marketry.domain.stock.collector.MarketSnapshotCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
+import dev.eolmae.marketry.domain.stock.collector.StockSuspensionCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import java.time.LocalDate;
@@ -34,9 +35,11 @@ class CollectionSchedulerTest {
     private final MarketCalendarTimeService timeService = Mockito.mock(MarketCalendarTimeService.class);
     private final EscalationPublisher escalationPublisher = Mockito.mock(EscalationPublisher.class);
     private final StockInfoCollector stockInfoCollector = Mockito.mock(StockInfoCollector.class);
+    private final StockSuspensionCollector stockSuspensionCollector = Mockito.mock(StockSuspensionCollector.class);
     private final CollectionScheduler scheduler = new CollectionScheduler(
             snapshotCollector,
             stockInfoCollector,
+            stockSuspensionCollector,
             dispatcher,
             failureNotifier,
             schedule,
@@ -227,6 +230,7 @@ class CollectionSchedulerTest {
         scheduler.syncStockInfo();
 
         verify(stockInfoCollector).sync();
+        verify(stockSuspensionCollector).sync();
         verifyNoInteractions(timeService);
     }
 }

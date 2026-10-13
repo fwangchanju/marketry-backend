@@ -10,6 +10,7 @@ import dev.eolmae.marketry.domain.notification.service.TelegramCollectionFailure
 import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
 import dev.eolmae.marketry.domain.stock.collector.MarketSnapshotCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
+import dev.eolmae.marketry.domain.stock.collector.StockSuspensionCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import java.time.Duration;
@@ -26,6 +27,7 @@ public class CollectionScheduler {
 
     private final MarketSnapshotCollector marketSnapshotCollector;
     private final StockInfoCollector stockInfoCollector;
+    private final StockSuspensionCollector stockSuspensionCollector;
     private final TelegramReportDispatcher telegramReportDispatcher;
     private final TelegramCollectionFailureNotifier telegramCollectionFailureNotifier;
     private final TelegramSendSchedule telegramSendSchedule;
@@ -96,13 +98,14 @@ public class CollectionScheduler {
     }
 
     /**
-     * 종목 정보 동기화: 평일 07:00 (장 시작 전)
+     * 종목 정보 동기화와 거래정지 종목 기록: 평일 07:00 (장 시작 전)
      */
     @Scheduled(cron = "0 0 7 * * MON-FRI", zone = KST_ZONE_ID)
     public void syncStockInfo() {
         log.info("종목 정보 동기화 시작");
 
         run("종목정보", stockInfoCollector::sync);
+        run("거래정지종목", stockSuspensionCollector::sync);
 
         log.info("종목 정보 동기화 완료");
     }

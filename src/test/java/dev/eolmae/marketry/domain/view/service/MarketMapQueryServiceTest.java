@@ -36,6 +36,7 @@ import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.stock.service.StockDailyPriceService;
 import dev.eolmae.marketry.domain.stock.service.StockIndustryNameResolver;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
+import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
 import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketMapSectorNode;
 import dev.eolmae.marketry.domain.view.dto.SectorChangeRateMarketRanking;
@@ -103,6 +104,8 @@ class MarketMapQueryServiceTest {
             Mockito.mock(StockDailyPriceService.class));
     private final ClosingPriceReader closingPriceReader = Mockito.mock(ClosingPriceReader.class);
     private final MarketCalendarTimeService calendarTimeService = Mockito.mock(MarketCalendarTimeService.class);
+    private final StockTradingSuspensionService stockTradingSuspensionService =
+            Mockito.mock(StockTradingSuspensionService.class);
     private final MarketMapQueryService service = new MarketMapQueryService(
             stockInfoCacheService,
             sectorPriceSnapshotService,
@@ -117,7 +120,8 @@ class MarketMapQueryServiceTest {
             new StockIndustryNameResolver(industryInfoRepository, Mockito.mock(StockIndustryOverrideRepository.class)),
             marketryProperties,
             closingPriceReader,
-            calendarTimeService);
+            calendarTimeService,
+            stockTradingSuspensionService);
 
     // 구간 스텁 공통 셋업 — 진짜 구간 서비스로 바뀌면서 트리를 빌드하는 모든 테스트에 구간이 필요해졌다
     // (5-1). 구간이 여럿 필요한 테스트는 이 기본값을 자기 stubTierThresholds 호출로 덮어쓴다.
@@ -258,6 +262,29 @@ class MarketMapQueryServiceTest {
         assertThat(service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
                 .isEqualTo(sectorUpdatedAt);
+    }
+
+    @Test
+    void 거래정지가_5거래일_이상_이어진_종목은_스냅샷_날짜_기준으로_지도에서_뺀다() {
+        LocalDateTime snapshotTime = LocalDateTime.of(2026, 10, 9, 10, 0);
+        when(stockInfoCacheService.getCache())
+                .thenReturn(Map.of(
+                        "005930", stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN),
+                        "000660", stockInfo("000660", "SK하이닉스", 100L, BigDecimal.TEN)));
+        when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
+                        Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
+                .thenReturn(Optional.of(snapshotTime));
+        when(sectorPriceCacheService.getCache(Market.KOSPI, snapshotTime))
+                .thenReturn(Map.ofEntries(
+                        priceSnapshot("005930", snapshotTime, BigDecimal.TEN),
+                        priceSnapshot("000660", snapshotTime, BigDecimal.TEN)));
+        when(stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate()))
+                .thenReturn(java.util.Set.of("000660"));
+
+        MarketMapResponse krx = service.getDefaultMarketMap(MarketQuery.KOSPI, null);
+
+        assertThat(krx.items()).hasSize(1);
+        assertThat(krx.items().get(0).items()).extracting("stockCode").containsExactly("005930");
     }
 
     @Test

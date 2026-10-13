@@ -26,7 +26,7 @@ class TossStockListClientTest {
     private final RestClient restClient = builder.build();
     private final TossTokenManager tokens =
             new TossTokenManager(new TossProperties("test-client", "test-secret"), restClient, Clock.systemUTC());
-    private final TossStockListClient client = new TossStockListClient(tokens, restClient, 0);
+    private final TossStockListClient client = new TossStockListClient(tokens, restClient, 0, 0);
 
     @Test
     void 코스피와_코스닥의_상장폐지_종목코드를_모은다() {
@@ -76,6 +76,44 @@ class TossStockListClientTest {
                 .isInstanceOf(BadRequestException.class)
                 .satisfies(exception -> assertThat(((BadRequestException) exception).createLogMessage())
                         .contains("RESPONSE_INVALID"));
+        server.verify();
+    }
+
+    @Test
+    void 거래정지_종목은_200개씩_나눠_조회하고_KRX_거래정지만_모은다() {
+        expectToken();
+        var codes = java.util.stream.IntStream.rangeClosed(1, 201)
+                .mapToObj(index -> String.format("%06d", index))
+                .toList();
+        server.expect(requestTo(BASE_URL + "/api/v1/stocks?symbols=" + String.join(",", codes.subList(0, 200))))
+                .andExpect(header("Authorization", "Bearer token-1"))
+                .andRespond(withSuccess(
+                        "{\"result\":["
+                                + "{\"symbol\":\"000001\",\"koreanMarketDetail\":{\"krxTradingSuspended\":true}},"
+                                + "{\"symbol\":\"000002\",\"koreanMarketDetail\":{\"krxTradingSuspended\":false}},"
+                                + "{\"symbol\":\"000003\",\"koreanMarketDetail\":null}]}",
+                        MediaType.APPLICATION_JSON));
+        server.expect(requestTo(BASE_URL + "/api/v1/stocks?symbols=000201"))
+                .andRespond(withSuccess(
+                        "{\"result\":[{\"symbol\":\"000201\",\"koreanMarketDetail\":{\"krxTradingSuspended\":true}}]}",
+                        MediaType.APPLICATION_JSON));
+
+        assertThat(client.fetchSuspendedStockCodes(codes)).containsExactlyInAnyOrder("000001", "000201");
+        server.verify();
+    }
+
+    @Test
+    void 거래정지_조회가_실패하면_안전한_상태번호만_로그에_남긴다() {
+        expectToken();
+        server.expect(requestTo(BASE_URL + "/api/v1/stocks?symbols=005930"))
+                .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).body("test-secret"));
+
+        assertThatThrownBy(() -> client.fetchSuspendedStockCodes(java.util.List.of("005930")))
+                .isInstanceOf(BadRequestException.class)
+                .hasCause(null)
+                .satisfies(exception -> assertThat(((BadRequestException) exception).createLogMessage())
+                        .contains("TOSS_STOCK_LIST_FETCH_FAILED", "500")
+                        .doesNotContain("test-secret"));
         server.verify();
     }
 
