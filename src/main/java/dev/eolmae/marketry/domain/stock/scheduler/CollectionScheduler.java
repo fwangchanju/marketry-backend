@@ -12,10 +12,8 @@ import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
 import dev.eolmae.marketry.domain.stock.collector.HoldingsSyncService;
 import dev.eolmae.marketry.domain.stock.collector.IndexContributionRankingCollector;
 import dev.eolmae.marketry.domain.stock.collector.IntradayInvestorRankingCollector;
-import dev.eolmae.marketry.domain.stock.collector.ProgramNetBuyRankingCollector;
 import dev.eolmae.marketry.domain.stock.collector.ProgramTradeDailyCollector;
 import dev.eolmae.marketry.domain.stock.collector.ProgramTradeIntradayCollector;
-import dev.eolmae.marketry.domain.stock.collector.SectorInvestorNetBuyCollector;
 import dev.eolmae.marketry.domain.stock.collector.ShortSellingTrendCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
@@ -35,9 +33,7 @@ import org.springframework.stereotype.Component;
 public class CollectionScheduler {
 
     private final HoldingsSyncService holdingsSyncService;
-    private final SectorInvestorNetBuyCollector sectorInvestorNetBuyCollector;
     private final IntradayInvestorRankingCollector intradayInvestorRankingCollector;
-    private final ProgramNetBuyRankingCollector programNetBuyRankingCollector;
     private final ProgramTradeIntradayCollector programTradeIntradayCollector;
     private final ProgramTradeDailyCollector programTradeDailyCollector;
     private final IndexContributionRankingCollector indexContributionRankingCollector;
@@ -82,8 +78,6 @@ public class CollectionScheduler {
         if (shouldCollect) {
             log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
 
-            run("투자자별매매종합", () -> sectorInvestorNetBuyCollector.collect(snapshotTime));
-            run("프로그램매매랭킹", () -> programNetBuyRankingCollector.collect(snapshotTime));
             boolean success = run("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
             lastCollection = new CollectionResult(snapshotTime, success);
 
@@ -126,9 +120,7 @@ public class CollectionScheduler {
         log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
 
         run("보유종목동기화", holdingsSyncService::sync);
-        run("투자자별매매종합", () -> sectorInvestorNetBuyCollector.collect(snapshotTime));
         run("장중투자자랭킹", () -> intradayInvestorRankingCollector.collect(snapshotTime));
-        run("프로그램매매랭킹", () -> programNetBuyRankingCollector.collect(snapshotTime));
         run("프로그램매매히스토리", () -> programTradeIntradayCollector.collect(snapshotTime));
         run("지수기여도랭킹", () -> indexContributionRankingCollector.collect(snapshotTime));
         run("마켓맵텔레그램발송", () -> marketMapTelegramReportSender.send(snapshotTime, MarketQuery.KOSPI));

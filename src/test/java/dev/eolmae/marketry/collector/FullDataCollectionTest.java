@@ -39,13 +39,7 @@ class FullDataCollectionTest {
     StockInfoCollector stockInfoCollector;
 
     @Autowired
-    SectorInvestorNetBuyCollector sectorInvestorNetBuyCollector;
-
-    @Autowired
     IntradayInvestorRankingCollector intradayInvestorRankingCollector;
-
-    @Autowired
-    ProgramNetBuyRankingCollector programNetBuyRankingCollector;
 
     @Autowired
     ProgramTradeIntradayCollector programTradeIntradayCollector;

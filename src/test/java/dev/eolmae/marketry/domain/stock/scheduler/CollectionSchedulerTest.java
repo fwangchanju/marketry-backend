@@ -17,10 +17,8 @@ import dev.eolmae.marketry.domain.notification.service.TelegramReportDispatcher;
 import dev.eolmae.marketry.domain.stock.collector.HoldingsSyncService;
 import dev.eolmae.marketry.domain.stock.collector.IndexContributionRankingCollector;
 import dev.eolmae.marketry.domain.stock.collector.IntradayInvestorRankingCollector;
-import dev.eolmae.marketry.domain.stock.collector.ProgramNetBuyRankingCollector;
 import dev.eolmae.marketry.domain.stock.collector.ProgramTradeDailyCollector;
 import dev.eolmae.marketry.domain.stock.collector.ProgramTradeIntradayCollector;
-import dev.eolmae.marketry.domain.stock.collector.SectorInvestorNetBuyCollector;
 import dev.eolmae.marketry.domain.stock.collector.ShortSellingTrendCollector;
 import dev.eolmae.marketry.domain.stock.collector.StockInfoCollector;
 import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
@@ -34,8 +32,6 @@ import org.mockito.Mockito;
 
 class CollectionSchedulerTest {
     private static final LocalDate DATE = LocalDate.of(2026, 1, 2);
-    private final SectorInvestorNetBuyCollector sectorCollector = Mockito.mock(SectorInvestorNetBuyCollector.class);
-    private final ProgramNetBuyRankingCollector programCollector = Mockito.mock(ProgramNetBuyRankingCollector.class);
     private final IndexContributionRankingCollector indexCollector =
             Mockito.mock(IndexContributionRankingCollector.class);
     private final TelegramReportDispatcher dispatcher = Mockito.mock(TelegramReportDispatcher.class);
@@ -47,9 +43,7 @@ class CollectionSchedulerTest {
     private final StockInfoCollector stockInfoCollector = Mockito.mock(StockInfoCollector.class);
     private final CollectionScheduler scheduler = new CollectionScheduler(
             Mockito.mock(HoldingsSyncService.class),
-            sectorCollector,
             Mockito.mock(IntradayInvestorRankingCollector.class),
-            programCollector,
             Mockito.mock(ProgramTradeIntradayCollector.class),
             Mockito.mock(ProgramTradeDailyCollector.class),
             indexCollector,
@@ -103,7 +97,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(8, 15));
         scheduler.collectMarketData(DATE.atTime(9, 15));
 
-        verifyNoInteractions(indexCollector, programCollector, sectorCollector, dispatcher);
+        verifyNoInteractions(indexCollector, dispatcher);
         scheduler.collectMarketData(DATE.atTime(10, 0));
         verify(indexCollector).collect(DATE.atTime(10, 0));
     }
@@ -116,7 +110,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(8, 15));
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
-        verifyNoInteractions(indexCollector, programCollector, sectorCollector, dispatcher, failureNotifier, schedule);
+        verifyNoInteractions(indexCollector, dispatcher, failureNotifier, schedule);
     }
 
     @Test
@@ -235,8 +229,6 @@ class CollectionSchedulerTest {
 
         verify(indexCollector).collect(DATE.atTime(8, 0));
         verify(indexCollector, never()).collect(DATE.atTime(8, 5));
-        verify(programCollector, never()).collect(DATE.atTime(8, 5));
-        verify(sectorCollector, never()).collect(DATE.atTime(8, 5));
     }
 
     @Test
