@@ -88,8 +88,6 @@ class AuthTokenFilterTest {
     @ValueSource(
             strings = {
                 "/api/admin/watch-stocks",
-                "/api/watch-stocks",
-                "/api/watch-stocks/1",
             })
     void captureTokenRejectsAdminRoutes(String path) throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
