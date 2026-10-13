@@ -78,19 +78,23 @@ class MarketMapControllerTest {
                                 "005930",
                                 "삼성전자",
                                 dev.eolmae.marketry.common.enums.Market.KOSPI,
-                                date))));
+                                date)),
+                        3,
+                        2));
 
         mockMvc.perform(get("/api/map/notices?date=2026-10-14"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.date").value("2026-10-14"))
                 .andExpect(jsonPath("$.items[0].type").value("TRADING_SUSPENSION"))
-                .andExpect(jsonPath("$.items[0].stockCode").value("005930"));
+                .andExpect(jsonPath("$.items[0].stockCode").value("005930"))
+                .andExpect(jsonPath("$.recentNewListingCount").value(3))
+                .andExpect(jsonPath("$.currentSuspensionCount").value(2));
     }
 
     @Test
     void 안내_조회는_날짜가_없으면_오늘_날짜로_조회한다() throws Exception {
         when(marketNoticeService.getNotices(org.mockito.ArgumentMatchers.any(LocalDate.class)))
-                .thenReturn(new MarketNoticeResponse(LocalDate.of(2026, 10, 14), List.of()));
+                .thenReturn(new MarketNoticeResponse(LocalDate.of(2026, 10, 14), List.of(), 0, 0));
 
         mockMvc.perform(get("/api/map/notices")).andExpect(status().isOk());
 
