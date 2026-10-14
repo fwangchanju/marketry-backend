@@ -10,13 +10,13 @@ import java.util.List;
  * taxonomyUpdatedAt은 선택한 분류의 갱신 시각이다. 커스텀은 그 분류 데이터 주인(MARKETRY는 고정본, 내 분류은 본인)의 업종 정보·종목 배정 수정 시각,
  * 거래소는 활성 주권 종목 정보의 동기화 시각이며 해당 데이터가 없으면 null.
  */
-public record MarketMapResponse(
+public record TreemapResponse(
         LocalDateTime snapshotTime,
-        List<MarketMapSectorNode> items,
+        List<TreemapSectorNode> items,
         MarketOverviewItem marketOverview,
         LocalDateTime taxonomyUpdatedAt,
         LocalDateTime afterHoursStart) {
-    public static MarketMapResponse empty() {
-        return new MarketMapResponse(null, List.of(), null, null, null);
+    public static TreemapResponse empty() {
+        return new TreemapResponse(null, List.of(), null, null, null);
     }
 }

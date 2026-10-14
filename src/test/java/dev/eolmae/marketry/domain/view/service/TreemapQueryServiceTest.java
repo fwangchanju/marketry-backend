@@ -37,13 +37,13 @@ import dev.eolmae.marketry.domain.stock.service.StockDailyPriceService;
 import dev.eolmae.marketry.domain.stock.service.StockIndustryNameResolver;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
-import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
-import dev.eolmae.marketry.domain.view.dto.MarketMapSectorNode;
 import dev.eolmae.marketry.domain.view.dto.SectorChangeRateMarketRanking;
 import dev.eolmae.marketry.domain.view.dto.SectorRankingSummary;
 import dev.eolmae.marketry.domain.view.dto.SnapshotResponse;
 import dev.eolmae.marketry.domain.view.dto.StockCatalogItem;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
+import dev.eolmae.marketry.domain.view.dto.TreemapResponse;
+import dev.eolmae.marketry.domain.view.dto.TreemapSectorNode;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.ChangeRateMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
@@ -65,7 +65,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-class MarketMapQueryServiceTest {
+class TreemapQueryServiceTest {
 
     private static final long LEGACY_OWNER_ID = 999999L;
     // 로그인 사용자(LEGACY_OWNER_ID)와 다른 값으로 둬서, 비로그인일 때·MARKETRY일 때 실제로 이 프로퍼티 값을
@@ -76,8 +76,8 @@ class MarketMapQueryServiceTest {
     private final SectorPriceSnapshotRepository sectorPriceSnapshotRepository =
             Mockito.mock(SectorPriceSnapshotRepository.class);
     private final SectorPriceCacheService sectorPriceCacheService = Mockito.mock(SectorPriceCacheService.class);
-    private final CustomSectorRepository marketMapSectorRepository = Mockito.mock(CustomSectorRepository.class);
-    private final CustomStockSectorRepository marketMapStockSectorRepository =
+    private final CustomSectorRepository treemapSectorRepository = Mockito.mock(CustomSectorRepository.class);
+    private final CustomStockSectorRepository treemapStockSectorRepository =
             Mockito.mock(CustomStockSectorRepository.class);
     private final CustomStockAliasRepository customStockAliasRepository =
             Mockito.mock(CustomStockAliasRepository.class);
@@ -106,12 +106,12 @@ class MarketMapQueryServiceTest {
     private final MarketCalendarTimeService calendarTimeService = Mockito.mock(MarketCalendarTimeService.class);
     private final StockTradingSuspensionService stockTradingSuspensionService =
             Mockito.mock(StockTradingSuspensionService.class);
-    private final MarketMapQueryService service = new MarketMapQueryService(
+    private final TreemapQueryService service = new TreemapQueryService(
             stockInfoCacheService,
             sectorPriceSnapshotService,
             sectorPriceCacheService,
-            marketMapSectorRepository,
-            marketMapStockSectorRepository,
+            treemapSectorRepository,
+            treemapStockSectorRepository,
             customStockAliasRepository,
             customSnapshotRepository,
             sectorTierAggregationService,
@@ -144,11 +144,11 @@ class MarketMapQueryServiceTest {
         SecurityContextHolder.getContext()
                 .setAuthentication(
                         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
-        Mockito.doAnswer(invocation -> marketMapSectorRepository.findAll())
-                .when(marketMapSectorRepository)
+        Mockito.doAnswer(invocation -> treemapSectorRepository.findAll())
+                .when(treemapSectorRepository)
                 .findAllByUserId(ArgumentMatchers.anyLong());
-        Mockito.doAnswer(invocation -> marketMapStockSectorRepository.findAll())
-                .when(marketMapStockSectorRepository)
+        Mockito.doAnswer(invocation -> treemapStockSectorRepository.findAll())
+                .when(treemapStockSectorRepository)
                 .findAllByIdUserId(ArgumentMatchers.anyLong());
         Mockito.doReturn(List.of()).when(customStockAliasRepository).findAllByIdUserId(ArgumentMatchers.anyLong());
         stubTierThresholds(tierThreshold(10L, "대형", 0L, false));
@@ -182,12 +182,12 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(customUpdatedAt);
 
-        MarketMapResponse exchange = service.getDefaultMarketMap(MarketQuery.KOSPI, null);
-        MarketMapResponse nxt = service.getDefaultMarketMap(MarketQuery.KOSPI, null, true);
-        MarketMapResponse custom = service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
+        TreemapResponse exchange = service.getDefaultTreemap(MarketQuery.KOSPI, null);
+        TreemapResponse nxt = service.getDefaultTreemap(MarketQuery.KOSPI, null, true);
+        TreemapResponse custom = service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
 
         assertThat(exchange.taxonomyUpdatedAt()).isEqualTo(exchangeUpdatedAt);
         assertThat(nxt.taxonomyUpdatedAt()).isEqualTo(exchangeUpdatedAt);
@@ -204,20 +204,20 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(sectorUpdatedAt));
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(assignmentUpdatedAt);
-        when(marketMapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(ownerSector));
 
-        assertThat(service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
+        assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
                 .isEqualTo(sectorUpdatedAt);
 
         LocalDateTime newerAssignmentUpdatedAt = sectorUpdatedAt.plusHours(1);
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(newerAssignmentUpdatedAt);
 
-        assertThat(service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
+        assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
                 .isEqualTo(newerAssignmentUpdatedAt);
     }
@@ -235,14 +235,14 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(restoredDataUpdatedAt));
-        when(marketMapSectorRepository.findFirstByUserIdOrderByIdAsc(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findFirstByUserIdOrderByIdAsc(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(liveSector));
-        when(marketMapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(liveSector));
         when(customSnapshotRepository.findByIdAndUserId(7L, PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(version));
 
-        assertThat(service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
+        assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
                 .isEqualTo(versionCreatedAt);
     }
@@ -256,10 +256,10 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(sectorUpdatedAt));
-        when(marketMapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(ownerSector));
 
-        assertThat(service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
+        assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
                 .isEqualTo(sectorUpdatedAt);
     }
@@ -281,7 +281,7 @@ class MarketMapQueryServiceTest {
         when(stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate()))
                 .thenReturn(java.util.Set.of("000660"));
 
-        MarketMapResponse krx = service.getDefaultMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse krx = service.getDefaultTreemap(MarketQuery.KOSPI, null);
 
         assertThat(krx.items()).hasSize(1);
         assertThat(krx.items().get(0).items()).extracting("stockCode").containsExactly("005930");
@@ -297,21 +297,20 @@ class MarketMapQueryServiceTest {
                 .thenReturn(Optional.of(snapshotTime));
         when(sectorPriceCacheService.getCache(Market.KOSPI, snapshotTime))
                 .thenReturn(Map.ofEntries(priceSnapshot("005930", snapshotTime, BigDecimal.TEN)));
-        Mockito.doReturn(List.of()).when(marketMapSectorRepository).findAllByUserId(LEGACY_OWNER_ID);
-        Mockito.doReturn(List.of()).when(marketMapStockSectorRepository).findAllByIdUserId(LEGACY_OWNER_ID);
+        Mockito.doReturn(List.of()).when(treemapSectorRepository).findAllByUserId(LEGACY_OWNER_ID);
+        Mockito.doReturn(List.of()).when(treemapStockSectorRepository).findAllByIdUserId(LEGACY_OWNER_ID);
         CustomSector publishedSector = CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, "공개 반도체");
         ReflectionTestUtils.setField(publishedSector, "id", 1L);
         Mockito.doReturn(List.of(publishedSector))
-                .when(marketMapSectorRepository)
+                .when(treemapSectorRepository)
                 .findAllByUserId(PUBLISHED_PROPERTY_USER_ID);
         Mockito.doReturn(List.of(CustomStockSector.create(PUBLISHED_PROPERTY_USER_ID, "005930", 1L)))
-                .when(marketMapStockSectorRepository)
+                .when(treemapStockSectorRepository)
                 .findAllByIdUserId(PUBLISHED_PROPERTY_USER_ID);
 
-        MarketMapResponse mine = service.getCustomMarketMap(MarketQuery.KOSPI, null);
-        MarketMapResponse published =
-                service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
-        MarketMapResponse krx = service.getDefaultMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse mine = service.getCustomTreemap(MarketQuery.KOSPI, null);
+        TreemapResponse published = service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
+        TreemapResponse krx = service.getDefaultTreemap(MarketQuery.KOSPI, null);
 
         assertThat(mine.items()).isEmpty();
         assertThat(published.items()).hasSize(1);
@@ -322,7 +321,7 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getPublishedMarketMap_로그인_없이도_발행_사용자_분류로_조회한다() {
+    void getPublishedTreemap_로그인_없이도_발행_사용자_분류로_조회한다() {
         SecurityContextHolder.clearContext();
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 10, 7, 10, 0);
         LocalDateTime publishedAt = LocalDateTime.of(2026, 10, 7, 9, 0);
@@ -330,11 +329,10 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(publishedAt);
 
-        MarketMapResponse response =
-                service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
+        TreemapResponse response = service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
 
         assertThat(response.taxonomyUpdatedAt()).isEqualTo(publishedAt);
     }
@@ -347,12 +345,12 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(LEGACY_OWNER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(LEGACY_OWNER_ID))
                 .thenReturn(myUpdatedAt);
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(LocalDateTime.of(2026, 10, 7, 9, 0));
 
-        assertThat(service.getCustomMarketMap(MarketQuery.KOSPI, null).taxonomyUpdatedAt())
+        assertThat(service.getCustomTreemap(MarketQuery.KOSPI, null).taxonomyUpdatedAt())
                 .isEqualTo(myUpdatedAt);
     }
 
@@ -363,9 +361,9 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(sector(1L, null, "내 업종")));
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(sector(1L, null, "내 업종")));
 
-        assertThat(service.getPublishedMarketMap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
+        assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
                 .isNull();
     }
@@ -377,10 +375,10 @@ class MarketMapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(marketMapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(LocalDateTime.of(2026, 10, 6, 18, 0));
 
-        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, null);
 
         assertThat(response.taxonomyUpdatedAt()).isNull();
     }
@@ -395,15 +393,15 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_트리집계와_섹터명_매칭이_정확히_반영된다() {
+    void getCustomTreemap_트리집계와_섹터명_매칭이_정확히_반영된다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
         CustomSector electronics = sector(1L, null, "전기/전자");
         CustomSector semiconductor = sector(2L, 1L, "반도체");
         CustomSector chemical = sector(3L, null, "화학");
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(electronics, semiconductor, chemical));
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(electronics, semiconductor, chemical));
 
-        when(marketMapStockSectorRepository.findAll())
+        when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
                         CustomStockSector.create(LEGACY_OWNER_ID, "005930", 2L),
                         CustomStockSector.create(LEGACY_OWNER_ID, "000660", 2L),
@@ -430,20 +428,20 @@ class MarketMapQueryServiceTest {
                         priceSnapshot("051910", snapshotTime, BigDecimal.ONE)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
         assertThat(response.snapshotTime()).isEqualTo(snapshotTime);
-        List<MarketMapSectorNode> nodes = response.items();
+        List<TreemapSectorNode> nodes = response.items();
         assertThat(nodes).hasSize(2);
 
-        MarketMapSectorNode electronicsNode = nodes.stream()
+        TreemapSectorNode electronicsNode = nodes.stream()
                 .filter(node -> node.sectorName().equals("전기/전자"))
                 .findFirst()
                 .orElseThrow();
         assertThat(electronicsNode.items()).extracting("stockCode").containsExactly("009150");
         assertThat(electronicsNode.children()).hasSize(1);
 
-        MarketMapSectorNode semiconductorNode = electronicsNode.children().get(0);
+        TreemapSectorNode semiconductorNode = electronicsNode.children().get(0);
         assertThat(semiconductorNode.sectorName()).isEqualTo("반도체");
         assertThat(semiconductorNode.items()).extracting("stockCode").containsExactlyInAnyOrder("005930", "000660");
         assertThat(semiconductorNode.totalMarketValue()).isEqualByComparingTo(BigDecimal.valueOf(2000));
@@ -451,7 +449,7 @@ class MarketMapQueryServiceTest {
         // 전기/전자 총액 = 직속(009150: 5*200=1000) + 자식(반도체: 2000) = 3000
         assertThat(electronicsNode.totalMarketValue()).isEqualByComparingTo(BigDecimal.valueOf(3000));
 
-        MarketMapSectorNode chemicalNode = nodes.stream()
+        TreemapSectorNode chemicalNode = nodes.stream()
                 .filter(node -> node.sectorName().equals("화학"))
                 .findFirst()
                 .orElseThrow();
@@ -461,11 +459,11 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_nxtOnly면_내_분류에서_NXT_거래_가능_종목만_남긴다() {
+    void getCustomTreemap_nxtOnly면_내_분류에서_NXT_거래_가능_종목만_남긴다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector semiconductor = sector(1L, null, "반도체");
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(semiconductor));
-        when(marketMapStockSectorRepository.findAll())
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(semiconductor));
+        when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
                         CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L),
                         CustomStockSector.create(LEGACY_OWNER_ID, "000660", 1L)));
@@ -482,21 +480,21 @@ class MarketMapQueryServiceTest {
                         priceSnapshot("000660", snapshotTime, BigDecimal.TEN)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse nxtOnly = service.getCustomMarketMap(MarketQuery.KOSPI, null, true);
-        MarketMapResponse all = service.getCustomMarketMap(MarketQuery.KOSPI, null, false);
+        TreemapResponse nxtOnly = service.getCustomTreemap(MarketQuery.KOSPI, null, true);
+        TreemapResponse all = service.getCustomTreemap(MarketQuery.KOSPI, null, false);
 
         assertThat(nxtOnly.items())
-                .flatExtracting(MarketMapSectorNode::items)
+                .flatExtracting(TreemapSectorNode::items)
                 .extracting("stockCode")
                 .containsExactly("005930");
         assertThat(all.items())
-                .flatExtracting(MarketMapSectorNode::items)
+                .flatExtracting(TreemapSectorNode::items)
                 .extracting("stockCode")
                 .containsExactlyInAnyOrder("005930", "000660");
     }
 
     @Test
-    void getDefaultMarketMap_nxtOnly면_NXT_거래_가능_종목만_담는다() {
+    void getDefaultTreemap_nxtOnly면_NXT_거래_가능_종목만_담는다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         StockInfo samsung = StockInfo.create("005930", "삼성전자", Market.KOSPI, "0", null, 100L, BigDecimal.TEN, true);
         StockInfo lgChem = StockInfo.create("051910", "LG화학", Market.KOSPI, "0", null, 500L, BigDecimal.ONE, false);
@@ -511,21 +509,21 @@ class MarketMapQueryServiceTest {
                         priceSnapshot("051910", snapshotTime, BigDecimal.ONE)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse nxtOnly = service.getDefaultMarketMap(MarketQuery.KOSPI, null, true);
-        MarketMapResponse all = service.getDefaultMarketMap(MarketQuery.KOSPI, null, false);
+        TreemapResponse nxtOnly = service.getDefaultTreemap(MarketQuery.KOSPI, null, true);
+        TreemapResponse all = service.getDefaultTreemap(MarketQuery.KOSPI, null, false);
 
         assertThat(nxtOnly.items())
-                .flatExtracting(MarketMapSectorNode::items)
+                .flatExtracting(TreemapSectorNode::items)
                 .extracting("stockCode")
                 .containsExactly("005930");
         assertThat(all.items())
-                .flatExtracting(MarketMapSectorNode::items)
+                .flatExtracting(TreemapSectorNode::items)
                 .extracting("stockCode")
                 .containsExactlyInAnyOrder("005930", "051910");
     }
 
     @Test
-    void getDefaultMarketMap_industry_info_id로_업종을_찾아_1뎁스_노드로_묶는다() {
+    void getDefaultTreemap_industry_info_id로_업종을_찾아_1뎁스_노드로_묶는다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
         // 기본 마켓맵은 custom_sector를 쓰지 않고 industry_info를 조회한다.
@@ -552,13 +550,13 @@ class MarketMapQueryServiceTest {
                         priceSnapshot("051910", snapshotTime, BigDecimal.ONE)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, null);
 
         assertThat(response.snapshotTime()).isEqualTo(snapshotTime);
-        List<MarketMapSectorNode> nodes = response.items();
+        List<TreemapSectorNode> nodes = response.items();
         assertThat(nodes).hasSize(2);
 
-        MarketMapSectorNode semiconductorNode = nodes.stream()
+        TreemapSectorNode semiconductorNode = nodes.stream()
                 .filter(node -> node.sectorName().equals("반도체"))
                 .findFirst()
                 .orElseThrow();
@@ -568,7 +566,7 @@ class MarketMapQueryServiceTest {
         assertThat(semiconductorNode.sectorId()).isEqualTo(0L);
         assertThat(semiconductorNode.isExcluded()).isFalse();
 
-        MarketMapSectorNode unsectoredNode = nodes.stream()
+        TreemapSectorNode unsectoredNode = nodes.stream()
                 .filter(node -> node.sectorName().equals("미분류"))
                 .findFirst()
                 .orElseThrow();
@@ -578,14 +576,14 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_제외되었거나_빈_섹터도_필터링없이_그대로_응답된다() {
+    void getCustomTreemap_제외되었거나_빈_섹터도_필터링없이_그대로_응답된다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
         CustomSector semiconductor = sector(1L, null, "반도체");
         CustomSector empty = sector(2L, null, "빈섹터");
         empty.exclude();
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(semiconductor, empty));
-        when(marketMapStockSectorRepository.findAll())
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(semiconductor, empty));
+        when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L)));
 
         StockInfo samsung = stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN);
@@ -600,19 +598,19 @@ class MarketMapQueryServiceTest {
                 .thenReturn(Map.ofEntries(priceSnapshot("005930", snapshotTime, BigDecimal.TEN)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
-        List<MarketMapSectorNode> nodes = response.items();
+        List<TreemapSectorNode> nodes = response.items();
         assertThat(nodes).hasSize(2);
 
-        MarketMapSectorNode semiconductorNode = nodes.stream()
+        TreemapSectorNode semiconductorNode = nodes.stream()
                 .filter(node -> node.sectorName().equals("반도체"))
                 .findFirst()
                 .orElseThrow();
         assertThat(semiconductorNode.sectorId()).isEqualTo(1L);
         assertThat(semiconductorNode.isExcluded()).isFalse();
 
-        MarketMapSectorNode emptyNode = nodes.stream()
+        TreemapSectorNode emptyNode = nodes.stream()
                 .filter(node -> node.sectorName().equals("빈섹터"))
                 .findFirst()
                 .orElseThrow();
@@ -623,13 +621,13 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_자식_섹터가_있는_노드의_총액은_자기_items와_자식_합계다() {
+    void getCustomTreemap_자식_섹터가_있는_노드의_총액은_자기_items와_자식_합계다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
         CustomSector parent = sector(1L, null, "전기/전자");
         CustomSector child = sector(2L, 1L, "반도체");
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(parent, child));
-        when(marketMapStockSectorRepository.findAll())
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(parent, child));
+        when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
                         CustomStockSector.create(LEGACY_OWNER_ID, "009150", 1L),
                         CustomStockSector.create(LEGACY_OWNER_ID, "005930", 2L)));
@@ -649,9 +647,9 @@ class MarketMapQueryServiceTest {
                         priceSnapshot("005930", snapshotTime, BigDecimal.TEN)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
-        MarketMapSectorNode parentNode = response.items().stream()
+        TreemapSectorNode parentNode = response.items().stream()
                 .filter(node -> node.sectorName().equals("전기/전자"))
                 .findFirst()
                 .orElseThrow();
@@ -660,12 +658,12 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_가격_스냅샷이_없는_종목은_제외된다() {
+    void getCustomTreemap_가격_스냅샷이_없는_종목은_제외된다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
         CustomSector semiconductor = sector(1L, null, "반도체");
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(semiconductor));
-        when(marketMapStockSectorRepository.findAll())
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(semiconductor));
+        when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
                         CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L),
                         CustomStockSector.create(LEGACY_OWNER_ID, "000660", 1L)));
@@ -684,9 +682,9 @@ class MarketMapQueryServiceTest {
                 .thenReturn(Map.ofEntries(priceSnapshot("005930", snapshotTime, BigDecimal.TEN)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
-        MarketMapSectorNode semiconductorNode = response.items().stream()
+        TreemapSectorNode semiconductorNode = response.items().stream()
                 .filter(node -> node.sectorName().equals("반도체"))
                 .findFirst()
                 .orElseThrow();
@@ -694,10 +692,10 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_가격이_있어도_미배정_종목은_표시하지_않는다() {
+    void getCustomTreemap_가격이_있어도_미배정_종목은_표시하지_않는다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of(sector(1L, null, "반도체")));
-        when(marketMapStockSectorRepository.findAll())
+        when(treemapSectorRepository.findAll()).thenReturn(List.of(sector(1L, null, "반도체")));
+        when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L)));
         when(stockInfoCacheService.getCache())
                 .thenReturn(Map.of(
@@ -711,7 +709,7 @@ class MarketMapQueryServiceTest {
                         priceSnapshot("005930", snapshotTime, BigDecimal.TEN),
                         priceSnapshot("000660", snapshotTime, BigDecimal.valueOf(20))));
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
         assertThat(response.items()).hasSize(1);
         assertThat(response.items().get(0).items()).extracting("stockCode").containsExactly("005930");
@@ -719,11 +717,11 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_섹터가_하나도_없으면_빈_리스트를_반환한다() {
+    void getCustomTreemap_섹터가_하나도_없으면_빈_리스트를_반환한다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of());
-        when(marketMapStockSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapStockSectorRepository.findAll()).thenReturn(List.of());
         when(stockInfoCacheService.getCache())
                 .thenReturn(Map.of("005930", stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN)));
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
@@ -733,17 +731,17 @@ class MarketMapQueryServiceTest {
                 .thenReturn(Map.ofEntries(priceSnapshot("005930", snapshotTime, BigDecimal.TEN)));
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
         assertThat(response.items()).isEmpty();
     }
 
     @Test
-    void getCustomMarketMap_그_시각에_지수_스냅샷이_있으면_marketOverview로_붙는다() {
+    void getCustomTreemap_그_시각에_지수_스냅샷이_있으면_marketOverview로_붙는다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
 
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of());
-        when(marketMapStockSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapStockSectorRepository.findAll()).thenReturn(List.of());
         when(stockInfoCacheService.getCache()).thenReturn(Map.of());
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
@@ -751,7 +749,7 @@ class MarketMapQueryServiceTest {
         when(marketOverviewSnapshotRepository.findBySnapshotTime(snapshotTime))
                 .thenReturn(List.of(marketOverviewSnapshot(Market.KOSPI, snapshotTime, BigDecimal.valueOf(1.23))));
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, null);
 
         assertThat(response.marketOverview()).isNotNull();
         assertThat(response.marketOverview().market()).isEqualTo(Market.KOSPI);
@@ -759,18 +757,18 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_마켓이_여럿이면_단일_지수값이_없어_marketOverview가_null이다() {
+    void getCustomTreemap_마켓이_여럿이면_단일_지수값이_없어_marketOverview가_null이다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         List<Market> markets = List.of(Market.KOSPI, Market.KOSDAQ);
 
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of());
-        when(marketMapStockSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapStockSectorRepository.findAll()).thenReturn(List.of());
         when(stockInfoCacheService.getCache()).thenReturn(Map.of());
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(markets), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.ALL_STOCK, null);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.ALL_STOCK, null);
 
         // 마켓이 여럿이면 합쳐서 보여줄 단일 지수값이 없으므로, 지수 스냅샷 자체를 조회하지 않고 곧장 null.
         assertThat(response.marketOverview()).isNull();
@@ -778,16 +776,16 @@ class MarketMapQueryServiceTest {
     }
 
     @Test
-    void getCustomMarketMap_snapshotTime을_명시하면_최신이_아니라_그_시각_그대로_쓴다() {
+    void getCustomTreemap_snapshotTime을_명시하면_최신이_아니라_그_시각_그대로_쓴다() {
         LocalDateTime requestedTime = LocalDateTime.of(2026, 7, 31, 10, 5);
-        when(marketMapSectorRepository.findAll()).thenReturn(List.of());
-        when(marketMapStockSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapSectorRepository.findAll()).thenReturn(List.of());
+        when(treemapStockSectorRepository.findAll()).thenReturn(List.of());
         when(stockInfoCacheService.getCache()).thenReturn(Map.of());
         when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, requestedTime))
                 .thenReturn(true);
         when(marketOverviewSnapshotRepository.findBySnapshotTime(requestedTime)).thenReturn(List.of());
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.KOSPI, requestedTime);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.KOSPI, requestedTime);
 
         assertThat(response.snapshotTime()).isEqualTo(requestedTime);
         // 명시한 시각이 있으면 "최신 공통 시각" 조회는 부르지 않는다 — 가까운 시각으로 대체하지 않는다.
@@ -797,16 +795,16 @@ class MarketMapQueryServiceTest {
 
     // ALL_STOCK인데 그 시각에 코스피만 있고 코스닥은 없는 경우 — 반쪽 트리를 내려주면 안 된다(결정 4).
     @Test
-    void getCustomMarketMap_snapshotTime에_요청_마켓_중_하나라도_없으면_빈_응답이다() {
+    void getCustomTreemap_snapshotTime에_요청_마켓_중_하나라도_없으면_빈_응답이다() {
         LocalDateTime requestedTime = LocalDateTime.of(2026, 7, 31, 10, 5);
         when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, requestedTime))
                 .thenReturn(true);
         when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSDAQ, requestedTime))
                 .thenReturn(false);
 
-        MarketMapResponse response = service.getCustomMarketMap(MarketQuery.ALL_STOCK, requestedTime);
+        TreemapResponse response = service.getCustomTreemap(MarketQuery.ALL_STOCK, requestedTime);
 
-        assertThat(response).isEqualTo(MarketMapResponse.empty());
+        assertThat(response).isEqualTo(TreemapResponse.empty());
     }
 
     @Test
@@ -1187,7 +1185,7 @@ class MarketMapQueryServiceTest {
     }
 
     // 등락률 수집만 실패한 tick이 이 모양이다 — 맵 페이지는 sector_price_snapshot으로 그려져서 멀쩡히
-    // 나오는데 여기는 빈 목록이 된다. 호출부(MarketMapAlbumReportSender)가 이걸 "캡처할 마켓이 없다"로
+    // 나오는데 여기는 빈 목록이 된다. 호출부(TreemapAlbumReportSender)가 이걸 "캡처할 마켓이 없다"로
     // 읽으면 한 장도 안 찍고 에스컬레이션하므로, 빈 목록이 정상 반환이라는 것을 못박아둔다.
     @Test
     void getMergedTopSectorRanking_그_시각_스냅샷이_없으면_빈_목록이다() {
@@ -1390,8 +1388,8 @@ class MarketMapQueryServiceTest {
     }
 
     private void stubSectorTree(List<CustomSector> sectors, List<CustomStockSector> assignments) {
-        when(marketMapSectorRepository.findAll()).thenReturn(sectors);
-        when(marketMapStockSectorRepository.findAll()).thenReturn(assignments);
+        when(treemapSectorRepository.findAll()).thenReturn(sectors);
+        when(treemapStockSectorRepository.findAll()).thenReturn(assignments);
     }
 
     private void stubStockCache(StockInfo... stocks) {
@@ -1502,10 +1500,10 @@ class MarketMapQueryServiceTest {
             when(sectorPriceCacheService.getCache(Market.KOSPI, time))
                     .thenReturn(Map.of("005930", new CachedStockPrice(BigDecimal.valueOf(110), BigDecimal.ONE, time)));
         }
-        MarketMapResponse before =
-                service.getDefaultMarketMap(MarketQuery.KOSPI, date.atTime(16, 35), false, ChangeRateMode.AFTER_HOURS);
-        MarketMapResponse boundary =
-                service.getDefaultMarketMap(MarketQuery.KOSPI, date.atTime(16, 40), false, ChangeRateMode.AFTER_HOURS);
+        TreemapResponse before =
+                service.getDefaultTreemap(MarketQuery.KOSPI, date.atTime(16, 35), false, ChangeRateMode.AFTER_HOURS);
+        TreemapResponse boundary =
+                service.getDefaultTreemap(MarketQuery.KOSPI, date.atTime(16, 40), false, ChangeRateMode.AFTER_HOURS);
         assertThat(before.items().get(0).items().get(0).changeRate()).isEqualByComparingTo(BigDecimal.ONE);
         assertThat(boundary.items().get(0).items().get(0).changeRate()).isEqualByComparingTo(BigDecimal.TEN);
     }
@@ -1521,7 +1519,7 @@ class MarketMapQueryServiceTest {
                 .thenReturn(true);
         when(sectorPriceCacheService.getCache(Market.KOSPI, time))
                 .thenReturn(Map.of("005930", new CachedStockPrice(BigDecimal.TEN, BigDecimal.ONE, time)));
-        assertThat(service.getDefaultMarketMap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS)
+        assertThat(service.getDefaultTreemap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS)
                         .items()
                         .get(0)
                         .items()
@@ -1549,7 +1547,7 @@ class MarketMapQueryServiceTest {
         when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
         stubOfficialClose(Map.of("005930", BigDecimal.valueOf(110)), Map.of("005930", BigDecimal.valueOf(100)));
 
-        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, time);
+        TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, time);
 
         var item = response.items().get(0).items().get(0);
         assertThat(response.snapshotTime()).isEqualTo(time);
@@ -1576,7 +1574,7 @@ class MarketMapQueryServiceTest {
                         "444444", BigDecimal.valueOf(50)),
                 Map.of("222222", BigDecimal.ZERO, "333333", BigDecimal.valueOf(10), "444444", BigDecimal.valueOf(40)));
 
-        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, time);
+        TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, time);
 
         var items = response.items().get(0).items();
         assertThat(items).extracting(item -> item.stockCode()).containsExactly("444444");
@@ -1590,8 +1588,8 @@ class MarketMapQueryServiceTest {
         when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
         stubOfficialClose(Map.of("005930", BigDecimal.valueOf(120)), Map.of("005930", BigDecimal.valueOf(100)));
 
-        MarketMapResponse response =
-                service.getDefaultMarketMap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS);
+        TreemapResponse response =
+                service.getDefaultTreemap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS);
 
         assertThat(response.items().get(0).items().get(0).changeRate()).isEqualByComparingTo("20");
         Mockito.verify(sectorPriceSnapshotRepository, Mockito.never())
@@ -1613,7 +1611,7 @@ class MarketMapQueryServiceTest {
                         "005930", new CachedStockPrice(BigDecimal.valueOf(103), BigDecimal.valueOf(3), time),
                         "000660", new CachedStockPrice(BigDecimal.valueOf(9), BigDecimal.valueOf(2), time)));
 
-        MarketMapResponse response = service.getDefaultMarketMap(MarketQuery.KOSPI, time);
+        TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, time);
 
         var items = response.items().stream()
                 .flatMap(node -> node.items().stream())
@@ -1641,7 +1639,7 @@ class MarketMapQueryServiceTest {
                         new CachedStockPrice(
                                 BigDecimal.valueOf(3380), BigDecimal.ZERO, time, BigDecimal.valueOf(3380))));
 
-        var item = service.getDefaultMarketMap(MarketQuery.KOSPI, time)
+        var item = service.getDefaultTreemap(MarketQuery.KOSPI, time)
                 .items()
                 .get(0)
                 .items()
@@ -1670,7 +1668,7 @@ class MarketMapQueryServiceTest {
                                 new CachedStockPrice(
                                         BigDecimal.valueOf(100), BigDecimal.ONE, time, BigDecimal.valueOf(99))));
 
-        var items = service.getDefaultMarketMap(MarketQuery.KOSPI, time).items().stream()
+        var items = service.getDefaultTreemap(MarketQuery.KOSPI, time).items().stream()
                 .flatMap(node -> node.items().stream())
                 .collect(Collectors.toMap(item -> item.stockCode(), Function.identity()));
 
@@ -1685,7 +1683,7 @@ class MarketMapQueryServiceTest {
         when(stockInfoCacheService.getCache()).thenReturn(Map.of("203400", stock));
         stubOfficialClose(Map.of("203400", BigDecimal.valueOf(3380)), Map.of("203400", BigDecimal.valueOf(676)));
 
-        var item = service.getDefaultMarketMap(MarketQuery.KOSPI, time)
+        var item = service.getDefaultTreemap(MarketQuery.KOSPI, time)
                 .items()
                 .get(0)
                 .items()
@@ -1710,7 +1708,7 @@ class MarketMapQueryServiceTest {
                         new CachedStockPrice(
                                 BigDecimal.valueOf(3380), BigDecimal.ZERO, time, BigDecimal.valueOf(3380))));
 
-        var item = service.getDefaultMarketMap(MarketQuery.KOSPI, time)
+        var item = service.getDefaultTreemap(MarketQuery.KOSPI, time)
                 .items()
                 .get(0)
                 .items()

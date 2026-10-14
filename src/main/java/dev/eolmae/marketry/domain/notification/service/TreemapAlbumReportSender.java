@@ -11,7 +11,7 @@ import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
-import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
+import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class MarketMapAlbumReportSender {
+public class TreemapAlbumReportSender {
 
     private static final MarketQuery MAP_MARKETS = MarketQuery.ALL_STOCK;
 
@@ -32,7 +32,7 @@ public class MarketMapAlbumReportSender {
     private final TelegramClient telegramClient;
     private final TelegramProperties telegramProperties;
     private final SectorRankingTextBuilder sectorRankingTextBuilder;
-    private final MarketMapQueryService marketMapQueryService;
+    private final TreemapQueryService treemapQueryService;
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
 
     public void send(LocalDateTime dataTime) {
@@ -80,7 +80,7 @@ public class MarketMapAlbumReportSender {
 
     /** 캡션을 못 만들면 null — TelegramClient가 null/공백 캡션을 붙이지 않는다. */
     private String buildCaption(MarketQuery query, LocalDateTime dataTime) {
-        List<TopSectorItem> topSectors = marketMapQueryService.getMergedTopSectorRanking(
+        List<TopSectorItem> topSectors = treemapQueryService.getMergedTopSectorRanking(
                 query, dataTime, telegramProperties.averageMode(), telegramProperties.sectorFilter());
         // 그 시각 데이터가 없거나(수집 실패) 요청 마켓 중 하나라도 합산이 비면 헤더만 덜렁 남는다.
         // 이미지는 이미 찍었으므로 캡션만 버리고 보낸다.

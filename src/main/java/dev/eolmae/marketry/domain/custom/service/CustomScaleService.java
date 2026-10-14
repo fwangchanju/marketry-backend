@@ -32,7 +32,7 @@ public class CustomScaleService {
         return getUserScale(userId);
     }
 
-    /** 색상 스케일 기본값은 백엔드가 들고 있지 않다 — 프론트가 내장 프리셋으로 폴백한다(marketMapColorScale.ts).
+    /** 색상 스케일 기본값은 백엔드가 들고 있지 않다 — 프론트가 내장 프리셋으로 폴백한다(treemapColorScale.ts).
      * 비로그인과 가입 직후 사용자(가입할 때 색상 구간을 복제하지 않는다)가 같은 기본 색을 쓰도록 빈 목록만 내려준다. */
     @Transactional(readOnly = true)
     public CustomScaleResponse getDefaultScale() {

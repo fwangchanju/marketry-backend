@@ -6,18 +6,18 @@ import dev.eolmae.marketry.domain.custom.dto.CustomValueTierItem;
 import dev.eolmae.marketry.domain.custom.service.CustomScaleService;
 import dev.eolmae.marketry.domain.custom.service.CustomSectorService;
 import dev.eolmae.marketry.domain.custom.service.CustomValueTierThresholdService;
-import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
-import dev.eolmae.marketry.domain.view.dto.MarketMapSnapshotDay;
 import dev.eolmae.marketry.domain.view.dto.MarketNoticeResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import dev.eolmae.marketry.domain.view.dto.StockCatalogItem;
 import dev.eolmae.marketry.domain.view.dto.TradingDayGapResponse;
+import dev.eolmae.marketry.domain.view.dto.TreemapResponse;
+import dev.eolmae.marketry.domain.view.dto.TreemapSnapshotDay;
 import dev.eolmae.marketry.domain.view.enums.ChangeRateMode;
 import dev.eolmae.marketry.domain.view.enums.ClassificationSource;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
-import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
 import dev.eolmae.marketry.domain.view.service.MarketNoticeService;
 import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
+import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
@@ -35,9 +35,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/map")
 @RestController
 @RequiredArgsConstructor
-public class MarketMapController {
+public class TreemapController {
 
-    private final MarketMapQueryService marketMapQueryService;
+    private final TreemapQueryService treemapQueryService;
     private final CustomSectorService customSectorService;
     private final CustomScaleService customScaleService;
     private final CustomValueTierThresholdService customValueTierThresholdService;
@@ -45,7 +45,7 @@ public class MarketMapController {
     private final MarketNoticeService marketNoticeService;
 
     @GetMapping
-    public MarketMapResponse getMarketMap(
+    public TreemapResponse getTreemap(
             @RequestParam MarketQuery market,
             @RequestParam(defaultValue = "false") boolean isCustom,
             @RequestParam(required = false) String source,
@@ -58,9 +58,9 @@ public class MarketMapController {
         // source가 없으면 옛 프런트 호환으로 isCustom(true=내 분류, false=거래소)을 따른다.
         ChangeRateMode changeRateMode = ChangeRateMode.parse(basis);
         return switch (ClassificationSource.resolve(source, isCustom)) {
-            case KRX -> marketMapQueryService.getDefaultMarketMap(market, snapshotTime, nxtOnly, changeRateMode);
-            case MARKETRY -> marketMapQueryService.getPublishedMarketMap(market, snapshotTime, nxtOnly, changeRateMode);
-            case MINE -> marketMapQueryService.getCustomMarketMap(market, snapshotTime, nxtOnly, changeRateMode);
+            case KRX -> treemapQueryService.getDefaultTreemap(market, snapshotTime, nxtOnly, changeRateMode);
+            case MARKETRY -> treemapQueryService.getPublishedTreemap(market, snapshotTime, nxtOnly, changeRateMode);
+            case MINE -> treemapQueryService.getCustomTreemap(market, snapshotTime, nxtOnly, changeRateMode);
         };
     }
 
@@ -74,9 +74,9 @@ public class MarketMapController {
 
     /** 달력에 쓰는 날짜 목록 — month는 yyyy-MM. */
     @GetMapping("/snapshot-days")
-    public List<MarketMapSnapshotDay> getSnapshotDays(
+    public List<TreemapSnapshotDay> getSnapshotDays(
             @RequestParam MarketQuery market, @RequestParam @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
-        return marketMapQueryService.getClosingSnapshotDays(market, month);
+        return treemapQueryService.getClosingSnapshotDays(market, month);
     }
 
     /** from(포함하지 않음)~to(포함) 사이의 거래일 수 — 날짜는 yyyy-MM-dd. */
@@ -84,12 +84,12 @@ public class MarketMapController {
     public TradingDayGapResponse getTradingDayGap(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return marketMapQueryService.getTradingDayGap(from, to);
+        return treemapQueryService.getTradingDayGap(from, to);
     }
 
     @GetMapping("/stock-catalog")
     public List<StockCatalogItem> getStockCatalog() {
-        return marketMapQueryService.getStockCatalog();
+        return treemapQueryService.getStockCatalog();
     }
 
     @GetMapping("/trading-schedule")
@@ -124,7 +124,7 @@ public class MarketMapController {
     }
 
     @DeleteMapping("/reset")
-    public void resetMarketMapCustomizations() {
+    public void resetTreemapCustomizations() {
         customSectorService.resetExcludes();
     }
 }

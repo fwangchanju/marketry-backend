@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
-// 섹터 등락률 TOP2 랭킹 텍스트 조립 — 랭킹 확정(필터·정렬·TOP2)은 전부 MarketMapQueryService가
+// 섹터 등락률 TOP2 랭킹 텍스트 조립 — 랭킹 확정(필터·정렬·TOP2)은 전부 TreemapQueryService가
 // 끝낸 뒤 넘겨주므로, 여기는 헤더 조립과 퍼센트 포맷만 한다. 조회 의존성은 없다.
 @Component
 public class SectorRankingTextBuilder {
