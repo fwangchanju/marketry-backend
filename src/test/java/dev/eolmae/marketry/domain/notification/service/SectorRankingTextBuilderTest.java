@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
-// TOP3 선정, 대분류 필터, 기본 제외 구간 제외는 MarketMapQueryService가 랭킹을 확정할 때 끝낸다.
+// TOP3 선정, 대분류 필터, 기본 제외 구간 제외는 TreemapQueryService가 랭킹을 확정할 때 끝낸다.
 // 여기서는 확정된 SectorRankingSummary를 텍스트로 조립하는 포맷팅만 검증한다.
 class SectorRankingTextBuilderTest {
 

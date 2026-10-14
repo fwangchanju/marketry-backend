@@ -30,10 +30,6 @@ import dev.eolmae.marketry.domain.stock.service.StockIndustryNameResolver;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
 import dev.eolmae.marketry.domain.view.dto.MarketIndexChangeRate;
-import dev.eolmae.marketry.domain.view.dto.MarketMapItem;
-import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
-import dev.eolmae.marketry.domain.view.dto.MarketMapSectorNode;
-import dev.eolmae.marketry.domain.view.dto.MarketMapSnapshotDay;
 import dev.eolmae.marketry.domain.view.dto.MarketOverviewItem;
 import dev.eolmae.marketry.domain.view.dto.SectorChangeRateItem;
 import dev.eolmae.marketry.domain.view.dto.SectorChangeRateMarketRanking;
@@ -44,6 +40,10 @@ import dev.eolmae.marketry.domain.view.dto.SnapshotResponse;
 import dev.eolmae.marketry.domain.view.dto.StockCatalogItem;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.dto.TradingDayGapResponse;
+import dev.eolmae.marketry.domain.view.dto.TreemapItem;
+import dev.eolmae.marketry.domain.view.dto.TreemapResponse;
+import dev.eolmae.marketry.domain.view.dto.TreemapSectorNode;
+import dev.eolmae.marketry.domain.view.dto.TreemapSnapshotDay;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.ChangeRateMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
@@ -70,7 +70,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
-public class MarketMapQueryService {
+public class TreemapQueryService {
 
     private static final String UNSECTORED = "미분류";
     private static final long NO_PARENT_KEY = 0L;
@@ -111,26 +111,26 @@ public class MarketMapQueryService {
     }
 
     /** 기본 마켓맵: stock_info 섹터 그대로(override 없이) 기준, 자식 없는 1뎁스 노드로 감싸서 반환
-     * (getCustomMarketMap과 응답 모양 통일). snapshotTime이 없으면 최신, 있으면 그 시각 그대로(결정 4). */
-    public MarketMapResponse getDefaultMarketMap(MarketQuery marketQuery, LocalDateTime snapshotTime) {
-        return getDefaultMarketMap(marketQuery, snapshotTime, false);
+     * (getCustomTreemap과 응답 모양 통일). snapshotTime이 없으면 최신, 있으면 그 시각 그대로(결정 4). */
+    public TreemapResponse getDefaultTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime) {
+        return getDefaultTreemap(marketQuery, snapshotTime, false);
     }
 
     /** nxtOnly면 NXT 거래 가능 종목만 담는다. 업종 분류와 가격은 그대로다(가격은 KRX·NXT 통합 가격). */
-    public MarketMapResponse getDefaultMarketMap(MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly) {
-        return getDefaultMarketMap(marketQuery, snapshotTime, nxtOnly, ChangeRateMode.DAILY);
+    public TreemapResponse getDefaultTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly) {
+        return getDefaultTreemap(marketQuery, snapshotTime, nxtOnly, ChangeRateMode.DAILY);
     }
 
     /** basis가 AFTER_HOURS면 등락률을 그날 정규장 종가 대비로 계산해서 담는다(적용 조건은 {@link #applyBasis}). */
-    public MarketMapResponse getDefaultMarketMap(
+    public TreemapResponse getDefaultTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
         List<Market> markets = marketQuery.toMarkets();
         return resolveSnapshotTime(markets, snapshotTime)
-                .map(resolvedSnapshotTime -> buildDefaultMarketMap(markets, resolvedSnapshotTime, nxtOnly, basis))
-                .orElseGet(MarketMapResponse::empty);
+                .map(resolvedSnapshotTime -> buildDefaultTreemap(markets, resolvedSnapshotTime, nxtOnly, basis))
+                .orElseGet(TreemapResponse::empty);
     }
 
-    private MarketMapResponse buildDefaultMarketMap(
+    private TreemapResponse buildDefaultTreemap(
             List<Market> markets, LocalDateTime latestSnapshotTime, boolean nxtOnly, ChangeRateMode basis) {
         List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime).stream()
                 .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
@@ -139,26 +139,25 @@ public class MarketMapQueryService {
         List<CustomValueTierThreshold> sortedTiers = customValueTierThresholdService.findDefaultSortedAscending();
         Map<String, String> industryNameByStockCode = stockIndustryNameResolver.resolve(candidates);
 
-        Map<String, List<MarketMapItem>> grouped = candidates.stream()
+        Map<String, List<TreemapItem>> grouped = candidates.stream()
                 .filter(stockInfo -> priceMap.containsKey(stockInfo.getStockCode()))
                 .collect(Collectors.groupingBy(
                         stockInfo -> normalizeSectorName(industryNameByStockCode.get(stockInfo.getStockCode())),
                         Collectors.mapping(
                                 stockInfo ->
-                                        toMarketMapItem(stockInfo, priceMap.get(stockInfo.getStockCode()), sortedTiers),
+                                        toTreemapItem(stockInfo, priceMap.get(stockInfo.getStockCode()), sortedTiers),
                                 Collectors.toList())));
 
-        List<MarketMapSectorNode> nodes = grouped.entrySet().stream()
+        List<TreemapSectorNode> nodes = grouped.entrySet().stream()
                 .map(entry -> {
-                    List<MarketMapItem> items = entry.getValue();
-                    BigDecimal totalMarketValue = items.stream()
-                            .map(MarketMapItem::totalMarketValue)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    return MarketMapSectorNode.leaf(NO_SECTOR_ID, entry.getKey(), totalMarketValue, items);
+                    List<TreemapItem> items = entry.getValue();
+                    BigDecimal totalMarketValue =
+                            items.stream().map(TreemapItem::totalMarketValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+                    return TreemapSectorNode.leaf(NO_SECTOR_ID, entry.getKey(), totalMarketValue, items);
                 })
                 .toList();
 
-        return new MarketMapResponse(
+        return new TreemapResponse(
                 latestSnapshotTime,
                 nodes,
                 findSingleMarketOverview(markets, latestSnapshotTime),
@@ -170,28 +169,28 @@ public class MarketMapQueryService {
 
     /** 커스텀 마켓맵: 사용자가 구성한 섹터 트리에 배정된 종목만 반환한다.
      * snapshotTime이 없으면 최신, 있으면 그 시각 그대로(결정 4). */
-    public MarketMapResponse getCustomMarketMap(MarketQuery marketQuery, LocalDateTime snapshotTime) {
-        return getCustomMarketMap(marketQuery, snapshotTime, false);
+    public TreemapResponse getCustomTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime) {
+        return getCustomTreemap(marketQuery, snapshotTime, false);
     }
 
     /** nxtOnly면 내 분류 트리에서 NXT 거래 가능 종목만 남긴다. 분류와 가격(KRX·NXT 통합 가격)은 그대로다. */
-    public MarketMapResponse getCustomMarketMap(MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly) {
-        return getCustomMarketMap(marketQuery, snapshotTime, nxtOnly, ChangeRateMode.DAILY);
+    public TreemapResponse getCustomTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly) {
+        return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, ChangeRateMode.DAILY);
     }
 
-    public MarketMapResponse getCustomMarketMap(
+    public TreemapResponse getCustomTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
-        return getCustomMarketMap(marketQuery, snapshotTime, nxtOnly, basis, CurrentUser.requireId());
+        return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, CurrentUser.requireId());
     }
 
     /** MARKETRY: 운영자가 올린 고정본(발행 사용자)의 분류 기준 — 로그인 없이 누구나 읽는다. */
-    public MarketMapResponse getPublishedMarketMap(
+    public TreemapResponse getPublishedTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
-        return getCustomMarketMap(marketQuery, snapshotTime, nxtOnly, basis, marketryProperties.publishedUserId());
+        return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, marketryProperties.publishedUserId());
     }
 
     /** 비즈니스 로직 오버로드: dataUserId의 분류 데이터로 커스텀 마켓맵을 만든다. */
-    private MarketMapResponse getCustomMarketMap(
+    private TreemapResponse getCustomTreemap(
             MarketQuery marketQuery,
             LocalDateTime snapshotTime,
             boolean nxtOnly,
@@ -200,8 +199,8 @@ public class MarketMapQueryService {
         List<Market> markets = marketQuery.toMarkets();
         return resolveSnapshotTime(markets, snapshotTime)
                 .map(resolvedSnapshotTime ->
-                        buildCustomMarketMap(markets, resolvedSnapshotTime, dataUserId, nxtOnly, basis))
-                .orElseGet(MarketMapResponse::empty);
+                        buildCustomTreemap(markets, resolvedSnapshotTime, dataUserId, nxtOnly, basis))
+                .orElseGet(TreemapResponse::empty);
     }
 
     /** from(포함하지 않음)부터 to(포함)까지의 거래일 수. 거래일은 시장 시간표(휴장일·주말 제외)로 센다. */
@@ -210,9 +209,9 @@ public class MarketMapQueryService {
     }
 
     /** 달력에서 고를 수 있는 날짜 — 그 달의 거래일 중 종가 데이터(KRX)나 현재가 데이터의 종가가 있는 날과 그 시각. 시각을 snapshotTime으로 넘기면 그날 종가 지도를 받는다. */
-    public List<MarketMapSnapshotDay> getClosingSnapshotDays(MarketQuery marketQuery, YearMonth month) {
+    public List<TreemapSnapshotDay> getClosingSnapshotDays(MarketQuery marketQuery, YearMonth month) {
         return sectorPriceSnapshotService.findClosingSnapshotTimes(marketQuery.toMarkets(), month).entrySet().stream()
-                .map(entry -> new MarketMapSnapshotDay(entry.getKey(), entry.getValue()))
+                .map(entry -> new TreemapSnapshotDay(entry.getKey(), entry.getValue()))
                 .toList();
     }
 
@@ -278,12 +277,12 @@ public class MarketMapQueryService {
     private SectorChangeRateMarketRanking toMarketRanking(
             Market market, LocalDateTime snapshotTime, LocalDateTime beforeTime) {
         Map<Long, List<SectorTierBreakdown>> now =
-                sectorTierAggregationService.aggregateBySector(getCustomMarketMapTree(market, snapshotTime));
+                sectorTierAggregationService.aggregateBySector(getCustomTreemapTree(market, snapshotTime));
         if (now.isEmpty()) {
             return null;
         }
         Map<Long, List<SectorTierBreakdown>> before =
-                sectorTierAggregationService.aggregateBySector(getCustomMarketMapTree(market, beforeTime));
+                sectorTierAggregationService.aggregateBySector(getCustomTreemapTree(market, beforeTime));
         List<SectorChangeRateItem> items = now.entrySet().stream()
                 .map(entry -> toItem(entry.getKey(), entry.getValue(), before.get(entry.getKey())))
                 .toList();
@@ -393,7 +392,7 @@ public class MarketMapQueryService {
     /**
      * 맵 발송(코스피+코스닥 앨범) 캡션용 — 두 마켓의 섹터별 breakdown을 먼저 합친 뒤 가중평균을 낸
      * **등락률(now, %) 기준** TOP2. 마켓 구분이 없어 반환 타입도 마켓별 랭킹(SectorRankingSummary)이
-     * 아니라 List&lt;TopSectorItem&gt; 하나다. buildCustomMarketMap의 All Stocks 병합과 같은 패턴
+     * 아니라 List&lt;TopSectorItem&gt; 하나다. buildCustomTreemap의 All Stocks 병합과 같은 패턴
      * (섹터별 breakdown을 합친 뒤 한 번만 나눈다 — 이미 나뉜 평균끼리 다시 평균내면 틀린다)이지만,
      * 화면 트리 없이 랭킹만 필요해서 별도로 조립한다.
      *
@@ -408,7 +407,7 @@ public class MarketMapQueryService {
         List<Market> markets = marketQuery.toMarkets();
         List<Map<Long, List<SectorTierBreakdown>>> breakdownsByMarket = markets.stream()
                 .map(market ->
-                        sectorTierAggregationService.aggregateBySector(getCustomMarketMapTree(market, snapshotTime)))
+                        sectorTierAggregationService.aggregateBySector(getCustomTreemapTree(market, snapshotTime)))
                 .toList();
         // 결정 2 — 요청한 마켓 중 하나라도 합산 결과가 비면 빈 목록을 돌려준다. 한 마켓만 수집에
         // 실패해도 나머지 마켓만으로 TOP2를 뽑으면, 지도 이미지는 markets 전체 기준인데 캡션은 일부
@@ -568,21 +567,21 @@ public class MarketMapQueryService {
      * market 수집이 실패했을 때 예전 시각 데이터를 지금 시각인 것처럼 섞어 쓰게 된다. 대신 정확히 이
      * snapshotTime에 데이터가 없으면 빈 트리를 반환해서 호출부가 그 마켓을 결과에서 빼도록 한다.
      */
-    public List<MarketMapSectorNode> getCustomMarketMapTree(Market market, LocalDateTime snapshotTime) {
+    public List<TreemapSectorNode> getCustomTreemapTree(Market market, LocalDateTime snapshotTime) {
         if (sectorPriceSnapshotService.notExistsSnapshot(market, snapshotTime)) {
             return List.of();
         }
         return buildSectorTree(List.of(market), snapshotTime, customDataUserId(), false, ChangeRateMode.DAILY);
     }
 
-    private MarketMapResponse buildCustomMarketMap(
+    private TreemapResponse buildCustomTreemap(
             List<Market> markets,
             LocalDateTime latestSnapshotTime,
             Long userId,
             boolean nxtOnly,
             ChangeRateMode basis) {
-        List<MarketMapSectorNode> tree = buildSectorTree(markets, latestSnapshotTime, userId, nxtOnly, basis);
-        return new MarketMapResponse(
+        List<TreemapSectorNode> tree = buildSectorTree(markets, latestSnapshotTime, userId, nxtOnly, basis);
+        return new TreemapResponse(
                 latestSnapshotTime,
                 tree,
                 findSingleMarketOverview(markets, latestSnapshotTime),
@@ -640,7 +639,7 @@ public class MarketMapQueryService {
         return sectorUpdatedAt;
     }
 
-    private List<MarketMapSectorNode> buildSectorTree(
+    private List<TreemapSectorNode> buildSectorTree(
             List<Market> markets,
             LocalDateTime latestSnapshotTime,
             Long userId,
@@ -663,14 +662,14 @@ public class MarketMapQueryService {
         Map<String, CachedStockPrice> priceMap = findPrices(markets, latestSnapshotTime, basis);
         List<CustomValueTierThreshold> sortedTiers = customValueTierThresholdService.findAllSortedAscending(userId);
 
-        Map<Long, List<MarketMapItem>> itemsBySectorId = candidates.stream()
+        Map<Long, List<TreemapItem>> itemsBySectorId = candidates.stream()
                 .filter(stockInfo -> stockSectorMap.containsKey(stockInfo.getStockCode()))
                 .filter(stockInfo -> priceMap.containsKey(stockInfo.getStockCode()))
                 .collect(Collectors.groupingBy(
                         stockInfo ->
                                 stockSectorMap.get(stockInfo.getStockCode()).getSectorId(),
                         Collectors.mapping(
-                                stockInfo -> toMarketMapItem(
+                                stockInfo -> toTreemapItem(
                                         stockInfo,
                                         priceMap.get(stockInfo.getStockCode()),
                                         aliasByStockCode.get(stockInfo.getStockCode()),
@@ -682,19 +681,19 @@ public class MarketMapQueryService {
                 .toList();
     }
 
-    private MarketMapSectorNode toSectorNode(
+    private TreemapSectorNode toSectorNode(
             CustomSector sector,
             Map<Long, List<CustomSector>> childrenByParentId,
-            Map<Long, List<MarketMapItem>> itemsBySectorId) {
-        List<MarketMapSectorNode> children = childrenByParentId.getOrDefault(sector.getId(), List.of()).stream()
+            Map<Long, List<TreemapItem>> itemsBySectorId) {
+        List<TreemapSectorNode> children = childrenByParentId.getOrDefault(sector.getId(), List.of()).stream()
                 .map(child -> toSectorNode(child, childrenByParentId, itemsBySectorId))
                 .toList();
-        List<MarketMapItem> items = itemsBySectorId.getOrDefault(sector.getId(), List.of());
+        List<TreemapItem> items = itemsBySectorId.getOrDefault(sector.getId(), List.of());
         BigDecimal itemsValue =
-                items.stream().map(MarketMapItem::totalMarketValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+                items.stream().map(TreemapItem::totalMarketValue).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal childrenValue =
-                children.stream().map(MarketMapSectorNode::totalMarketValue).reduce(BigDecimal.ZERO, BigDecimal::add);
-        return new MarketMapSectorNode(
+                children.stream().map(TreemapSectorNode::totalMarketValue).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new TreemapSectorNode(
                 sector.getId(), sector.getName(), sector.isExcluded(), itemsValue.add(childrenValue), children, items);
     }
 
@@ -823,12 +822,12 @@ public class MarketMapQueryService {
     }
 
     /** 기본 마켓맵용: alias 없음(커스텀 트리 전용 개념) */
-    private MarketMapItem toMarketMapItem(
+    private TreemapItem toTreemapItem(
             StockInfo stockInfo, CachedStockPrice cachedPrice, List<CustomValueTierThreshold> sortedTiers) {
-        return toMarketMapItem(stockInfo, cachedPrice, (String) null, sortedTiers);
+        return toTreemapItem(stockInfo, cachedPrice, (String) null, sortedTiers);
     }
 
-    private MarketMapItem toMarketMapItem(
+    private TreemapItem toTreemapItem(
             StockInfo stockInfo,
             CachedStockPrice cachedPrice,
             String alias,
@@ -837,7 +836,7 @@ public class MarketMapQueryService {
         BigDecimal changeRate = cachedPrice.changeRate();
         BigDecimal totalMarketValue = currentPrice.multiply(BigDecimal.valueOf(stockInfo.getListCount()));
 
-        return new MarketMapItem(
+        return new TreemapItem(
                 stockInfo.getStockCode(),
                 stockInfo.getStockName(),
                 alias,

@@ -15,7 +15,7 @@ import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
-import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
+import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -25,7 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
-class MarketMapAlbumReportSenderTest {
+class TreemapAlbumReportSenderTest {
 
     private static final List<LocalTime> MAP_SEND_TIMES = List.of(LocalTime.of(8, 15));
     private static final String KOSPI_MAP_PATH = "/map/kospi?avgMode=simple&sectorFilter=true";
@@ -37,15 +37,15 @@ class MarketMapAlbumReportSenderTest {
     private final TelegramProperties telegramProperties = new TelegramProperties(
             "token", "chat-id", "dev-chat", 10, 15, 15, AverageMode.SIMPLE, true, MAP_SEND_TIMES);
     private final SectorRankingTextBuilder sectorRankingTextBuilder = Mockito.mock(SectorRankingTextBuilder.class);
-    private final MarketMapQueryService marketMapQueryService = Mockito.mock(MarketMapQueryService.class);
+    private final TreemapQueryService treemapQueryService = Mockito.mock(TreemapQueryService.class);
     private final SectorPriceSnapshotService sectorPriceSnapshotService =
             Mockito.mock(SectorPriceSnapshotService.class);
-    private final MarketMapAlbumReportSender sender = new MarketMapAlbumReportSender(
+    private final TreemapAlbumReportSender sender = new TreemapAlbumReportSender(
             screenshotClient,
             telegramClient,
             telegramProperties,
             sectorRankingTextBuilder,
-            marketMapQueryService,
+            treemapQueryService,
             sectorPriceSnapshotService);
 
     private final LocalDateTime dataTime = LocalDateTime.of(2025, 6, 2, 8, 15);
@@ -66,7 +66,7 @@ class MarketMapAlbumReportSenderTest {
 
         sender.send(dataTime);
 
-        verifyNoInteractions(screenshotClient, telegramClient, marketMapQueryService);
+        verifyNoInteractions(screenshotClient, telegramClient, treemapQueryService);
     }
 
     @Test
@@ -151,18 +151,18 @@ class MarketMapAlbumReportSenderTest {
     void send_프로퍼티가_WEIGHTED와_sectorFilter_false면_맵_캡처_URL과_캡션_계산에_그대로_반영된다() {
         TelegramProperties weightedProperties = new TelegramProperties(
                 "token", "chat-id", "dev-chat", 10, 15, 15, AverageMode.WEIGHTED, false, MAP_SEND_TIMES);
-        MarketMapAlbumReportSender weightedSender = new MarketMapAlbumReportSender(
+        TreemapAlbumReportSender weightedSender = new TreemapAlbumReportSender(
                 screenshotClient,
                 telegramClient,
                 weightedProperties,
                 sectorRankingTextBuilder,
-                marketMapQueryService,
+                treemapQueryService,
                 sectorPriceSnapshotService);
         String kospiWeightedPath = "/map/kospi?avgMode=weighted&sectorFilter=false";
         String kosdaqWeightedPath = "/map/kosdaq?avgMode=weighted&sectorFilter=false";
         when(screenshotClient.capture(kospiWeightedPath, MAP_SELECTOR)).thenReturn(List.of(kospiImage));
         when(screenshotClient.capture(kosdaqWeightedPath, MAP_SELECTOR)).thenReturn(List.of(kosdaqImage));
-        when(marketMapQueryService.getMergedTopSectorRanking(
+        when(treemapQueryService.getMergedTopSectorRanking(
                         MarketQuery.ALL_STOCK, dataTime, AverageMode.WEIGHTED, false))
                 .thenReturn(topSectors);
         when(sectorRankingTextBuilder.buildMapCaption(topSectors)).thenReturn("[#코스피 / #코스닥 섹터 등락률]\n...");
@@ -177,7 +177,7 @@ class MarketMapAlbumReportSenderTest {
     }
 
     private void rankingReturns(List<TopSectorItem> items) {
-        when(marketMapQueryService.getMergedTopSectorRanking(MarketQuery.ALL_STOCK, dataTime, AverageMode.SIMPLE, true))
+        when(treemapQueryService.getMergedTopSectorRanking(MarketQuery.ALL_STOCK, dataTime, AverageMode.SIMPLE, true))
                 .thenReturn(items);
     }
 }

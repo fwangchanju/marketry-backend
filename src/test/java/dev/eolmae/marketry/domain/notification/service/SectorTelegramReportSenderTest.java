@@ -17,7 +17,7 @@ import dev.eolmae.marketry.domain.view.dto.SectorRankingSummary;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
-import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
+import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -44,9 +44,9 @@ class SectorTelegramReportSenderTest {
             true,
             MAP_SEND_TIMES);
     private final SectorRankingTextBuilder sectorRankingTextBuilder = Mockito.mock(SectorRankingTextBuilder.class);
-    private final MarketMapQueryService marketMapQueryService = Mockito.mock(MarketMapQueryService.class);
+    private final TreemapQueryService treemapQueryService = Mockito.mock(TreemapQueryService.class);
     private final SectorTelegramReportSender sender = new SectorTelegramReportSender(
-            screenshotClient, telegramClient, telegramProperties, sectorRankingTextBuilder, marketMapQueryService);
+            screenshotClient, telegramClient, telegramProperties, sectorRankingTextBuilder, treemapQueryService);
 
     private final LocalDateTime dataTime = LocalDateTime.of(2025, 6, 2, 8, 25);
     private final byte[] kospiImage = {1};
@@ -55,7 +55,7 @@ class SectorTelegramReportSenderTest {
 
     @Test
     void send_랭킹_결과가_통째로_비면_캡처도_발송도_하지_않는다() {
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of());
 
@@ -72,7 +72,7 @@ class SectorTelegramReportSenderTest {
         SectorRankingSummary kosdaqSummary =
                 new SectorRankingSummary(Market.KOSDAQ, indexChangeRate, List.of(topSectorItem()));
         List<SectorRankingSummary> rankings = List.of(kospiSummary, kosdaqSummary);
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(rankings);
         when(screenshotClient.capture(
@@ -104,7 +104,7 @@ class SectorTelegramReportSenderTest {
         SectorRankingSummary kospiSummary =
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of(topSectorItem()));
         List<SectorRankingSummary> rankings = List.of(kospiSummary);
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(rankings);
         when(screenshotClient.capture(
@@ -128,7 +128,7 @@ class SectorTelegramReportSenderTest {
     void send_캡처가_통째로_비면_에스컬레이션한다() {
         SectorRankingSummary kospiSummary =
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiSummary));
         when(screenshotClient.capture(
@@ -147,7 +147,7 @@ class SectorTelegramReportSenderTest {
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of(topSectorItem()));
         SectorRankingSummary kosdaqSummary =
                 new SectorRankingSummary(Market.KOSDAQ, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiSummary, kosdaqSummary));
         when(screenshotClient.capture(
@@ -175,13 +175,13 @@ class SectorTelegramReportSenderTest {
         SectorRankingSummary kospiDeltaEmpty = new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of());
         SectorRankingSummary kosdaqDelta =
                 new SectorRankingSummary(Market.KOSDAQ, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiDeltaEmpty, kosdaqDelta));
 
         SectorRankingSummary kospiFallback =
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankingsByChangeRate(
+        when(treemapQueryService.getTopSectorRankingsByChangeRate(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiFallback));
 
@@ -213,13 +213,13 @@ class SectorTelegramReportSenderTest {
         SectorRankingSummary kospiDeltaEmpty = new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of());
         SectorRankingSummary kosdaqDelta =
                 new SectorRankingSummary(Market.KOSDAQ, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiDeltaEmpty, kosdaqDelta));
 
         SectorRankingSummary kospiFallbackAlsoEmpty =
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of());
-        when(marketMapQueryService.getTopSectorRankingsByChangeRate(
+        when(treemapQueryService.getTopSectorRankingsByChangeRate(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiFallbackAlsoEmpty));
 
@@ -242,7 +242,7 @@ class SectorTelegramReportSenderTest {
     void send_변화율_폴백_조회는_한_번만_한다() {
         SectorRankingSummary kospiDeltaEmpty = new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of());
         SectorRankingSummary kosdaqDeltaEmpty = new SectorRankingSummary(Market.KOSDAQ, indexChangeRate, List.of());
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiDeltaEmpty, kosdaqDeltaEmpty));
 
@@ -250,7 +250,7 @@ class SectorTelegramReportSenderTest {
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of(topSectorItem()));
         SectorRankingSummary kosdaqFallback =
                 new SectorRankingSummary(Market.KOSDAQ, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankingsByChangeRate(
+        when(treemapQueryService.getTopSectorRankingsByChangeRate(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true))
                 .thenReturn(List.of(kospiFallback, kosdaqFallback));
 
@@ -261,7 +261,7 @@ class SectorTelegramReportSenderTest {
 
         sender.send(dataTime);
 
-        verify(marketMapQueryService, Mockito.times(1))
+        verify(treemapQueryService, Mockito.times(1))
                 .getTopSectorRankingsByChangeRate(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.SIMPLE, true);
     }
@@ -281,10 +281,10 @@ class SectorTelegramReportSenderTest {
                 false,
                 MAP_SEND_TIMES);
         SectorTelegramReportSender weightedSender = new SectorTelegramReportSender(
-                screenshotClient, telegramClient, weightedProperties, sectorRankingTextBuilder, marketMapQueryService);
+                screenshotClient, telegramClient, weightedProperties, sectorRankingTextBuilder, treemapQueryService);
         SectorRankingSummary kospiSummary =
                 new SectorRankingSummary(Market.KOSPI, indexChangeRate, List.of(topSectorItem()));
-        when(marketMapQueryService.getTopSectorRankings(
+        when(treemapQueryService.getTopSectorRankings(
                         MarketQuery.ALL_STOCK, dataTime, BEFORE_MINUTES, AverageMode.WEIGHTED, false))
                 .thenReturn(List.of(kospiSummary));
         when(screenshotClient.capture(

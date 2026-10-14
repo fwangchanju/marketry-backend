@@ -13,14 +13,14 @@ import org.springframework.stereotype.Component;
 public class TelegramReportDispatcher {
 
     private final SectorTelegramReportSender sectorTelegramReportSender;
-    private final MarketMapAlbumReportSender marketMapAlbumReportSender;
+    private final TreemapAlbumReportSender treemapAlbumReportSender;
 
     public void sendSector(LocalDateTime dataTime) {
         sectorTelegramReportSender.send(dataTime);
     }
 
     public void sendMap(LocalDateTime dataTime) {
-        marketMapAlbumReportSender.send(dataTime);
+        treemapAlbumReportSender.send(dataTime);
     }
 
     // 섹터 → 맵 순. 스케줄러가 둘 다 due일 때와 같은 순서다.
@@ -30,6 +30,6 @@ public class TelegramReportDispatcher {
     }
 
     public void sendMapSinglePage(LocalDateTime dataTime, MarketQuery query) {
-        marketMapAlbumReportSender.sendMapSinglePage(dataTime, query);
+        treemapAlbumReportSender.sendMapSinglePage(dataTime, query);
     }
 }

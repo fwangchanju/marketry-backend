@@ -91,7 +91,7 @@ public class CollectionScheduler {
         // sector_price_snapshot(MarketSnapshotCollector.collectSectorPrice가 씀)으로
         // 그려지므로, 수집이 실패해도 맵 페이지는 최신 공통 시각으로 그대로 그려진다 — 그래서
         // 마지막 수집 성공 여부로 가두지 않는다. 캡션은 그 시각 랭킹이 비면 자연히
-        // 빠진다(MarketMapAlbumReportSender.buildCaption).
+        // 빠진다(TreemapAlbumReportSender.buildCaption).
         if (telegramSendSchedule.dueForMap(snapshotTime, shouldCollect, dayTimes.regularMarketEnd())) {
             run("맵텔레그램발송", () -> telegramReportDispatcher.sendMap(dataTime));
         }

@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * (마켓, 시각) 하나 단위의 종목코드 → 가격 캐시. buildSectorTree/buildDefaultMarketMap이 매번
+ * (마켓, 시각) 하나 단위의 종목코드 → 가격 캐시. buildSectorTree/buildDefaultTreemap이 매번
  * SectorPriceSnapshotService로 가격 행을 DB에서 새로 읽던 것을 캐시로 감싼다.
  *
  * <p>SectorPriceSnapshotService 안에 두지 않고 별도 빈으로 분리했다 — Spring {@code @Cacheable}은
@@ -62,7 +62,7 @@ public class SectorPriceCacheService {
     }
 
     /**
-     * JPA 엔티티를 캐시에 그대로 넣지 않기 위한 불변 값 — toMarketMapItem이 쓰는 필드 셋이다. lastPrice(전일 종가)는 현재가 데이터는
+     * JPA 엔티티를 캐시에 그대로 넣지 않기 위한 불변 값 — toTreemapItem이 쓰는 필드 셋이다. lastPrice(전일 종가)는 현재가 데이터는
      * 현재가 − 변동액, 종가 데이터로 만든 지도는 직전 거래일 종가이며, 비어 있으면 조회 쪽이 대체값을 채우고 끝내 없으면 종목 정보의 전일
      * 종가를 쓴다.
      */

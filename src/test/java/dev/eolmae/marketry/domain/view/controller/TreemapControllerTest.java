@@ -13,15 +13,15 @@ import dev.eolmae.marketry.domain.custom.service.CustomScaleService;
 import dev.eolmae.marketry.domain.custom.service.CustomSectorService;
 import dev.eolmae.marketry.domain.custom.service.CustomValueTierThresholdService;
 import dev.eolmae.marketry.domain.stock.enums.MarketCalendarStatus;
-import dev.eolmae.marketry.domain.view.dto.MarketMapResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketNoticeResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse.TimeWindow;
+import dev.eolmae.marketry.domain.view.dto.TreemapResponse;
 import dev.eolmae.marketry.domain.view.enums.ChangeRateMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
-import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
 import dev.eolmae.marketry.domain.view.service.MarketNoticeService;
 import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
+import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,13 +31,13 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 // 이 레포엔 컨트롤러 테스트도 @WebMvcTest 의존성도 없다(테스트 기준 문서 참고) — 여기서만 standaloneSetup으로
 // 날짜 바인딩과 시간표 응답 형식을 좁게 확인한다. @WebMvcTest 등 새 의존성은 더하지 않는다.
-class MarketMapControllerTest {
+class TreemapControllerTest {
 
-    private final MarketMapQueryService marketMapQueryService = mock(MarketMapQueryService.class);
+    private final TreemapQueryService treemapQueryService = mock(TreemapQueryService.class);
     private final MarketTradingScheduleService tradingScheduleService = mock(MarketTradingScheduleService.class);
     private final MarketNoticeService marketNoticeService = mock(MarketNoticeService.class);
-    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new MarketMapController(
-                    marketMapQueryService,
+    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TreemapController(
+                    treemapQueryService,
                     mock(CustomSectorService.class),
                     mock(CustomScaleService.class),
                     mock(CustomValueTierThresholdService.class),
@@ -106,73 +106,71 @@ class MarketMapControllerTest {
     }
 
     @Test
-    void getMarketMap_snapshotTime이_LocalDateTime으로_바인딩된다() throws Exception {
+    void getTreemap_snapshotTime이_LocalDateTime으로_바인딩된다() throws Exception {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 9, 22, 10, 5, 0);
-        when(marketMapQueryService.getCustomMarketMap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY))
-                .thenReturn(MarketMapResponse.empty());
+        when(treemapQueryService.getCustomTreemap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY))
+                .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=true&snapshotTime=2026-09-22T10:05:00"));
 
-        verify(marketMapQueryService).getCustomMarketMap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY);
+        verify(treemapQueryService).getCustomTreemap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY);
     }
 
     @Test
-    void getMarketMap_nxtOnly가_내_분류에도_전달된다() throws Exception {
-        when(marketMapQueryService.getCustomMarketMap(
-                        eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY)))
-                .thenReturn(MarketMapResponse.empty());
+    void getTreemap_nxtOnly가_내_분류에도_전달된다() throws Exception {
+        when(treemapQueryService.getCustomTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY)))
+                .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=true&nxtOnly=true"));
 
-        verify(marketMapQueryService)
-                .getCustomMarketMap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY));
+        verify(treemapQueryService)
+                .getCustomTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY));
     }
 
     @Test
-    void getMarketMap_snapshotTime이_없으면_null로_바인딩된다() throws Exception {
-        when(marketMapQueryService.getDefaultMarketMap(
+    void getTreemap_snapshotTime이_없으면_null로_바인딩된다() throws Exception {
+        when(treemapQueryService.getDefaultTreemap(
                         eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY)))
-                .thenReturn(MarketMapResponse.empty());
+                .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false"));
 
-        verify(marketMapQueryService)
-                .getDefaultMarketMap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY));
+        verify(treemapQueryService)
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY));
     }
 
     @Test
-    void getMarketMap_nxtOnly가_거래소_분류에_전달된다() throws Exception {
-        when(marketMapQueryService.getDefaultMarketMap(
-                        eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY)))
-                .thenReturn(MarketMapResponse.empty());
+    void getTreemap_nxtOnly가_거래소_분류에_전달된다() throws Exception {
+        when(treemapQueryService.getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY)))
+                .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false&nxtOnly=true"));
 
-        verify(marketMapQueryService)
-                .getDefaultMarketMap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY));
+        verify(treemapQueryService)
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY));
     }
 
     @Test
-    void getMarketMap_basis가_afterHours면_시간외_기준으로_전달된다() throws Exception {
-        when(marketMapQueryService.getDefaultMarketMap(
+    void getTreemap_basis가_afterHours면_시간외_기준으로_전달된다() throws Exception {
+        when(treemapQueryService.getDefaultTreemap(
                         eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS)))
-                .thenReturn(MarketMapResponse.empty());
+                .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false&basis=afterHours"));
 
-        verify(marketMapQueryService)
-                .getDefaultMarketMap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS));
+        verify(treemapQueryService)
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS));
     }
 
     @Test
-    void getMarketMap_모르는_basis_값은_기본_기준으로_본다() throws Exception {
-        when(marketMapQueryService.getDefaultMarketMap(
+    void getTreemap_모르는_basis_값은_기본_기준으로_본다() throws Exception {
+        when(treemapQueryService.getDefaultTreemap(
                         eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY)))
-                .thenReturn(MarketMapResponse.empty());
+                .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false&basis=whatever"));
 
-        verify(marketMapQueryService)
-                .getDefaultMarketMap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY));
+        verify(treemapQueryService)
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY));
     }
 }

@@ -10,7 +10,7 @@ import dev.eolmae.marketry.domain.renderer.client.ScreenshotClient;
 import dev.eolmae.marketry.domain.view.dto.SectorRankingSummary;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
-import dev.eolmae.marketry.domain.view.service.MarketMapQueryService;
+import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -33,13 +33,13 @@ public class SectorTelegramReportSender {
     private final TelegramClient telegramClient;
     private final TelegramProperties telegramProperties;
     private final SectorRankingTextBuilder sectorRankingTextBuilder;
-    private final MarketMapQueryService marketMapQueryService;
+    private final TreemapQueryService treemapQueryService;
 
     public void send(LocalDateTime dataTime) {
         int beforeMinutes = telegramProperties.beforeMinutes();
         AverageMode averageMode = telegramProperties.averageMode();
         boolean sectorFilter = telegramProperties.sectorFilter();
-        List<SectorRankingSummary> deltaRankings = marketMapQueryService.getTopSectorRankings(
+        List<SectorRankingSummary> deltaRankings = treemapQueryService.getTopSectorRankings(
                 MarketQuery.ALL_STOCK, dataTime, beforeMinutes, averageMode, sectorFilter);
         if (deltaRankings.isEmpty()) {
             log.warn("{} 시각 섹터 등락률 랭킹 조회가 비어 있어 섹터 발송을 건너뜀", dataTime);
@@ -57,7 +57,7 @@ public class SectorTelegramReportSender {
             boolean isFallback = false;
             if (delta.topSectors().isEmpty()) {
                 if (changeRateRankings == null) {
-                    changeRateRankings = marketMapQueryService.getTopSectorRankingsByChangeRate(
+                    changeRateRankings = treemapQueryService.getTopSectorRankingsByChangeRate(
                             MarketQuery.ALL_STOCK, dataTime, beforeMinutes, averageMode, sectorFilter);
                 }
                 SectorRankingSummary fallback = findByMarket(changeRateRankings, delta.market());

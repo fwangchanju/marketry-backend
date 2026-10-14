@@ -9,10 +9,10 @@ import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import dev.eolmae.marketry.domain.custom.entity.CustomValueTierThreshold;
 import dev.eolmae.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import dev.eolmae.marketry.domain.notification.properties.MarketryProperties;
-import dev.eolmae.marketry.domain.view.dto.MarketMapItem;
-import dev.eolmae.marketry.domain.view.dto.MarketMapSectorNode;
 import dev.eolmae.marketry.domain.view.dto.SectorTierBreakdown;
 import dev.eolmae.marketry.domain.view.dto.SnapshotAverages;
+import dev.eolmae.marketry.domain.view.dto.TreemapItem;
+import dev.eolmae.marketry.domain.view.dto.TreemapSectorNode;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -60,7 +60,7 @@ class SectorTierAggregationServiceTest {
         when(marketValueTierThresholdRepository.findAllByUserIdOrderByThresholdValueAsc(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(List.of(large));
 
-        MarketMapSectorNode node = leaf(1L, "반도체", List.of(item("005930", "대형", BigDecimal.TEN, 10_000)));
+        TreemapSectorNode node = leaf(1L, "반도체", List.of(item("005930", "대형", BigDecimal.TEN, 10_000)));
 
         Map<Long, List<SectorTierBreakdown>> result = service.aggregateBySector(List.of(node));
 
@@ -73,8 +73,8 @@ class SectorTierAggregationServiceTest {
         when(marketValueTierThresholdRepository.findAllByUserIdOrderByThresholdValueAsc(TEST_USER_ID))
                 .thenReturn(List.of(large));
 
-        MarketMapSectorNode child = leaf(2L, "반도체 소재", List.of(item("000660", "대형", BigDecimal.TEN, 10_000)));
-        MarketMapSectorNode parent = new MarketMapSectorNode(
+        TreemapSectorNode child = leaf(2L, "반도체 소재", List.of(item("000660", "대형", BigDecimal.TEN, 10_000)));
+        TreemapSectorNode parent = new TreemapSectorNode(
                 1L,
                 "반도체",
                 false,
@@ -101,7 +101,7 @@ class SectorTierAggregationServiceTest {
         when(marketValueTierThresholdRepository.findAllByUserIdOrderByThresholdValueAsc(TEST_USER_ID))
                 .thenReturn(List.of(large, small));
 
-        MarketMapSectorNode node = leaf(
+        TreemapSectorNode node = leaf(
                 1L,
                 "반도체",
                 List.of(
@@ -125,7 +125,7 @@ class SectorTierAggregationServiceTest {
                 .thenReturn(List.of(large));
 
         // 시총 90,000짜리 +30%, 시총 10,000짜리 +10% — 가중합은 시총에 끌리고 산술합은 종목당 등락률 합.
-        MarketMapSectorNode node = leaf(
+        TreemapSectorNode node = leaf(
                 1L,
                 "반도체",
                 List.of(
@@ -148,7 +148,7 @@ class SectorTierAggregationServiceTest {
         when(marketValueTierThresholdRepository.findAllByUserIdOrderByThresholdValueAsc(TEST_USER_ID))
                 .thenReturn(List.of());
 
-        MarketMapSectorNode empty = leaf(1L, "빈섹터", List.of());
+        TreemapSectorNode empty = leaf(1L, "빈섹터", List.of());
 
         Map<Long, List<SectorTierBreakdown>> result = service.aggregateBySector(List.of(empty));
 
@@ -183,12 +183,12 @@ class SectorTierAggregationServiceTest {
         return threshold;
     }
 
-    private MarketMapSectorNode leaf(Long sectorId, String sectorName, List<MarketMapItem> items) {
-        return new MarketMapSectorNode(sectorId, sectorName, false, BigDecimal.ZERO, List.of(), items);
+    private TreemapSectorNode leaf(Long sectorId, String sectorName, List<TreemapItem> items) {
+        return new TreemapSectorNode(sectorId, sectorName, false, BigDecimal.ZERO, List.of(), items);
     }
 
-    private MarketMapItem item(String stockCode, String tierLabel, BigDecimal changeRate, long totalMarketValue) {
-        return new MarketMapItem(
+    private TreemapItem item(String stockCode, String tierLabel, BigDecimal changeRate, long totalMarketValue) {
+        return new TreemapItem(
                 stockCode,
                 stockCode,
                 null,

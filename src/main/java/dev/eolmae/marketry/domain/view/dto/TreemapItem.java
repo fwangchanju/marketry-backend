@@ -3,7 +3,7 @@ package dev.eolmae.marketry.domain.view.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record MarketMapItem(
+public record TreemapItem(
         String stockCode,
         // 항상 실제 종목명(alias 치환 없음) — 관리 화면(StockSectorListItem)의 stockName/alias와
         // 동일한 관례. 박스 라벨처럼 alias를 우선해야 하는 표시는 프론트에서 "alias ?? stockName"으로 계산한다.

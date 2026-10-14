@@ -43,12 +43,12 @@ import org.springframework.data.repository.core.support.RepositoryComposition.Re
 
 /**
  * localhost:15439/snapshot_query_test에 로컬 가격·캘린더 두 테이블을 복사한 뒤
- * ./gradlew.bat manualTest --tests "*MarketMapToggleQueryManualTest" -i로 실행한다.
+ * ./gradlew.bat manualTest --tests "*TreemapToggleQueryManualTest" -i로 실행한다.
  * API·스케줄러 없이 실제 가격 서비스와 QueryDSL을 실행한다. DDL 없이 읽기 전용 트랜잭션을 사용한다.
  * 신규 JVM/캐시 미적중 상태의 가격 조회 경로이며 전체 HTTP 응답 시간은 측정하지 않는다.
  */
 @Tag("manual")
-class MarketMapToggleQueryManualTest {
+class TreemapToggleQueryManualTest {
     private static final LocalDate TODAY = LocalDate.of(2026, 10, 10);
     private static final List<Market> MARKETS = List.of(Market.KOSPI, Market.KOSDAQ);
 
