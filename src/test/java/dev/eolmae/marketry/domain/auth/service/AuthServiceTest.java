@@ -200,7 +200,7 @@ class AuthServiceTest {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(42L, Role.USER);
         UserAccount user = userAccount(42L);
         when(userAccountRepository.findById(42L)).thenReturn(Optional.of(user));
-        when(userProfileService.getProfile(42L)).thenReturn(new ProfileResponse("마켓러", true, 1_700_000_000_000L));
+        when(userProfileService.getProfile(42L)).thenReturn(new ProfileResponse("마켓러", true, 1_700_000_000_000L, null));
 
         AuthSessionResponse session = authService.session(principal);
 

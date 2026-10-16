@@ -8,4 +8,6 @@ public interface ProfileSummary {
     String getNickname();
 
     LocalDateTime getImageUpdatedAt();
+
+    LocalDateTime getNicknameChangedAt();
 }

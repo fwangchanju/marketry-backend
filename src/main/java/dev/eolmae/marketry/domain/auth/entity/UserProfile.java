@@ -24,6 +24,8 @@ public class UserProfile {
 
     private LocalDateTime imageUpdatedAt;
 
+    private LocalDateTime nicknameChangedAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -39,9 +41,14 @@ public class UserProfile {
         this.updatedAt = now;
     }
 
+    /** 닉네임을 바꾼다. 이미 닉네임이 있던 계정의 교체이면 교체 시각을 남기고, 첫 등록이면 남기지 않는다. */
     public void changeNickname(String nickname) {
+        LocalDateTime now = LocalDateTime.now(Zone.KST.zoneId());
+        if (this.nickname != null) {
+            this.nicknameChangedAt = now;
+        }
         this.nickname = nickname;
-        this.updatedAt = LocalDateTime.now(Zone.KST.zoneId());
+        this.updatedAt = now;
     }
 
     public void changeImage(byte[] image) {

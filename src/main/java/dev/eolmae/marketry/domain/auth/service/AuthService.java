@@ -175,7 +175,13 @@ public class AuthService {
     private AuthSessionResponse toSessionResponse(UserAccount user) {
         ProfileResponse profile = userProfileService.getProfile(user.getId());
         return new AuthSessionResponse(
-                true, user.getId(), user.getEmail(), user.getRole(), profile.nickname(), profile.imageVersion());
+                true,
+                user.getId(),
+                user.getEmail(),
+                user.getRole(),
+                profile.nickname(),
+                profile.imageVersion(),
+                profile.nicknameChangeableAt());
     }
 
     private IssuedTokens createTokens(UserAccount user) {

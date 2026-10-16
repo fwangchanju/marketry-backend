@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.eolmae.marketry.domain.auth.dto.NicknameAvailabilityResponse;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
@@ -49,7 +50,7 @@ class ProfileControllerTest {
 
     @Test
     void 프로필_조회는_닉네임_사진여부_사진버전을_돌려준다() throws Exception {
-        when(userProfileService.getProfile(42L)).thenReturn(new ProfileResponse("마켓러", true, 1_700_000_000_000L));
+        when(userProfileService.getProfile(42L)).thenReturn(new ProfileResponse("마켓러", true, 1_700_000_000_000L, null));
 
         mockMvc.perform(get("/api/profile"))
                 .andExpect(status().isOk())
@@ -60,7 +61,7 @@ class ProfileControllerTest {
 
     @Test
     void 닉네임_저장은_본문의_닉네임을_서비스에_넘긴다() throws Exception {
-        when(userProfileService.updateNickname(42L, "마켓러")).thenReturn(new ProfileResponse("마켓러", false, null));
+        when(userProfileService.updateNickname(42L, "마켓러")).thenReturn(new ProfileResponse("마켓러", false, null, null));
 
         mockMvc.perform(put("/api/profile/nickname")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -70,9 +71,19 @@ class ProfileControllerTest {
     }
 
     @Test
+    void 닉네임_사용_가능_여부는_쿼리의_닉네임을_서비스에_넘기고_결과를_돌려준다() throws Exception {
+        when(userProfileService.checkNicknameAvailability(42L, "마켓러"))
+                .thenReturn(new NicknameAvailabilityResponse(true));
+
+        mockMvc.perform(get("/api/profile/nickname/availability").param("nickname", "마켓러"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(true));
+    }
+
+    @Test
     void 사진_올리기는_file_파트의_바이트를_서비스에_넘긴다() throws Exception {
         byte[] bytes = {1, 2, 3};
-        when(userProfileService.updateImage(eq(42L), eq(bytes))).thenReturn(new ProfileResponse(null, true, 1L));
+        when(userProfileService.updateImage(eq(42L), eq(bytes))).thenReturn(new ProfileResponse(null, true, 1L, null));
 
         mockMvc.perform(multipart("/api/profile/image")
                         .file(new MockMultipartFile("file", "me.jpg", "image/jpeg", bytes))

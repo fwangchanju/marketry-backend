@@ -1,5 +1,6 @@
 package dev.eolmae.marketry.domain.auth.controller;
 
+import dev.eolmae.marketry.domain.auth.dto.NicknameAvailabilityResponse;
 import dev.eolmae.marketry.domain.auth.dto.NicknameRequest;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.service.CurrentUser;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,6 +33,11 @@ public class ProfileController {
     @GetMapping
     public ProfileResponse getProfile() {
         return userProfileService.getProfile(CurrentUser.requireId());
+    }
+
+    @GetMapping("/nickname/availability")
+    public NicknameAvailabilityResponse checkNicknameAvailability(@RequestParam String nickname) {
+        return userProfileService.checkNicknameAvailability(CurrentUser.requireId(), nickname);
     }
 
     @PutMapping("/nickname")
