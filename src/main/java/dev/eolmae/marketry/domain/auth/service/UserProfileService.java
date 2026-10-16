@@ -5,11 +5,13 @@ import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ConflictException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.NotFoundException;
+import dev.eolmae.marketry.domain.auth.dto.NicknameAvailabilityResponse;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.repository.ProfileSummary;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
 import java.text.Normalizer;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -28,6 +30,8 @@ public class UserProfileService {
     private static final Pattern NICKNAME_PATTERN = Pattern.compile("^[가-힣A-Za-z0-9]{2,12}$");
     private static final String NICKNAME_UNIQUE_INDEX = "uk_user_profile_nickname_lower";
     private static final int SAVE_ATTEMPTS = 2;
+    // 닉네임을 한 번 바꾼 뒤 다시 바꿀 수 있게 되기까지의 간격. 닉네임이 없던 계정의 첫 등록에는 적용하지 않는다.
+    static final Duration NICKNAME_CHANGE_INTERVAL = Duration.ofDays(7);
 
     private final UserProfileRepository userProfileRepository;
     private final ProfileImageProcessor profileImageProcessor;
@@ -42,11 +46,30 @@ public class UserProfileService {
 
     public ProfileResponse updateNickname(Long userId, String requestedNickname) {
         String nickname = normalizeNickname(requestedNickname);
+        ProfileSummary current =
+                userProfileRepository.findByUserId(userId, ProfileSummary.class).orElse(null);
+        if (current != null && nickname.equals(current.getNickname())) {
+            return toResponse(current);
+        }
+        assertNicknameChangeable(userId, current);
         if (userProfileRepository.existsByNicknameIgnoreCaseAndUserIdNot(nickname, userId)) {
             throw new ConflictException(ErrorCode.PROFILE_NICKNAME_DUPLICATE, nickname);
         }
         save(userId, profile -> profile.changeNickname(nickname));
         return getProfile(userId);
+    }
+
+    /** 이 닉네임으로 등록할 수 있는지 미리 확인한다 — 내 닉네임과 같거나 아무도 쓰지 않으면 true. 저장은 하지 않는다. */
+    public NicknameAvailabilityResponse checkNicknameAvailability(Long userId, String requestedNickname) {
+        String nickname = normalizeNickname(requestedNickname);
+        ProfileSummary current =
+                userProfileRepository.findByUserId(userId, ProfileSummary.class).orElse(null);
+        if (current != null && nickname.equals(current.getNickname())) {
+            return new NicknameAvailabilityResponse(true);
+        }
+        assertNicknameChangeable(userId, current);
+        return new NicknameAvailabilityResponse(
+                !userProfileRepository.existsByNicknameIgnoreCaseAndUserIdNot(nickname, userId));
     }
 
     public ProfileResponse updateImage(Long userId, byte[] source) {
@@ -118,11 +141,36 @@ public class UserProfileService {
     }
 
     private static ProfileResponse toResponse(ProfileSummary summary) {
+        Long nicknameChangeableAt = toEpochMillis(nicknameChangeableAt(summary));
         LocalDateTime imageUpdatedAt = summary.getImageUpdatedAt();
         if (imageUpdatedAt == null) {
-            return new ProfileResponse(summary.getNickname(), false, null);
+            return new ProfileResponse(summary.getNickname(), false, null, nicknameChangeableAt);
         }
-        long imageVersion = imageUpdatedAt.atZone(Zone.KST.zoneId()).toInstant().toEpochMilli();
-        return new ProfileResponse(summary.getNickname(), true, imageVersion);
+        return new ProfileResponse(summary.getNickname(), true, toEpochMillis(imageUpdatedAt), nicknameChangeableAt);
+    }
+
+    // 최근에 바꿔서 아직 바꿀 수 없으면 409를 던진다(닉네임을 처음 등록하는 계정은 늘 통과한다).
+    private void assertNicknameChangeable(Long userId, ProfileSummary current) {
+        if (current == null) {
+            return;
+        }
+        LocalDateTime changeableAt = nicknameChangeableAt(current);
+        if (changeableAt != null) {
+            throw new ConflictException(ErrorCode.PROFILE_NICKNAME_CHANGE_LIMITED, userId, changeableAt);
+        }
+    }
+
+    // 닉네임이 있고 최근에 바꿨다면 다시 바꿀 수 있게 되는 시각, 지금 바꿀 수 있으면 null.
+    private static LocalDateTime nicknameChangeableAt(ProfileSummary summary) {
+        LocalDateTime changedAt = summary.getNicknameChangedAt();
+        if (summary.getNickname() == null || changedAt == null) {
+            return null;
+        }
+        LocalDateTime changeableAt = changedAt.plus(NICKNAME_CHANGE_INTERVAL);
+        return changeableAt.isAfter(LocalDateTime.now(Zone.KST.zoneId())) ? changeableAt : null;
+    }
+
+    private static Long toEpochMillis(LocalDateTime time) {
+        return time == null ? null : time.atZone(Zone.KST.zoneId()).toInstant().toEpochMilli();
     }
 }

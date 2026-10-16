@@ -38,6 +38,7 @@ public enum ErrorCode {
     DEV_LOGIN_OWNER_NOT_FOUND("개발용 로그인 소유자 계정을 찾을 수 없습니다."),
     PROFILE_NICKNAME_INVALID("닉네임은 2~12자의 한글, 영문, 숫자만 사용할 수 있습니다."),
     PROFILE_NICKNAME_DUPLICATE("이미 사용 중인 닉네임입니다."),
+    PROFILE_NICKNAME_CHANGE_LIMITED("닉네임은 7일에 한 번만 바꿀 수 있습니다."),
     PROFILE_IMAGE_TOO_LARGE_DIMENSION("사진의 가로·세로 크기가 너무 큽니다."),
     PROFILE_IMAGE_NOT_FOUND("등록된 프로필 사진이 없습니다."),
 

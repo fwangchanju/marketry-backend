@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ConflictException;
+import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserProfile;
@@ -106,16 +107,162 @@ class UserProfileServiceTest {
     }
 
     @Test
-    void 본인의_닉네임을_같은_값으로_다시_저장하면_성공한다() {
+    void 본인의_닉네임을_같은_값으로_다시_저장하면_아무것도_바꾸지_않고_성공한다() {
+        ProfileSummary current = summary("마켓러", null, LocalDateTime.now(ZoneId.of("Asia/Seoul")));
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+
+        ProfileResponse response = userProfileService.updateNickname(USER_ID, "마켓러");
+
+        assertThat(response.nickname()).isEqualTo("마켓러");
+        verify(userProfileRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 닉네임이_없던_계정의_첫_등록은_교체_시각을_남기지_않는다() {
         UserProfile existing = new UserProfile(USER_ID);
-        existing.changeNickname("마켓러");
         when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(existing));
-        when(userProfileRepository.existsByNicknameIgnoreCaseAndUserIdNot("마켓러", USER_ID))
-                .thenReturn(false);
 
         userProfileService.updateNickname(USER_ID, "마켓러");
 
-        verify(userProfileRepository).saveAndFlush(existing);
+        assertThat(existing.getNickname()).isEqualTo("마켓러");
+        assertThat(existing.getNicknameChangedAt()).isNull();
+    }
+
+    @Test
+    void 닉네임이_있던_계정이_바꾸면_교체_시각을_남긴다() {
+        UserProfile existing = new UserProfile(USER_ID);
+        existing.changeNickname("마켓러");
+        ProfileSummary current = summary("마켓러", null, null);
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+        when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(existing));
+
+        userProfileService.updateNickname(USER_ID, "투자왕");
+
+        assertThat(existing.getNickname()).isEqualTo("투자왕");
+        assertThat(existing.getNicknameChangedAt()).isNotNull();
+    }
+
+    @Test
+    void 바꾼_지_7일이_안_지났으면_ConflictException을_던지고_저장하지_않는다() {
+        LocalDateTime changedAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).minusDays(6);
+        ProfileSummary current = summary("마켓러", null, changedAt);
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+
+        assertThatThrownBy(() -> userProfileService.updateNickname(USER_ID, "투자왕"))
+                .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getErrorCode())
+                        .isEqualTo(ErrorCode.PROFILE_NICKNAME_CHANGE_LIMITED));
+        verify(userProfileRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 바꾼_지_7일이_지났으면_다시_바꿀_수_있다() {
+        LocalDateTime changedAt =
+                LocalDateTime.now(ZoneId.of("Asia/Seoul")).minusDays(7).minusMinutes(1);
+        UserProfile existing = new UserProfile(USER_ID);
+        existing.changeNickname("마켓러");
+        ProfileSummary current = summary("마켓러", null, changedAt);
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+        when(userProfileRepository.findById(USER_ID)).thenReturn(Optional.of(existing));
+
+        userProfileService.updateNickname(USER_ID, "투자왕");
+
+        assertThat(existing.getNickname()).isEqualTo("투자왕");
+    }
+
+    @Test
+    void 바꾼_지_얼마_안_됐어도_같은_닉네임이_아니면_다른_사용자의_닉네임_조회보다_먼저_막는다() {
+        LocalDateTime changedAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).minusDays(1);
+        ProfileSummary current = summary("마켓러", null, changedAt);
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+
+        assertThatThrownBy(() -> userProfileService.updateNickname(USER_ID, "투자왕"))
+                .isInstanceOf(ConflictException.class);
+        verify(userProfileRepository, never()).existsByNicknameIgnoreCaseAndUserIdNot(any(), anyLong());
+    }
+
+    @Test
+    void 사용_가능_여부는_다른_사용자가_쓰지_않으면_true다() {
+        when(userProfileRepository.existsByNicknameIgnoreCaseAndUserIdNot("마켓러", USER_ID))
+                .thenReturn(false);
+
+        assertThat(userProfileService.checkNicknameAvailability(USER_ID, "마켓러").available())
+                .isTrue();
+        verify(userProfileRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 사용_가능_여부는_다른_사용자가_쓰면_false다() {
+        when(userProfileRepository.existsByNicknameIgnoreCaseAndUserIdNot("마켓러", USER_ID))
+                .thenReturn(true);
+
+        assertThat(userProfileService.checkNicknameAvailability(USER_ID, "마켓러").available())
+                .isFalse();
+    }
+
+    @Test
+    void 사용_가능_여부는_내_닉네임과_같으면_조회하지_않고_true다() {
+        ProfileSummary current = summary("마켓러", null, null);
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+
+        assertThat(userProfileService.checkNicknameAvailability(USER_ID, "마켓러").available())
+                .isTrue();
+        verify(userProfileRepository, never()).existsByNicknameIgnoreCaseAndUserIdNot(any(), anyLong());
+    }
+
+    @Test
+    void 사용_가능_여부도_규칙에_맞지_않으면_BadRequestException을_던진다() {
+        assertThatThrownBy(() -> userProfileService.checkNicknameAvailability(USER_ID, "닉 네임"))
+                .isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 사용_가능_여부도_바꾼_지_7일이_안_지났으면_ConflictException을_던진다() {
+        ProfileSummary current =
+                summary("마켓러", null, LocalDateTime.now(ZoneId.of("Asia/Seoul")).minusDays(1));
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+
+        assertThatThrownBy(() -> userProfileService.checkNicknameAvailability(USER_ID, "투자왕"))
+                .isInstanceOfSatisfying(ConflictException.class, e -> assertThat(e.getErrorCode())
+                        .isEqualTo(ErrorCode.PROFILE_NICKNAME_CHANGE_LIMITED));
+    }
+
+    @Test
+    void 프로필_응답은_바꿀_수_있게_되는_시각을_한국시간_epoch_밀리초로_돌려준다() {
+        LocalDateTime changedAt = LocalDateTime.now(ZoneId.of("Asia/Seoul")).minusDays(2);
+        ProfileSummary current = summary("마켓러", null, changedAt);
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(current));
+
+        ProfileResponse response = userProfileService.getProfile(USER_ID);
+
+        long expected = changedAt
+                .plus(UserProfileService.NICKNAME_CHANGE_INTERVAL)
+                .atZone(ZoneId.of("Asia/Seoul"))
+                .toInstant()
+                .toEpochMilli();
+        assertThat(response.nicknameChangeableAt()).isEqualTo(expected);
+    }
+
+    @Test
+    void 제한_기간이_지났거나_바꾼_적이_없으면_바꿀_수_있게_되는_시각이_null이다() {
+        ProfileSummary neverChanged = summary("마켓러", null, null);
+        ProfileSummary longAgo =
+                summary("마켓러", null, LocalDateTime.now(ZoneId.of("Asia/Seoul")).minusDays(30));
+        when(userProfileRepository.findByUserId(eq(USER_ID), eq(ProfileSummary.class)))
+                .thenReturn(Optional.of(neverChanged))
+                .thenReturn(Optional.of(longAgo));
+
+        assertThat(userProfileService.getProfile(USER_ID).nicknameChangeableAt())
+                .isNull();
+        assertThat(userProfileService.getProfile(USER_ID).nicknameChangeableAt())
+                .isNull();
     }
 
     @Test
@@ -220,7 +367,7 @@ class UserProfileServiceTest {
 
         ProfileResponse response = userProfileService.getProfile(USER_ID);
 
-        assertThat(response).isEqualTo(new ProfileResponse(null, false, null));
+        assertThat(response).isEqualTo(new ProfileResponse(null, false, null, null));
     }
 
     @Test
@@ -273,9 +420,14 @@ class UserProfileServiceTest {
     }
 
     private ProfileSummary summary(String nickname, LocalDateTime imageUpdatedAt) {
+        return summary(nickname, imageUpdatedAt, null);
+    }
+
+    private ProfileSummary summary(String nickname, LocalDateTime imageUpdatedAt, LocalDateTime nicknameChangedAt) {
         ProfileSummary summary = mock(ProfileSummary.class);
         when(summary.getNickname()).thenReturn(nickname);
         when(summary.getImageUpdatedAt()).thenReturn(imageUpdatedAt);
+        when(summary.getNicknameChangedAt()).thenReturn(nicknameChangedAt);
         return summary;
     }
 }
