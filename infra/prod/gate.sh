@@ -4,6 +4,7 @@
 # 이 파일은 설치본의 원본이다. 고치면 다시 설치해야 반영된다.
 #
 # 입력은 SSH_ORIGINAL_COMMAND 하나뿐이다: deploy <target> <tag>
+# 조회 전용 명령 gate-version, diagnostics도 고정 형식으로 허용한다.
 #   target: application | nginx | renderer | all
 #   tag:    ^[A-Za-z0-9._-]{1,128}$
 # 레지스트리 포인터(:deployed, :previous) 갱신과 원복은 워크플로 쪽 일이라 여기서 하지 않는다.
@@ -31,6 +32,7 @@ SERVICES=()
 CONTAINER_SNAPSHOT=""
 PREDEPLOY_SNAPSHOT=""
 CLEANUP_PLAN=""
+RENAME_PENDING="$HOME/.marketry-application-rename"
 
 log() {
   echo "=== [gate] $* ==="
@@ -53,10 +55,10 @@ parse_command() {
   TARGET="${BASH_REMATCH[1]}"
   TAG="${BASH_REMATCH[2]}"
   case "$TARGET" in
-    application) SERVICES=(marketry-app) ;;
+    application) SERVICES=(marketry-application) ;;
     nginx) SERVICES=(marketry-nginx) ;;
     renderer) SERVICES=(marketry-renderer) ;;
-    all) SERVICES=(marketry-app marketry-nginx marketry-renderer) ;;
+    all) SERVICES=(marketry-application marketry-nginx marketry-renderer) ;;
   esac
 }
 
@@ -137,18 +139,39 @@ deploy_services() {
     all) export RENDERER_TAG=latest ;;
   esac
 
+  local legacy
+  legacy=$(docker ps -aq --filter 'name=^/marketry-app$')
+  if [ -e "$RENAME_PENDING" ] && [ "$TARGET" != all ] && [ "$TARGET" != application ]; then
+    echo 'gate: 리네임 복구 중에는 application 또는 all만 허용합니다.' >&2
+    return 1
+  fi
+  if [ -n "$legacy" ] && [ ! -e "$RENAME_PENDING" ] && [ "$TARGET" != all ]; then
+    echo 'gate: 최초 앱 이름 변경은 target=all로 실행해야 합니다.' >&2
+    return 1
+  fi
   log "이미지 받기: ${SERVICES[*]} (app: ${APP_TAG:-deployed}, nginx: ${NGINX_TAG:-latest}, renderer: ${RENDERER_TAG:-latest})"
   compose pull "${SERVICES[@]}"
+  if [ -e "$RENAME_PENDING" ]; then
+    compose pull marketry-nginx
+  fi
+  if [ -n "$legacy" ]; then
+    touch "$RENAME_PENDING"
+    docker update --restart=no marketry-app
+    docker stop --timeout 60 marketry-app
+  fi
 
   log "기동: ${SERVICES[*]}"
   compose up -d --no-deps "${SERVICES[@]}"
+  if [ -e "$RENAME_PENDING" ]; then
+    compose up -d --no-deps --force-recreate marketry-nginx
+  fi
 }
 
 image_repository() {
   case "$1" in
-    marketry-app) echo ghcr.io/fwangchanju/market-monitor ;;
-    marketry-nginx) echo ghcr.io/fwangchanju/market-monitor-nginx ;;
-    marketry-renderer) echo ghcr.io/fwangchanju/market-monitor-renderer ;;
+    marketry-application) echo ghcr.io/fwangchanju/marketry-application ;;
+    marketry-nginx) echo ghcr.io/fwangchanju/marketry-nginx ;;
+    marketry-renderer) echo ghcr.io/fwangchanju/marketry-renderer ;;
     *) return 1 ;;
   esac
 }
@@ -312,10 +335,14 @@ cleanup_images() {
 
 # 컨테이너가 크래시 루프에 빠졌는지 본다. 빠졌으면 1을 반환한다
 crash_looping() {
-  local count
+  local count baseline="${2:-0}"
   count=$(docker inspect --format='{{.RestartCount}}' "$1")
-  if [ "$count" -ge "$MAX_RESTART_COUNT" ]; then
-    echo "gate: $1 재시작 ${count}회, 크래시 루프로 판단합니다." >&2
+  if ! [[ "$count" =~ ^[0-9]+$ && "$baseline" =~ ^[0-9]+$ ]]; then
+    echo "gate: $1 재시작 횟수를 확인하지 못했습니다." >&2
+    return 0
+  fi
+  if [ "$((count - baseline))" -ge "$MAX_RESTART_COUNT" ]; then
+    echo "gate: $1 검사 구간 재시작 $((count - baseline))회, 크래시 루프로 판단합니다." >&2
     return 0
   fi
   return 1
@@ -326,9 +353,9 @@ crash_looping() {
 # 앱 컨테이너 안에서 bash /dev/tcp로 직접 요청한다.
 app_health_body() {
   if [ "$(docker inspect --format='{{.State.Running}}' marketry-nginx 2>/dev/null || true)" = "true" ]; then
-    docker exec marketry-nginx wget -qO- -T 5 http://marketry-app:8081/actuator/health
+    docker exec marketry-nginx wget -qO- -T 5 http://marketry-application:8081/actuator/health
   else
-    docker exec marketry-app bash -c \
+    docker exec marketry-application bash -c \
       'exec 3<>/dev/tcp/127.0.0.1/8081 && printf "GET /actuator/health HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && cat <&3'
   fi
 }
@@ -365,10 +392,13 @@ wait_healthy() {
 # nginx는 헬스 엔드포인트가 없어 잠시 지켜보며 크래시 루프만 확인한다
 watch_container() {
   local container="$1"
-  local elapsed=0
+  local elapsed=0 baseline
+  # 재사용한 nginx의 과거 재시작을 이번 배포 실패로 취급하지 않는다.
+  baseline=$(docker inspect --format='{{.RestartCount}}' "$container")
+  [[ "$baseline" =~ ^[0-9]+$ ]] || { echo "gate: $container 재시작 기준 조회 실패" >&2; exit 1; }
 
   while [ "$elapsed" -lt 15 ]; do
-    if [ "$(docker inspect --format='{{.State.Running}}' "$container")" != "true" ] || crash_looping "$container"; then
+    if [ "$(docker inspect --format='{{.State.Running}}' "$container")" != "true" ] || crash_looping "$container" "$baseline"; then
       echo "gate: $container 이(가) 정상 실행 중이 아닙니다." >&2
       docker logs --tail 50 "$container" >&2 || true
       exit 1
@@ -382,7 +412,7 @@ watch_container() {
 health_check() {
   case "$TARGET" in
     application | all)
-      wait_healthy marketry-app app_healthy
+      wait_healthy marketry-application app_healthy
       ;;
   esac
   case "$TARGET" in
@@ -397,6 +427,26 @@ health_check() {
   esac
 }
 
+nginx_upstream_healthy() {
+  local body
+  body=$(docker exec marketry-nginx wget -qO- -T 5 http://127.0.0.1/internal/upstream-health) || return 1
+  [[ "$body" == *'"status":"UP"'* ]]
+}
+
+# 출력 범위를 고정한 조회만 허용한다. 환경 파일이나 전체 환경은 출력하지 않는다.
+diagnostics() {
+  app_healthy
+  nginx_upstream_healthy
+  docker inspect --format '{{.Name}} running={{.State.Running}} restarts={{.RestartCount}}' \
+    marketry-application marketry-nginx marketry-renderer marketry-cloudflared marketry-postgres
+  docker exec marketry-application printenv SPRING_PROFILES_ACTIVE
+  docker logs --since 24h marketry-application 2>&1 | \
+    grep -E '스냅샷 정리|종목 정보 동기화 (시작|완료)|휴장일|Started MarketryApplication|profiles? (is|are) active' | tail -n 30 || true
+  /bin/launchctl print system/kr.co.marketry.backup | \
+    grep -E 'state =|runs =|last exit code =|"Hour"|"Minute"'
+  echo 'PASS: 앱·nginx upstream 응답 및 고정 범위 진단 완료'
+}
+
 main() {
   # 입력 검증만 시험하는 모드. 강제 명령으로는 인자를 넘길 수 없어서 로컬에서만 쓸 수 있다
   if [ "${1-}" = "--check" ]; then
@@ -405,6 +455,10 @@ main() {
     exit 0
   fi
 
+  case "${SSH_ORIGINAL_COMMAND-}" in
+    gate-version) echo 'marketry-gate/v2'; return ;;
+    diagnostics) diagnostics; return ;;
+  esac
   parse_command "${SSH_ORIGINAL_COMMAND-}"
   log "배포 요청: target=$TARGET tag=$TAG"
 
@@ -419,6 +473,14 @@ main() {
   update_repo
   deploy_services
   health_check
+  if [ -e "$RENAME_PENDING" ]; then
+    wait_healthy marketry-nginx nginx_upstream_healthy
+    # 앱 원복에서도 nginx가 새 앱 주소로 연결되는 것까지 확인한 뒤 정리한다.
+    if [ -n "$(docker ps -aq --filter 'name=^/marketry-app$')" ]; then
+      docker rm marketry-app
+    fi
+    rm -f "$RENAME_PENDING"
+  fi
   if [ "$cleanup_ready" = true ]; then
     if build_image_cleanup_plan; then
       cleanup_images

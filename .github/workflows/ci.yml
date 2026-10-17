@@ -15,12 +15,36 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Gate and release regression checks (no production access)
+      - name: Select infrastructure regression checks
+        id: regression
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
-          /bin/bash infra/prod/tests/gate-test.sh
-          /bin/bash infra/prod/tests/macmini-release-test.sh
-          /bin/bash infra/prod/tests/restore-snapshot-test.sh
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/changed-paths"
+            status=0
+            bash infra/regression-checks/relevant-paths.sh < "$RUNNER_TEMP/changed-paths" || status=$?
+            case "$status" in
+              0) echo 'enabled=true' >> "$GITHUB_OUTPUT" ;;
+              1) echo 'enabled=false' >> "$GITHUB_OUTPUT" ;;
+              *) exit "$status" ;;
+            esac
+          fi
+
+      - name: Infrastructure regression checks (no production access)
+        if: steps.regression.outputs.enabled == 'true'
+        run: |
+          /bin/bash infra/regression-checks/gate-regression-check.sh
+          /bin/bash infra/regression-checks/macmini-release-regression-check.sh
+          /bin/bash infra/regression-checks/restore-snapshot-regression-check.sh
+          /bin/bash infra/regression-checks/image-names-regression-check.sh
+          /bin/bash infra/regression-checks/paths-regression-check.sh
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4

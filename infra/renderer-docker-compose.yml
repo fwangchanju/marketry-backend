@@ -1,6 +1,6 @@
 services:
   market-monitor-renderer:
-    image: ghcr.io/fwangchanju/market-monitor-renderer:${IMAGE_TAG}
+    image: ghcr.io/fwangchanju/marketry-renderer:${IMAGE_TAG}
     container_name: market-monitor-renderer
     restart: always
     init: true

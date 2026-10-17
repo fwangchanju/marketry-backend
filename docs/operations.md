@@ -9,6 +9,10 @@
 
 ## 구성
 
+GHCR 이미지 이름은 `marketry-application`·`marketry-nginx`·`marketry-renderer`·`marketry-assets`를 사용한다.
+구 이미지의 정상 포인터 보존과 최초 앱 리네임 배포 순서는 `infra/prod/README.md`를 따른다.
+기존 레지스트리 저장소·오라클 DB·설정 경로를 일괄 삭제하거나 변경하지 않는다.
+
 Release의 기본 서버는 `macmini`다. 맥미니 구성은 `infra/prod/compose.yml`을 사용하며
 앱·PostgreSQL·nginx·렌더러·cloudflared를 함께 제공한다. Actions는 강제 명령 게이트를 거쳐 배포한다.
 설치와 게이트의 배포 전 덤프·헬스체크는 `infra/prod/README.md`를 따른다.
@@ -75,7 +79,7 @@ GitHub Actions → Release 워크플로 → `Run workflow`
 
 1. Use workflow from: 항상 `main` — 다른 브랜치를 고를 이유가 없다
 2. server: `macmini`(기본값) / `oracle`, 실제 운영 대상을 직접 선택한다
-3. target: `application` / `nginx` / `renderer` / `all` / `rollback`
+3. target: `application` / `nginx` / `renderer` / `all` / `rollback` / `connection-check` / `diagnostics`
 4. 실행
 
 서버 선택용 Actions 변수나 임시 활성화 잠금을 사용하지 않는다. 인증용 Secrets는 유지한다.

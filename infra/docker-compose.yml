@@ -16,7 +16,7 @@ services:
       - proxy
 
   market-monitor:
-    image: ghcr.io/fwangchanju/market-monitor:${IMAGE_TAG}
+    image: ghcr.io/fwangchanju/marketry-application:${IMAGE_TAG}
     container_name: market-monitor
     restart: always
     user: "${DEPLOY_UID}:${DEPLOY_GID}"

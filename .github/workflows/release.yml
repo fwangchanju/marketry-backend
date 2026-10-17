@@ -20,6 +20,7 @@ on:
           - all
           - rollback
           - connection-check
+          - diagnostics
       server:
         description: '일반 앱 배포 서버. 기본값 macmini. DB는 유지하며 oracle 선택도 DB 복원을 실행하지 않는다.'
         required: true
@@ -79,6 +80,7 @@ jobs:
               - 'gradlew'
               - 'gradle/**'
               - 'lombok.config'
+              - '.github/workflows/release.yml'
 
   # 브랜치(main 제외) push: application 관련 변경이 있으면 빌드해서 sha 태그로만 푸시(승격의 재료). 배포는 안 함.
   build:
@@ -118,7 +120,7 @@ jobs:
           file: Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/fwangchanju/market-monitor:${{ steps.tag.outputs.sha_tag }}
+          tags: ghcr.io/fwangchanju/marketry-application:${{ steps.tag.outputs.sha_tag }}
           cache-from: type=gha,scope=application
           cache-to: type=gha,mode=max,scope=application
 
@@ -165,7 +167,7 @@ jobs:
           INTERVAL=10
           elapsed=0
           while [ "$elapsed" -lt "$TIMEOUT" ]; do
-            if docker manifest inspect "ghcr.io/fwangchanju/market-monitor:sha-${{ steps.resolve.outputs.merged_sha }}" > /dev/null 2>&1; then
+            if docker manifest inspect "ghcr.io/fwangchanju/marketry-application:sha-${{ steps.resolve.outputs.merged_sha }}" > /dev/null 2>&1; then
               echo "exists=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
@@ -180,14 +182,14 @@ jobs:
         if: steps.check.outputs.exists == 'true'
         run: |
           docker buildx imagetools create \
-            -t ghcr.io/fwangchanju/market-monitor:main \
-            ghcr.io/fwangchanju/market-monitor:sha-${{ steps.resolve.outputs.merged_sha }}
+            -t ghcr.io/fwangchanju/marketry-application:main \
+            ghcr.io/fwangchanju/marketry-application:sha-${{ steps.resolve.outputs.merged_sha }}
 
       - name: Clean up old GHCR package versions (태그 20개 유지, main/deployed/previous 보호, 고아 매니페스트 삭제)
         if: steps.check.outputs.exists == 'true'
         uses: dataaxiom/ghcr-cleanup-action@v1
         with:
-          package: market-monitor
+          package: marketry-application
           keep-n-tagged: 20
           exclude-tags: main,deployed,previous
           delete-untagged: true
@@ -230,7 +232,7 @@ jobs:
       - name: Verify target image exists
         run: |
           TAG="${{ steps.tag.outputs.image_tag }}"
-          if ! docker manifest inspect "ghcr.io/fwangchanju/market-monitor:${TAG}" > /dev/null 2>&1; then
+          if ! docker manifest inspect "ghcr.io/fwangchanju/marketry-application:${TAG}" > /dev/null 2>&1; then
             if [ "${{ inputs.target }}" = "rollback" ]; then
               echo "::error:::previous 이미지가 없습니다. 아직 두 번째 프로덕션 배포 전이라 롤백을 쓸 수 없습니다."
             else
@@ -242,7 +244,7 @@ jobs:
       - name: Check if :deployed exists
         id: deployed_check
         run: |
-          if docker manifest inspect "ghcr.io/fwangchanju/market-monitor:deployed" > /dev/null 2>&1; then
+          if docker manifest inspect "ghcr.io/fwangchanju/marketry-application:deployed" > /dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -281,27 +283,27 @@ jobs:
       - name: Update deploy pointers
         if: steps.healthcheck.outcome == 'success' && inputs.target != 'rollback'
         run: |
-          NEW_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/market-monitor:main)
+          NEW_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/marketry-application:main)
           if [ "${{ steps.deployed_check.outputs.exists }}" = "true" ]; then
-            OLD_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/market-monitor:deployed)
+            OLD_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/marketry-application:deployed)
             if [ "$OLD_DIGEST" = "$NEW_DIGEST" ]; then
               echo "방금 배포한 이미지가 기존 :deployed와 동일한 다이제스트입니다. 포인터를 건드리지 않습니다."
             else
-              docker buildx imagetools create -t ghcr.io/fwangchanju/market-monitor:previous "ghcr.io/fwangchanju/market-monitor@${OLD_DIGEST}"
-              docker buildx imagetools create -t ghcr.io/fwangchanju/market-monitor:deployed "ghcr.io/fwangchanju/market-monitor@${NEW_DIGEST}"
+              docker buildx imagetools create -t ghcr.io/fwangchanju/marketry-application:previous "ghcr.io/fwangchanju/marketry-application@${OLD_DIGEST}"
+              docker buildx imagetools create -t ghcr.io/fwangchanju/marketry-application:deployed "ghcr.io/fwangchanju/marketry-application@${NEW_DIGEST}"
             fi
           else
-            docker buildx imagetools create -t ghcr.io/fwangchanju/market-monitor:deployed "ghcr.io/fwangchanju/market-monitor@${NEW_DIGEST}"
+            docker buildx imagetools create -t ghcr.io/fwangchanju/marketry-application:deployed "ghcr.io/fwangchanju/marketry-application@${NEW_DIGEST}"
           fi
 
       # 롤백 성공 — :deployed ↔ :previous를 맞바꾼다. 둘 다 먼저 다이제스트를 고정한 뒤 민다.
       - name: Swap deploy pointers (rollback)
         if: steps.healthcheck.outcome == 'success' && inputs.target == 'rollback'
         run: |
-          DEPLOYED_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/market-monitor:deployed)
-          PREVIOUS_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/market-monitor:previous)
-          docker buildx imagetools create -t ghcr.io/fwangchanju/market-monitor:previous "ghcr.io/fwangchanju/market-monitor@${DEPLOYED_DIGEST}"
-          docker buildx imagetools create -t ghcr.io/fwangchanju/market-monitor:deployed "ghcr.io/fwangchanju/market-monitor@${PREVIOUS_DIGEST}"
+          DEPLOYED_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/marketry-application:deployed)
+          PREVIOUS_DIGEST=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' ghcr.io/fwangchanju/marketry-application:previous)
+          docker buildx imagetools create -t ghcr.io/fwangchanju/marketry-application:previous "ghcr.io/fwangchanju/marketry-application@${DEPLOYED_DIGEST}"
+          docker buildx imagetools create -t ghcr.io/fwangchanju/marketry-application:deployed "ghcr.io/fwangchanju/marketry-application@${PREVIOUS_DIGEST}"
 
       # 평소 배포의 헬스체크 실패 — :deployed로 자동 원복한다(포인터는 건드리지 않는다). 배포 스크립트가
       # 헬스체크 전에 컨테이너를 이미 교체하므로, 원복 없이 두면 서버는 새 이미지인데 :deployed는 옛
@@ -376,7 +378,7 @@ jobs:
           file: containers/nginx/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/fwangchanju/market-monitor-nginx:latest
+          tags: ghcr.io/fwangchanju/marketry-nginx:latest
           cache-from: type=gha,scope=nginx
           cache-to: type=gha,mode=max,scope=nginx
 
@@ -437,7 +439,7 @@ jobs:
           file: containers/renderer/Dockerfile
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/fwangchanju/market-monitor-renderer:latest
+          tags: ghcr.io/fwangchanju/marketry-renderer:latest
           cache-from: type=gha,scope=renderer
           cache-to: type=gha,mode=max,scope=renderer
 
@@ -500,12 +502,20 @@ jobs:
           MACMINI_SSH_KEY: ${{ secrets.MACMINI_SERVER_SSH_KEY }}
         run: bash infra/scripts/macmini-release.sh ssh-setup
 
+      - name: Verify installed gate protocol before deployment
+        if: env.TARGET != 'connection-check'
+        run: bash infra/scripts/macmini-release.sh verify-gate
+
+      - name: Read-only production diagnostics
+        if: env.TARGET == 'diagnostics'
+        run: bash infra/scripts/macmini-release.sh diagnostics
+
       - name: Check connection without deployment
         if: env.TARGET == 'connection-check'
         run: bash infra/scripts/macmini-release.sh connection-check
 
       - name: Log in to GHCR
-        if: env.TARGET != 'connection-check'
+        if: env.TARGET != 'connection-check' && env.TARGET != 'diagnostics'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -513,17 +523,17 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        if: env.TARGET != 'connection-check'
+        if: env.TARGET != 'connection-check' && env.TARGET != 'diagnostics'
         uses: docker/setup-buildx-action@v3
 
       - name: Freeze deployment and recovery images
-        if: env.TARGET != 'connection-check'
+        if: env.TARGET != 'connection-check' && env.TARGET != 'diagnostics'
         id: images
         run: bash infra/scripts/macmini-release.sh prepare-images
 
       # 게이트가 자체 헬스 검사에서 실패해도 다음 원복 단계가 실행되게 한다.
       - name: Deploy through gate
-        if: env.TARGET != 'connection-check'
+        if: env.TARGET != 'connection-check' && env.TARGET != 'diagnostics'
         id: deploy
         continue-on-error: true
         env:

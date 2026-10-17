@@ -1,6 +1,6 @@
 services:
   market-monitor-nginx:
-    image: ghcr.io/fwangchanju/market-monitor-nginx:${IMAGE_TAG}
+    image: ghcr.io/fwangchanju/marketry-nginx:${IMAGE_TAG}
     container_name: market-monitor-nginx
     restart: always
     ports:
