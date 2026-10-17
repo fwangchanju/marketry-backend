@@ -2,25 +2,25 @@
 
 배포나 롤백이 필요하면 코드부터 뒤지지 말고 이 문서를 먼저 본다.
 
-서버 이관을 준비하고 있다. 계획과 체크리스트는 `docs/server-migration.md`에 있고, 이관이 끝나기 전까지
-이 문서는 지금 구성을 기준으로 한다.
+이 문서는 배포 가능한 구성과 실행 방법을 다룬다. 현재 운영 서버와 전환 실행 기록은 저장소 밖에서 관리한다.
+이관 문서의 과거 체크리스트를 현재 상태로 간주하거나 이미 끝난 DB 복원·첫 기동을 반복하지 않는다.
 
 ---
 
 ## 구성
 
-서버 두 대에 컨테이너 세 종류가 돈다.
+Release의 기본 서버는 `macmini`다. 맥미니 구성은 `infra/prod/compose.yml`을 사용하며
+앱·PostgreSQL·nginx·렌더러·cloudflared를 함께 제공한다. Actions는 강제 명령 게이트를 거쳐 배포한다.
+설치와 게이트의 배포 전 덤프·헬스체크는 `infra/prod/README.md`를 따른다.
 
-| 이미지 | 서버 | 내용 |
-|---|---|---|
-| `ghcr.io/fwangchanju/market-monitor` | 서버 1 | Spring 애플리케이션 |
-| `ghcr.io/fwangchanju/market-monitor-nginx` | 서버 1 | nginx + 프론트 정적 자산이 구워져 있음 |
-| `ghcr.io/fwangchanju/market-monitor-renderer` | 서버 2 | 스크린샷 렌더러 |
+`oracle`을 명시하면 기존 오라클 일반 배포 경로를 사용한다. 해당 구성의 앱·nginx는 서버 1,
+렌더러는 서버 2를 대상으로 한다. 이 경로는 비상 DB 복원이나 렌더러 없는 비상 운영을 구현하지 않는다.
+별도 오라클 비상 복구와 맥미니 복귀 워크플로는 후속 작업이다. 이미지의 amd64·arm64 빌드는 유지한다.
 
-서비스 주소는 `marketry.co.kr`이다. Cloudflare Tunnel로 받으며, 서버 1의 `market-monitor-cloudflared` 컨테이너가
-`market-monitor-nginx:80`으로 넘긴다(`infra/nginx-docker-compose.yml`). 이 경로는 http라 nginx가 `X-Forwarded-Proto`를
-`https`로 고정하고, 실제 접속자 IP는 `CF-Connecting-IP`에서 가져온다. 옛 주소 `eolmae.duckdns.org`는 새 주소로 301
-리디렉트만 한다.
+서비스 주소는 `marketry.co.kr`이다. Cloudflare Tunnel의 서비스 주소는 선택한 구성의 nginx 이름과
+일치해야 한다. 맥미니 구성은 `marketry-nginx:80`, 기존 오라클 구성은 `market-monitor-nginx:80`이다.
+일반 앱 배포는 터널을 전환하지 않는다. nginx는 `X-Forwarded-Proto`를 `https`로 고정하고
+실제 접속자 IP는 `CF-Connecting-IP`에서 가져온다.
 
 nginx 이미지는 프론트 레포가 만든 `market-monitor-assets:latest`를 `FROM`으로 가져다 굽는다
 (`containers/nginx/Dockerfile`). 프론트 코드는 nginx 이미지 안에 박히므로, 프론트를 배포하려면
@@ -62,7 +62,7 @@ main에 병합해도 자동으로 배포되지 않는다. 병합 시점에는 `:
 배포하면 컨테이너가 교체되면서 서비스가 잠시 끊기므로, 장 시간을 피해서 몰아서 하면 된다.
 
 nginx·renderer도 마찬가지로 병합만으로는 안 나간다. 예외는 하나 — 프론트 레포가 자산을 발행하면
-(`repository_dispatch`) nginx가 자동으로 다시 빌드·배포된다. 프론트 배포 경로가 그것뿐이라 남겨뒀다.
+(`repository_dispatch`) 맥미니 nginx가 자동으로 다시 빌드·배포된다. 프론트 배포 경로가 그것뿐이라 남겨뒀다.
 
 > 승격(재태깅)은 남겨둬야 한다. 이걸 빼면 `:main` 태그가 안 만들어지고, 수동 배포 시 이미지가 없어서
 > 처음부터 다시 빌드하게 된다. 빌드가 두 번 도는 셈이다.
@@ -74,8 +74,12 @@ nginx·renderer도 마찬가지로 병합만으로는 안 나간다. 예외는 �
 GitHub Actions → Release 워크플로 → `Run workflow`
 
 1. Use workflow from: 항상 `main` — 다른 브랜치를 고를 이유가 없다
-2. target: `application` / `nginx` / `renderer` / `all` / `rollback`
-3. 실행
+2. server: `macmini`(기본값) / `oracle`, 실제 운영 대상을 직접 선택한다
+3. target: `application` / `nginx` / `renderer` / `all` / `rollback`
+4. 실행
+
+서버 선택용 Actions 변수나 임시 활성화 잠금을 사용하지 않는다. 인증용 Secrets는 유지한다.
+일반 배포는 DB를 유지한다. `oracle` 선택만으로 R2 다운로드·DB 복원이 실행되지 않는다.
 
 `application`은 `:main` 이미지를 그대로 배포한다. 워크플로는 이미지를 빌드하지 않는다. 배포할 태그가
 없으면 명확한 메시지와 함께 실패한다(조용히 엉뚱한 걸 배포하지 않는다).
@@ -86,16 +90,9 @@ GitHub Actions → Release 워크플로 → `Run workflow`
 
 ### `application`은 렌더러를 건드리지 않는다
 
-target은 컨테이너 하나만 고른다. `application`을 배포해도 서버 2의 렌더러는 그대로다.
-`containers/renderer/`를 고쳤으면 `target=renderer`를 따로 돌려야 나간다.
-
-실제로 2026-09-09까지 렌더러에는 8월 하순 이미지가 떠 있었다. 백엔드만 배포하면서 렌더러 쪽
-수정이 반영됐다고 착각하기 쉬우니, `containers/` 아래를 고친 PR을 병합했으면 그 target도 함께
-돌렸는지 확인한다.
-
-`all`은 nginx까지 배포한다. `deploy-nginx.sh`가 `down` 후 `up -d`라 화면이 잠깐 안 뜬다.
-장 시간이면 `application`과 `renderer`를 나눠 돌리는 편이 낫다. 렌더러는 서버 2에 있고 웹 경로에
-끼지 않으므로 아무 때나 배포해도 화면에 영향이 없다.
+`application`은 앱만 교체한다. 렌더러 코드를 고쳤으면 `target=renderer`를 별도로 실행한다.
+맥미니에서는 같은 서버의 게이트, 기존 오라클 경로에서는 서버 2의 렌더러 배포를 사용한다.
+`all`은 앱·nginx·렌더러를 모두 배포하므로 장 시간을 피해 실행한다.
 
 ### 배포 전 확인
 
@@ -106,7 +103,7 @@ GHCR에서 `:main`과 `:deployed`가 같은 다이제스트인지 보면 바로 
 
 ## 롤백하기
 
-Release 워크플로 → target에 `rollback` → 실행. 그게 전부다. 무엇으로 되돌릴지 고르지 않는다 —
+Release 워크플로 → 실제 운영 `server` 선택 → target에 `rollback` → 실행. 그게 전부다. 무엇으로 되돌릴지 고르지 않는다 —
 `:previous`가 직전 정상 이미지를 기억하고 있다.
 
 성공하면 `:deployed`와 `:previous`가 맞바뀐다.
@@ -188,7 +185,7 @@ V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google 로그인 |
 | `AUTH_JWT_SECRET` | 토큰 서명 키, 32바이트 이상. **바꾸면 전원 로그아웃** |
 | `TUNNEL_TOKEN` | Cloudflare Tunnel 토큰. nginx 배포 때 cloudflared 컨테이너에만 전달한다 |
-| `MARKETRY_PROXY_HOST`, `MARKETRY_PROXY_PORT` | 키움 호출만 거치는 HTTP 프록시. 비우면 직접 연결한다(지금 서버는 비워 둔다). 포트 기본값 8888 |
+| `MARKETRY_PROXY_HOST`, `MARKETRY_PROXY_PORT` | 키움 호출만 거치는 HTTP 프록시. 비우면 직접 연결한다. 포트 기본값 8888 |
 
 환경변수는 컨테이너를 새로 만들 때만 읽힌다. 파일을 고친 뒤 배포(또는 `docker compose up -d`)해야 반영된다.
 로그인 복귀 주소는 `application-prod.properties`의 `marketry.base-url`을 따른다.

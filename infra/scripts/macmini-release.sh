@@ -10,17 +10,15 @@ output() { printf '%s=%s\n' "$1" "$2" >> "${GITHUB_OUTPUT:?}"; }
 route() {
   [ "${REF_NAME:-}" = refs/heads/main ] || { fail '수동·프론트 배포는 main에서만 실행합니다.'; return 1; }
   case "${EVENT_NAME:-}" in
-    workflow_dispatch) SERVER="${REQUESTED_SERVER:-oracle}"; TARGET="${REQUESTED_TARGET:-application}" ;;
-    repository_dispatch) SERVER="${AUTO_SERVER:-oracle}"; TARGET=nginx ;;
+    workflow_dispatch) SERVER="${REQUESTED_SERVER-}"; TARGET="${REQUESTED_TARGET:-application}" ;;
+    repository_dispatch) SERVER=macmini; TARGET=nginx ;;
     *) fail '허용되지 않은 배포 이벤트입니다.'; return 1 ;;
   esac
   case "$SERVER" in oracle|macmini) ;; *) fail 'server는 oracle 또는 macmini여야 합니다.'; return 1 ;; esac
   case "$TARGET" in application|nginx|renderer|all|rollback|connection-check) ;; *) fail '허용되지 않은 target입니다.'; return 1 ;; esac
   if [ "$TARGET" = connection-check ]; then
     [ "$SERVER" = macmini ] || { fail 'connection-check는 macmini 전용입니다.'; return 1; }
-  elif [ "$SERVER" = macmini ] && [ "${DEPLOY_ENABLED:-}" != true ]; then
-    fail '맥미니 배포가 잠겨 있습니다. 기존 앱 중지·최종 DB 복원·수동 첫 기동 확인 뒤 MACMINI_DEPLOY_ENABLED를 true로 설정합니다.'
-    return 1
+
   fi
   output server "$SERVER"
   output target "$TARGET"

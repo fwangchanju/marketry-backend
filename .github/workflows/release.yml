@@ -21,13 +21,13 @@ on:
           - rollback
           - connection-check
       server:
-        description: '배포 서버. 이관 전 기본값은 oracle. macmini 실제 배포는 DB 복원·첫 기동 확인 후 별도 활성화한다.'
+        description: '일반 앱 배포 서버. 기본값 macmini. DB는 유지하며 oracle 선택도 DB 복원을 실행하지 않는다.'
         required: true
-        default: oracle
+        default: macmini
         type: choice
         options:
-          - oracle
           - macmini
+          - oracle
 
 # 수동·프론트 배포는 공통 큐를 사용한다. push 빌드·승격은 별도 실행한다.
 concurrency:
@@ -52,8 +52,6 @@ jobs:
           REF_NAME: ${{ github.ref }}
           REQUESTED_SERVER: ${{ inputs.server }}
           REQUESTED_TARGET: ${{ inputs.target }}
-          AUTO_SERVER: ${{ vars.RELEASE_SERVER }}
-          DEPLOY_ENABLED: ${{ vars.MACMINI_DEPLOY_ENABLED }}
         run: bash infra/scripts/macmini-release.sh route
 
   changes:

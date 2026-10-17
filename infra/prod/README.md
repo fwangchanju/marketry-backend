@@ -87,13 +87,14 @@ Release를 `main`에서 수동 실행하고 `server=macmini`, `target=connection
 Tailscale·SSH·강제 명령 게이트를 검사한다. 배포가 아닌 고정 명령을 게이트가 거부하는지 확인하므로
 운영 DB 덤프나 컨테이너 기동, 이미지 포인터 변경은 하지 않는다. 이미 등록된 맥미니·Tailscale 시크릿을 사용한다.
 
-모든 맥미니 실제 배포는 저장소 Actions 변수 `MACMINI_DEPLOY_ENABLED`가 `true`일 때만 허용한다.
-기존 앱 중지·최종 DB 덤프·맥미니 DB 복원 뒤 위 설치 8번의 수동 첫 기동과 내부 캡처 확인을 마친 후 활성화한다.
-이 변수는 DB를 검사하지 않으므로 절차 완료 전에 켜지 않는다. 그전에는 `connection-check`만 실행한다.
+수동 실행의 `server` 기본값은 `macmini`다. `oracle`도 직접 선택할 수 있다.
+일반 배포는 기존 DB를 유지하며 백업 다운로드나 DB 복원을 실행하지 않는다.
+서버 선택·이관 잠금용 Actions 변수는 사용하지 않는다. 인증용 Secrets는 유지한다.
+배포 전에는 실제 이관·서비스 상태를 확인한다. 문서만 보고 첫 설치·DB 복원을 반복하지 않는다.
 
-이관 완료 뒤 저장소 Actions 변수 `RELEASE_SERVER`를 `macmini`로 설정하면 프론트 자산 발행 이벤트도
-맥미니 nginx로 보낸다. 미설정 시 오라클이며 수동 실행의 `server` 기본값도 오라클이다.
-오라클 배포 경로와 기존 서버 시크릿은 되돌리기 경로를 정리할 때까지 유지한다.
+프론트 자산 발행 이벤트는 맥미니 nginx를 한 번 빌드·배포한다. 수동 실행의 서버 입력이 없거나
+잘못되면 실패한다. 프론트에서 서버를 선택해 이벤트로 전달하는 기능과 오라클 비상 복구·맥미니 복귀는
+후속 작업이며 아직 구현하지 않았다. 기존 오라클 일반 배포와 amd64 이미지 지원은 유지한다.
 
 맥미니 `all`은 nginx·renderer 빌드 뒤 게이트를 한 번 호출한다. 앱의 이미지 다이제스트와 원복 후보는
 배포 전에 고정한다. 게이트가 실패하면 일반 앱 배포는 기존 deployed 앱으로 원복하고 포인터를 유지한다.
@@ -103,11 +104,17 @@ nginx·renderer 단독 배포 실패와 rollback 실패는 자동 원복하지 �
 
 ```sh
 /bin/bash infra/prod/tests/macmini-release-test.sh
+/bin/bash infra/prod/tests/restore-snapshot-test.sh
 ```
 
 ## 개발 계정
 
-개발 DB는 `infra/local/restore-snapshot.sh`로 스냅샷에서 다시 만든다. 05:00 예약 작업은
+개발 DB는 `infra/local/restore-snapshot.sh`로 스냅샷에서 다시 만든다. 기존 개발 DB 전체를 교체하므로
+첫 실행 전 개발 DB를 별도로 백업한다. 스크립트는 개발 계정의 OrbStack 소켓과 `market-monitor-local`
+Compose 프로젝트만 사용하고 Docker·Compose 접속 대상을 바꾸는 상속 변수를 제거한다.
+덤프 목록 검사 실패 시 기존 DB를 유지한다. 복원 실패 시 일회성 백업으로 개발 DB를 되돌린다.
+스냅샷이 없으면 종료 코드 0으로 건너뛰므로 실제 완료 로그와 마스킹·토큰 제거를 확인해야 한다.
+첫 실제 복원을 검증한 뒤 05:00 예약을 활성화한다. 예약 작업은
 `infra/local/launchd/kr.co.marketry.dev-snapshot-restore.plist`를 개발 계정의 `~/Library/LaunchAgents`에 복사해 쓴다.
 
 ## 키움 프록시 사전 검사
