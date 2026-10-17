@@ -8,16 +8,16 @@ trap 'rm -rf "$test_root"' EXIT
 export RUNNER_TEMP="$test_root" GITHUB_OUTPUT="$test_root/output" MOCK_ROOT="$test_root"
 export MACMINI_HOST=macmini.example MACMINI_USER=deploy
 export EVENT_NAME=workflow_dispatch REF_NAME=refs/heads/main
-export REQUESTED_SERVER=macmini REQUESTED_TARGET=application DEPLOY_ENABLED=true
+export REQUESTED_SERVER=macmini REQUESTED_TARGET=application
 export TARGET=application
 count=0
 status=0
 new_case() {
   : > "$GITHUB_OUTPUT"; : > "$test_root/trace"
   rm -f "$test_root/"*.digest "$test_root/error" "$test_root/ssh-fail" "$test_root/ssh-response" "$test_root/create-fail"
-  unset NEW_DIGEST OLD_DIGEST IMAGE_TAG AUTO_SERVER
+  unset NEW_DIGEST OLD_DIGEST IMAGE_TAG
   export EVENT_NAME=workflow_dispatch REF_NAME=refs/heads/main
-  export REQUESTED_SERVER=macmini REQUESTED_TARGET=application DEPLOY_ENABLED=true TARGET=application
+  export REQUESTED_SERVER=macmini REQUESTED_TARGET=application TARGET=application
 }
 run() {
   status=0
@@ -64,11 +64,10 @@ ssh() {
 export -f docker ssh
 
 new_case
-unset DEPLOY_ENABLED
-run route; expect_fail; no_remote
+run route; expect_ok; grep -Fxq server=macmini "$GITHUB_OUTPUT"; no_remote
 export REQUESTED_TARGET=connection-check
 run route; expect_ok; grep -Fxq target=connection-check "$GITHUB_OUTPUT"; no_remote
-pass 'DB 이관 전 실제 배포 차단과 접속 검사 허용'
+pass '명시한 맥미니 배포와 접속 검사에 임시 활성화 설정이 필요 없음'
 
 new_case
 export REF_NAME=refs/heads/topic
@@ -84,12 +83,14 @@ pass 'non-main·잘못된 server/target·오라클 접속 검사 거부'
 new_case
 export REQUESTED_SERVER=oracle
 run route; expect_ok; grep -Fxq server=oracle "$GITHUB_OUTPUT"
-export EVENT_NAME=repository_dispatch AUTO_SERVER=macmini
+export EVENT_NAME=repository_dispatch
 run route; expect_ok; grep -Fxq server=macmini "$GITHUB_OUTPUT"; grep -Fxq target=nginx "$GITHUB_OUTPUT"
-unset AUTO_SERVER
-: > "$GITHUB_OUTPUT"
-run route; expect_ok; grep -Fxq server=oracle "$GITHUB_OUTPUT"; no_remote
-pass '기존 수동 배포와 프론트 이벤트의 기본 오라클·명시 맥미니 라우팅'
+export EVENT_NAME=workflow_dispatch
+unset REQUESTED_SERVER
+run route; expect_fail; no_remote
+export REQUESTED_SERVER=""
+run route; expect_fail; no_remote
+pass '오라클 명시 선택·프론트 이벤트 맥미니 고정·수동 서버 누락 거부'
 
 new_case
 run connection-check; expect_ok
@@ -198,6 +199,16 @@ import json, re, sys
 from types import SimpleNamespace as NS
 workflow=json.load(open(sys.argv[1]))
 jobs=workflow['jobs']
+# YAML 1.1에서 on이 bool로 파싱되는 Ruby 버전도 지원한다.
+trigger=workflow.get('on',workflow.get('true'))
+assert trigger['workflow_dispatch']['inputs']['server']['default']=='macmini'
+assert set(trigger['workflow_dispatch']['inputs']['server']['options'])=={'macmini','oracle'}
+assert set(jobs['route']['steps'][1]['env'])=={'EVENT_NAME','REF_NAME','REQUESTED_SERVER','REQUESTED_TARGET'}
+assert len([s for s in jobs['nginx']['steps'] if s.get('uses','').startswith('docker/build-push-action')])==1
+for job in ['build','nginx','renderer']:
+    builds=[s for s in jobs[job]['steps'] if s.get('uses','').startswith('docker/build-push-action')]
+    assert builds and all(s['with']['platforms']=='linux/amd64,linux/arm64' for s in builds)
+
 def node(value):
     if isinstance(value,dict): return NS(**{k:node(v) for k,v in value.items()})
     return value
