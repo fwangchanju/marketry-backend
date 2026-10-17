@@ -16,6 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Gate and release regression checks (no production access)
+        run: |
+          /bin/bash infra/prod/tests/gate-test.sh
+          /bin/bash infra/prod/tests/macmini-release-test.sh
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
