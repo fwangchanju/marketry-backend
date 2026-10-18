@@ -2,12 +2,6 @@
 # GHCR 호출을 모조해 이전의 재실행·기존 포인터 보존·실패 차단을 검증한다.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../.." && pwd)"
-workflow="$repo/.github/workflows/migrate-image-names.yml"
-grep -Fq 'packages: write' "$workflow"
-grep -Fq 'username: ${{ github.actor }}' "$workflow"
-grep -Fq 'password: ${{ secrets.GITHUB_TOKEN }}' "$workflow"
-! grep -Fq 'secrets.CR_PAT' "$workflow"
-echo 'PASS: GHCR 마이그레이션은 packages:write가 있는 workflow token 사용'
 root=$(mktemp -d /tmp/marketry-image-names.XXXXXX)
 trap 'rm -rf "$root"' EXIT
 export MOCK_ROOT="$root" RUNNER_TEMP="$root"

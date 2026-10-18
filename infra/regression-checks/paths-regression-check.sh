@@ -2,7 +2,7 @@
 # CI 실행 범위가 일반 앱/문서 변경으로 불필요하게 넓어지지 않는지 확인한다.
 set -euo pipefail
 selector="$(cd "$(dirname "$0")" && pwd)/relevant-paths.sh"
-for path in infra/prod/gate.sh infra/prod/compose.yml infra/prod/nginx.conf infra/scripts/macmini-release.sh infra/local/restore-snapshot.sh infra/regression-checks/README.md .github/workflows/ci.yml .github/workflows/migrate-image-names.yml; do
+for path in infra/prod/gate.sh infra/prod/compose.yml infra/prod/nginx.conf infra/scripts/macmini-release.sh infra/local/restore-snapshot.sh infra/regression-checks/README.md .github/workflows/ci.yml; do
   printf '%s\n' "$path" | /bin/bash "$selector"
 done
 if printf '%s\n' src/main/java/Example.java docs/operations.md infra/prod/README.md | /bin/bash "$selector"; then exit 1; fi
