@@ -1,7 +1,7 @@
 #!/bin/bash
 # 개발 복원의 대상 격리·삭제 전 검증을 실제 Docker/환경 파일 없이 검사한다.
 set -euo pipefail
-repo="$(cd "$(dirname "$0")/../../.." && pwd)"
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
 script="$repo/infra/local/restore-snapshot.sh"
 test_root=$(mktemp -d /tmp/marketry-local-restore-test.XXXXXX)
 trap 'rm -rf "$test_root"' EXIT

@@ -2,7 +2,7 @@
 # GitHub Actions runner 전용. 운영 명령은 설치된 SSH 강제 명령 게이트로만 보낸다.
 set -euo pipefail
 
-IMAGE=ghcr.io/fwangchanju/market-monitor
+IMAGE=ghcr.io/fwangchanju/marketry-application
 
 fail() { echo "::error::$*" >&2; return 1; }
 output() { printf '%s=%s\n' "$1" "$2" >> "${GITHUB_OUTPUT:?}"; }
@@ -15,9 +15,9 @@ route() {
     *) fail '허용되지 않은 배포 이벤트입니다.'; return 1 ;;
   esac
   case "$SERVER" in oracle|macmini) ;; *) fail 'server는 oracle 또는 macmini여야 합니다.'; return 1 ;; esac
-  case "$TARGET" in application|nginx|renderer|all|rollback|connection-check) ;; *) fail '허용되지 않은 target입니다.'; return 1 ;; esac
-  if [ "$TARGET" = connection-check ]; then
-    [ "$SERVER" = macmini ] || { fail 'connection-check는 macmini 전용입니다.'; return 1; }
+  case "$TARGET" in application|nginx|renderer|all|rollback|connection-check|diagnostics) ;; *) fail '허용되지 않은 target입니다.'; return 1 ;; esac
+  if [ "$TARGET" = connection-check ] || [ "$TARGET" = diagnostics ]; then
+    [ "$SERVER" = macmini ] || { fail 'connection-check와 diagnostics는 macmini 전용입니다.'; return 1; }
 
   fi
   output server "$SERVER"
@@ -40,6 +40,12 @@ remote() {
     -o StrictHostKeyChecking=accept-new \
     -o "UserKnownHostsFile=$RUNNER_TEMP/marketry-ssh/known_hosts" \
     "$MACMINI_USER@$MACMINI_HOST" "$1"
+}
+
+verify_gate() {
+  local version
+  version=$(remote gate-version) || { fail '설치된 게이트 버전을 확인하지 못했습니다. 설치본 갱신이 필요합니다.'; return 1; }
+  [ "$version" = 'marketry-gate/v2' ] || { fail '설치된 게이트가 새 이름 변경을 지원하지 않습니다.'; return 1; }
 }
 
 connection_check() {
@@ -129,6 +135,8 @@ main() {
     route) route ;;
     ssh-setup) ssh_setup ;;
     connection-check) connection_check ;;
+    verify-gate) verify_gate ;;
+    diagnostics) remote diagnostics ;;
     prepare-images) prepare_images ;;
     deploy) deploy ;;
     update-pointers) update_pointers ;;

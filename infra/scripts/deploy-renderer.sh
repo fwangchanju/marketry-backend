@@ -11,7 +11,7 @@ echo "=== [renderer] Logging in to GHCR ==="
 echo "$CR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
 echo "=== [renderer] Pulling image (tag: $IMAGE_TAG) ==="
-docker pull "ghcr.io/$GHCR_USER/market-monitor-renderer:$IMAGE_TAG"
+docker pull "ghcr.io/$GHCR_USER/marketry-renderer:$IMAGE_TAG"
 
 echo "=== [renderer] Restarting market-monitor-renderer ==="
 docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d

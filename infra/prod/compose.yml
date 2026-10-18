@@ -23,9 +23,9 @@ services:
     networks:
       - marketry-network
 
-  marketry-app:
-    image: ghcr.io/fwangchanju/market-monitor:${APP_TAG:-deployed}
-    container_name: marketry-app
+  marketry-application:
+    image: ghcr.io/fwangchanju/marketry-application:${APP_TAG:-deployed}
+    container_name: marketry-application
     restart: always
     env_file:
       - ${MARKETRY_ENV_FILE:-/Users/deploy/Projects/marketry/env/marketry.env}
@@ -45,7 +45,7 @@ services:
       - marketry-network
 
   marketry-nginx:
-    image: ghcr.io/fwangchanju/market-monitor-nginx:${NGINX_TAG:-latest}
+    image: ghcr.io/fwangchanju/marketry-nginx:${NGINX_TAG:-latest}
     container_name: marketry-nginx
     restart: always
     volumes:
@@ -58,7 +58,7 @@ services:
           - marketry.co.kr
 
   marketry-renderer:
-    image: ghcr.io/fwangchanju/market-monitor-renderer:${RENDERER_TAG:-latest}
+    image: ghcr.io/fwangchanju/marketry-renderer:${RENDERER_TAG:-latest}
     container_name: marketry-renderer
     restart: always
     init: true

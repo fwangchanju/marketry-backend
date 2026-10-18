@@ -69,7 +69,7 @@
    ```sh
    MARKETRY_ENV_FILE="$HOME/Projects/marketry/env/marketry.env" \
      docker compose -f compose.yml --env-file "$HOME/Projects/marketry/env/marketry.env" \
-       up -d marketry-app marketry-nginx marketry-renderer
+       up -d marketry-application marketry-nginx marketry-renderer
    ```
 
    공개 터널은 오라클에 둔 채 내부 캡처를 검사한다. 통과한 뒤 기존 cloudflared를 중지하고 터널 서비스 주소를 맥미니용으로 바꿔 기동한다.
@@ -100,12 +100,46 @@ Tailscale·SSH·강제 명령 게이트를 검사한다. 배포가 아닌 고정
 배포 전에 고정한다. 게이트가 실패하면 일반 앱 배포는 기존 deployed 앱으로 원복하고 포인터를 유지한다.
 nginx·renderer 단독 배포 실패와 rollback 실패는 자동 원복하지 않는다.
 
+상시 회귀 검증은 `infra/regression-checks/`에 둔다. 일회성 배포 확인용이 아니므로 배포 후에도 유지한다.
+CI에서는 관련 인프라 스크립트·구성·워크플로가 변경됐을 때만 실행하고 일반 앱·문서 변경에서는 건너뛴다.
 운영 접근 없이 runner 로직과 워크플로 분기를 검사한다.
 
 ```sh
-/bin/bash infra/prod/tests/macmini-release-test.sh
-/bin/bash infra/prod/tests/restore-snapshot-test.sh
+/bin/bash infra/regression-checks/macmini-release-regression-check.sh
+/bin/bash infra/regression-checks/restore-snapshot-regression-check.sh
 ```
+
+## 이미지·앱 이름 변경의 최초 배포
+
+GHCR 이름은 `marketry-application`, `marketry-nginx`, `marketry-renderer`, `marketry-assets`다.
+맥미니 앱의 Compose 서비스와 컨테이너 이름은 `marketry-application`이며 DB·볼륨 이름은 변경하지 않는다.
+오라클의 기존 컨테이너명·DB명·설정 파일 경로는 호환을 위해 유지한다. 이미지 이름 변경 때문에
+중지된 오라클 서비스를 기동하지 않는다. 기존 GHCR 저장소도 롤백 원본으로 보존한다.
+
+1. 백엔드·프론트의 변경을 각각 병합한다. 백엔드 브랜치 빌드와 main 승격이 성공해야 한다.
+2. `main`에서 별도 **Migrate GHCR image names** Actions를 한 번 실행한다.
+   기존 앱의 `deployed`·선택적 `previous`, 새 저장소에 없는 `main` 및 자산·nginx·렌더러 `latest`를
+   다이제스트로 복사한다. 임시 태그를 검증한 뒤 목적 태그를 발행한다. 원본 매니페스트·플랫폼을 보존하며
+   새 빌드나 후속 운영이 이미 만든 목적 태그는 덮어쓰지 않는다. 인증·통신·무결성 오류는 실패한다.
+   Actions Summary에 적용·보존한 태그와 다이제스트를 남긴다. DB 다운로드·복원이나 서버 접속은 하지 않는다.
+3. 저장소 밖 `~/Optional/bin/marketry-gate` 설치본을 이 원본으로 갱신해야 한다.
+   기존 게이트는 제한된 배포 명령만 허용하므로 현재 Actions로 설치본 자체를 갱신할 수 없다.
+   PR 병합이나 Compose 갱신만으로 설치됐다고 간주하지 않는다. 에이전트가 운영 SSH로 설치를 대신하지 않는다.
+   설치본 갱신은 기존 승인된 설치 절차로 별도 진행해야 하며 이 조건이 충족되기 전 실제 배포는 중단한다.
+4. `Release`, `server=macmini`, `target=all`을 실행한다. runner는 `marketry-gate/v2` 응답을
+   먼저 확인하고 구 설치본이면 이미지 포인터·DB·운영 컨테이너 변경 전에 중단한다.
+   다운로드 성공 뒤 구 `marketry-app`을 중지하고 재시작 정책을 해제한다. 새 앱을 기동하고
+   nginx를 새 앱 DNS로 재생성한다. 앱·렌더러·nginx와 내부 전용 upstream 응답이 성공한 뒤 구 앱 컨테이너를 제거한다.
+5. 리네임 도중 실패하면 진행 상태를 남긴다. 자동 앱 원복에서도 nginx를 재생성하고 새 upstream 응답까지
+   확인해야 원복 성공으로 표시한다. nginx·렌더러 이미지 전체의 자동 롤백을 뜻하지 않는다.
+   앱 `deployed`/`previous` 갱신은 성공한 배포에만 적용하며 같은 이미지면 기존 포인터를 보존한다.
+6. `target=diagnostics`로 프로필·앱 및 nginx upstream·고정 범위 스케줄 로그와 백업 예약 상태를 확인한다.
+   진단은 환경 파일·전체 환경·인증 토큰을 출력하지 않는다. cron 등록이나 과거 작업 로그 부재를
+   작업 성공으로 간주하지 않는다. 공개 웹·로그인·데이터 조회는 별도로 확인한다.
+
+첫 배포 성공만으로 롤백 검증을 완료했다고 기록하지 않는다. 새 `deployed`와 `previous`가 각각
+후보 이미지와 직전 정상 이미지의 다이제스트인지 확인하고 모조 원복 검사와 실제 원복 실행 여부를 구분한다.
+실제 운영에서 의도적 장애를 만들지는 않는다.
 
 ## 개발 계정
 
@@ -151,5 +185,5 @@ env -u DOCKER_CONTEXT -u DOCKER_CONFIG "$HOME/Optional/bin/docker" \
 운영 Docker·환경 파일을 사용하지 않는 회귀 검사는 개발 계정에서 실행한다.
 
 ```sh
-/bin/bash infra/prod/tests/gate-test.sh
+/bin/bash infra/regression-checks/gate-regression-check.sh
 ```

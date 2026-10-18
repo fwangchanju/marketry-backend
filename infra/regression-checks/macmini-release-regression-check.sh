@@ -1,8 +1,8 @@
 #!/bin/bash
 # 운영 Docker·SSH·환경 파일을 사용하지 않는 Actions runner 회귀 검사.
 set -euo pipefail
-script="$(cd "$(dirname "$0")/../../scripts" && pwd)/macmini-release.sh"
-repo="$(cd "$(dirname "$0")/../../.." && pwd)"
+script="$(cd "$(dirname "$0")/../scripts" && pwd)/macmini-release.sh"
+repo="$(cd "$(dirname "$0")/../.." && pwd)"
 test_root=$(mktemp -d /tmp/marketry-release-test.XXXXXX)
 trap 'rm -rf "$test_root"' EXIT
 export RUNNER_TEMP="$test_root" GITHUB_OUTPUT="$test_root/output" MOCK_ROOT="$test_root"
@@ -39,7 +39,7 @@ docker() {
       local tag="${6##*:}"
       if [ -f "$MOCK_ROOT/error" ]; then cat "$MOCK_ROOT/error" >&2; return 1; fi
       if [ -f "$MOCK_ROOT/$tag.digest" ]; then cat "$MOCK_ROOT/$tag.digest"; return 0; fi
-      echo "ERROR: ghcr.io/fwangchanju/market-monitor:$tag: not found" >&2
+      echo "ERROR: ghcr.io/fwangchanju/marketry-application:$tag: not found" >&2
       return 1 ;;
     create)
       [ "$4" = -t ] || return 88
@@ -52,6 +52,11 @@ docker() {
 ssh() {
   local command="${!#}"
   printf 'ssh %s\n' "$command" >> "$MOCK_ROOT/trace"
+  if [ "$command" = gate-version ]; then
+    [ ! -f "$MOCK_ROOT/ssh-fail" ] || return 2
+    echo 'marketry-gate/v2'
+    return 0
+  fi
   if [ "$command" = connection-check ]; then
     if [ -f "$MOCK_ROOT/ssh-response" ]; then cat "$MOCK_ROOT/ssh-response"; return 2; fi
     if [ -f "$MOCK_ROOT/ssh-fail" ]; then return 255; fi
@@ -110,6 +115,20 @@ run ssh-setup; expect_ok
 python3 -c 'import os,stat; assert stat.S_IMODE(os.stat(os.environ["RUNNER_TEMP"]+"/marketry-ssh/key").st_mode)==0o600'
 run ssh-cleanup; expect_ok; [ ! -e "$RUNNER_TEMP/marketry-ssh" ]; no_remote
 pass 'runner SSH 키 권한과 삭제'
+
+new_case
+run verify-gate; expect_ok
+touch "$MOCK_ROOT/ssh-fail"
+run verify-gate; expect_fail
+! grep -q '^docker ' "$MOCK_ROOT/trace"
+pass '구 설치본이나 게이트 조회 실패 시 이미지 변경 없이 중단'
+
+new_case
+export REQUESTED_TARGET=diagnostics
+run route; expect_ok
+export REQUESTED_SERVER=oracle
+run route; expect_fail
+pass '조회 전용 진단은 맥미니에서만 허용' 
 
 new_case
 digest 2 > "$test_root/main.digest"; digest 1 > "$test_root/deployed.digest"

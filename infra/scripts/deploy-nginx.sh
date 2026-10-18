@@ -11,7 +11,7 @@ echo "=== [nginx] Logging in to GHCR ==="
 echo "$CR_PAT" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
 
 echo "=== [nginx] Pulling image (tag: $IMAGE_TAG) ==="
-docker pull "ghcr.io/$GHCR_USER/market-monitor-nginx:$IMAGE_TAG"
+docker pull "ghcr.io/$GHCR_USER/marketry-nginx:$IMAGE_TAG"
 
 echo "=== [nginx] Restarting nginx ==="
 docker compose -f "$NGINX_COMPOSE_FILE" --env-file "$ENV_FILE" down

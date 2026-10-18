@@ -2,7 +2,7 @@
 # 실제 Docker·Git·환경 파일을 사용하지 않는 macOS Bash 3.2 회귀 검사.
 set -euo pipefail
 
-gate_source="$(cd "$(dirname "$0")/.." && pwd)/gate.sh"
+gate_source="$(cd "$(dirname "$0")/../prod" && pwd)/gate.sh"
 test_root=$(mktemp -d /tmp/marketry-gate-test.XXXXXX)
 trap 'rm -rf "$test_root"' EXIT
 
@@ -22,6 +22,7 @@ new_case() {
   IMAGE_STATE_DIR="$case_dir/state"
   BACKUP_DIR="$case_dir/backups"
   LOCK_DIR="$case_dir/lock"
+  RENAME_PENDING="$case_dir/rename-pending"
   ENV_FILE="$case_dir/unused-environment"
   COMPOSE_FILE="$case_dir/unused-compose"
   : > "$case_dir/trace"
@@ -30,7 +31,7 @@ new_case() {
 add_image() {
   local id dir repository
   id=$(image_id "$1"); dir="$case_dir/images/$id"
-  repository=$(image_repository "${3:-marketry-app}")
+  repository=$(image_repository "${3:-marketry-application}")
   mkdir -p "$dir"
   printf '2026-01-%02dT00:00:00Z\n' "$2" > "$dir/created"
   printf '%s:%s\n' "$repository" "${4:-sha-$1}" > "$dir/tags"
@@ -38,9 +39,9 @@ add_image() {
 }
 
 incoming() {
-  add_image "$1" "$2" "${3:-marketry-app}"
+  add_image "$1" "$2" "${3:-marketry-application}"
   : > "$case_dir/images/$(image_id "$1")/tags"
-  image_id "$1" > "$case_dir/registry/${3:-marketry-app}.${4:-main}"
+  image_id "$1" > "$case_dir/registry/${3:-marketry-application}.${4:-main}"
 }
 
 set_container() { image_id "$2" > "$case_dir/containers/$1"; }
@@ -52,7 +53,7 @@ ledger() {
   {
     printf 'current %s\nprevious %s\n' "$(image_id "$current")" "$(image_id "$previous")"
     for id in "$@"; do printf 'image %s\n' "$(image_id "$id")"; done
-  } > "$IMAGE_STATE_DIR/marketry-app"
+  } > "$IMAGE_STATE_DIR/marketry-application"
 }
 
 mock_failure() { [ -e "$case_dir/fail/$1" ]; }
@@ -63,6 +64,10 @@ docker() {
   shift
   case "$command" in
     ps)
+      if [ "$*" = '-aq --filter name=^/marketry-app$' ]; then
+        [ ! -f "$case_dir/containers/marketry-app" ] || echo legacy-app
+        return 0
+      fi
       [ "$*" = -aq ] || return 88
       mock_failure ps && return 1
       for file in "$case_dir"/containers/*; do [ -f "$file" ] && basename "$file"; done
@@ -118,6 +123,11 @@ docker() {
       mock_failure backup && return 1
       printf 'mock database dump\n'
       ;;
+    update|stop|rm)
+      mock_failure "$command" && return 1
+      if [ "$command" = rm ]; then rm -f "$case_dir/containers/marketry-app"; fi
+      return 0
+      ;;
     compose)
       while [ "$#" -gt 0 ] && [ "$1" != pull ] && [ "$1" != up ]; do shift; done
       [ "$#" -gt 0 ] || return 88
@@ -125,10 +135,10 @@ docker() {
       mock_failure "$action" && return 1
       printf 'tags %s %s %s\n' "${APP_TAG:-deployed}" "${NGINX_TAG:-latest}" "${RENDERER_TAG:-latest}" >> "$case_dir/trace"
       for service in "$@"; do
-        case "$service" in -d | --no-deps) continue ;; esac
+        case "$service" in -d | --no-deps | --force-recreate) continue ;; esac
         repository=$(image_repository "$service") || return 88
         case "$service" in
-          marketry-app) tag="${APP_TAG:-deployed}" ;;
+          marketry-application) tag="${APP_TAG:-deployed}" ;;
           marketry-nginx) tag="${NGINX_TAG:-latest}" ;;
           marketry-renderer) tag="${RENDERER_TAG:-latest}" ;;
         esac
@@ -180,7 +190,7 @@ no_removal() { ! grep -q '^image rm ' "$case_dir/trace"; }
 passed() { test_count=$((test_count + 1)); printf 'PASS: %s\n' "$1"; }
 
 new_case
-incoming 1 1 marketry-app main
+incoming 1 1 marketry-application main
 incoming 2 2 marketry-nginx latest
 incoming 3 3 marketry-renderer latest
 run_gate 'deploy all main'; success
@@ -196,9 +206,9 @@ done
 passed '개별 서비스 요청 태그 유지'
 
 new_case
-add_image 1 1 marketry-app main; set_container marketry-app 1
+add_image 1 1 marketry-application main; set_container marketry-application 1
 add_image 2 2; add_image 3 3; add_image 4 9
-printf '%s:alias\n' "$(image_repository marketry-app)" >> "$case_dir/images/$(image_id 4)/tags"
+printf '%s:alias\n' "$(image_repository marketry-application)" >> "$case_dir/images/$(image_id 4)/tags"
 add_image 6 1 marketry-renderer
 ledger 1 2 1 2 3 4
 incoming 5 10
@@ -228,24 +238,24 @@ exists 1; exists 2; exists 3; exists 4
 passed '외부 태그·digest·중지 컨테이너·추적하지 않은 이미지 보호'
 
 new_case
-add_image 1 1 marketry-app main; add_image 2 2; add_image 9 9
-set_container marketry-app 1; ledger 1 2 1 2
+add_image 1 1 marketry-application main; add_image 2 2; add_image 9 9
+set_container marketry-application 1; ledger 1 2 1 2
 incoming 1 1
 run_gate 'deploy application main'; success
-grep -q "^previous $(image_id 2)$" "$IMAGE_STATE_DIR/marketry-app"
+grep -q "^previous $(image_id 2)$" "$IMAGE_STATE_DIR/marketry-application"
 exists 2
 passed '동일 성공 이미지 재배포의 previous 유지'
 
 new_case
-add_image 2 2 marketry-app main; add_image 1 1
-set_container marketry-app 2; ledger 2 1 1 2
+add_image 2 2 marketry-application main; add_image 1 1
+set_container marketry-application 2; ledger 2 1 1 2
 incoming 9 9; touch "$case_dir/fail/health"
 run_gate 'deploy application main'
 [ "$RUN_STATUS" -ne 0 ]; no_removal
-rm "$case_dir/fail/health"; incoming 2 2 marketry-app deployed
+rm "$case_dir/fail/health"; incoming 2 2 marketry-application deployed
 run_gate 'deploy application deployed'; success
-grep -q "^current $(image_id 2)$" "$IMAGE_STATE_DIR/marketry-app"
-grep -q "^previous $(image_id 1)$" "$IMAGE_STATE_DIR/marketry-app"
+grep -q "^current $(image_id 2)$" "$IMAGE_STATE_DIR/marketry-application"
+grep -q "^previous $(image_id 1)$" "$IMAGE_STATE_DIR/marketry-application"
 exists 1
 passed '배포 실패 후 복구의 직전 성공 이미지 보호'
 
@@ -259,19 +269,19 @@ passed '백업·pull·기동·헬스 실패 시 삭제 없음'
 
 new_case
 add_image 1 1
-incoming 10 10 marketry-app main
+incoming 10 10 marketry-application main
 incoming 11 11 marketry-nginx latest
 incoming 12 12 marketry-renderer latest
 touch "$case_dir/fail/health-marketry-renderer"
 run_gate 'deploy all main'
 [ "$RUN_STATUS" -ne 0 ]; no_removal
-grep -q '^health marketry-app$' "$case_dir/trace"
+grep -q '^health marketry-application$' "$case_dir/trace"
 grep -q '^health marketry-renderer$' "$case_dir/trace"
 passed '전체 배포에서 렌더러 헬스 실패 시 모든 정리 생략'
 
 for failure in ps container-inspect image-list image-inspect write-state; do
   new_case
-  add_image 1 1; set_container marketry-app 1; incoming 10 10
+  add_image 1 1; set_container marketry-application 1; incoming 10 10
   touch "$case_dir/fail/$failure"
   run_gate 'deploy application main'; success; no_removal
 done
@@ -285,7 +295,7 @@ grep -q '^image rm ' "$case_dir/trace"; grep -q '경고' "$case_dir/result"; exi
 passed '삭제 실패 시 경고와 이미지 보존'
 
 new_case
-add_image 1 1 marketry-app main; set_container marketry-app 1
+add_image 1 1 marketry-application main; set_container marketry-application 1
 add_image 3 4; add_image 4 4; add_image 5 4
 printf '2026-01-04T00:00:00.1Z\n' > "$case_dir/images/$(image_id 3)/created"
 printf '2026-01-04T00:00:00.01Z\n' > "$case_dir/images/$(image_id 4)/created"
@@ -298,9 +308,77 @@ passed '생성 시각 소수점 정렬과 사라진 추적 ID 제외'
 new_case
 add_image 1 1; incoming 10 10
 mkdir -p "$IMAGE_STATE_DIR"
-printf 'image $(touch must-not-exist)\n' > "$IMAGE_STATE_DIR/marketry-app"
+printf 'image $(touch must-not-exist)\n' > "$IMAGE_STATE_DIR/marketry-application"
 run_gate 'deploy application main'; success; no_removal
 [ ! -e must-not-exist ]
 passed '손상된 상태를 실행하지 않고 정리 생략'
+
+new_case
+add_image 1 1; set_container marketry-app 1
+incoming 2 2; incoming 3 3 marketry-nginx latest; incoming 4 4 marketry-renderer latest
+run_gate 'deploy application main'; [ "$RUN_STATUS" -ne 0 ]
+! grep -q '^stop ' "$case_dir/trace"
+run_gate 'deploy all main'; success
+[ ! -e "$case_dir/containers/marketry-app" ]; [ ! -e "$RENAME_PENDING" ]
+/usr/bin/python3 - "$case_dir/trace" <<'PYTRACE'
+import sys
+lines=open(sys.argv[1]).read().splitlines()
+def at(prefix): return next(i for i,line in enumerate(lines) if line.startswith(prefix))
+pull=next(i for i,l in enumerate(lines) if ' pull ' in l)
+stop=at('stop --timeout 60 marketry-app')
+up=next(i for i,l in enumerate(lines) if ' up ' in l)
+assert pull < stop < up < at('health marketry-nginx') < at('rm marketry-app')
+assert any('--force-recreate marketry-nginx' in l for l in lines)
+PYTRACE
+passed '최초 리네임은 all만 허용하고 pull·기존 앱 중지·새 앱 및 nginx 검증 후 구 컨테이너 정리'
+
+new_case
+add_image 1 1; set_container marketry-app 1
+incoming 2 2; incoming 3 3 marketry-nginx latest; incoming 4 4 marketry-renderer latest
+incoming 1 1 marketry-application deployed
+touch "$case_dir/fail/up"
+run_gate 'deploy all main'; [ "$RUN_STATUS" -ne 0 ]
+[ -e "$RENAME_PENDING" ]; [ -e "$case_dir/containers/marketry-app" ]
+rm "$case_dir/fail/up"
+touch "$case_dir/fail/health-marketry-nginx"
+run_gate 'deploy application deployed'; [ "$RUN_STATUS" -ne 0 ]
+[ -e "$RENAME_PENDING" ]; [ -e "$case_dir/containers/marketry-app" ]
+rm "$case_dir/fail/health-marketry-nginx"
+run_gate 'deploy application deployed'; success
+[ ! -e "$RENAME_PENDING" ]; [ ! -e "$case_dir/containers/marketry-app" ]
+passed '리네임 실패 원복에서도 nginx 재생성·upstream 검증이 실패하면 중단하고 재시도 상태 보존'
+
+# 기존 배포 검사는 헬스 함수를 대체하므로 실제 nginx 감시 함수는 별도 subshell에서 검사한다.
+(
+  source "$test_root/gate-functions.sh"
+  restart_count=3
+  running=true
+  increase=0
+  docker() {
+    case "$*" in
+      *RestartCount*) printf '%s\n' "$restart_count" ;;
+      *State.Running*) printf '%s\n' "$running" ;;
+      logs*) : ;;
+      *) return 1 ;;
+    esac
+  }
+  sleep() { restart_count=$((restart_count + increase)); }
+  watch_container marketry-nginx >/dev/null
+  increase=1
+  if (watch_container marketry-nginx) >/dev/null 2>&1; then
+    echo 'FAIL: 검사 구간의 반복 재시작을 놓침' >&2; exit 1
+  fi
+  increase=0
+  running=false
+  if (watch_container marketry-nginx) >/dev/null 2>&1; then
+    echo 'FAIL: 중지된 nginx를 정상으로 판정' >&2; exit 1
+  fi
+  running=true
+  restart_count=invalid
+  if (watch_container marketry-nginx) >/dev/null 2>&1; then
+    echo 'FAIL: 잘못된 재시작 기준을 허용' >&2; exit 1
+  fi
+)
+passed 'nginx 과거 재시작은 허용하고 검사 구간 반복 재시작·중지·조회 오류는 거부'
 
 printf '%s개 게이트 회귀 검사 통과\n' "$test_count"
