@@ -456,7 +456,7 @@ main() {
   fi
 
   case "${SSH_ORIGINAL_COMMAND-}" in
-    gate-version) echo 'marketry-gate/v2'; return ;;
+    gate-version) echo 'marketry-gate/v1'; return ;;
     diagnostics) diagnostics; return ;;
   esac
   parse_command "${SSH_ORIGINAL_COMMAND-}"
