@@ -45,7 +45,7 @@ remote() {
 verify_gate() {
   local version
   version=$(remote gate-version) || { fail '설치된 게이트 버전을 확인하지 못했습니다. 설치본 갱신이 필요합니다.'; return 1; }
-  [ "$version" = 'marketry-gate/v2' ] || { fail '설치된 게이트가 새 이름 변경을 지원하지 않습니다.'; return 1; }
+  [ "$version" = 'marketry-gate/v1' ] || { fail '설치된 게이트가 새 이름 변경을 지원하지 않습니다.'; return 1; }
 }
 
 connection_check() {
