@@ -54,7 +54,7 @@ ssh() {
   printf 'ssh %s\n' "$command" >> "$MOCK_ROOT/trace"
   if [ "$command" = gate-version ]; then
     [ ! -f "$MOCK_ROOT/ssh-fail" ] || return 2
-    echo 'marketry-gate/v2'
+    echo 'marketry-gate/v1'
     return 0
   fi
   if [ "$command" = connection-check ]; then
