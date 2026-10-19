@@ -14,4 +14,7 @@ public interface MarketOverviewSnapshotRepository extends JpaRepository<MarketOv
     Optional<MarketOverviewSnapshot> findFirstByOrderBySnapshotTimeDesc();
 
     List<MarketOverviewSnapshot> findBySnapshotTime(LocalDateTime snapshotTime);
+
+    List<MarketOverviewSnapshot> findBySnapshotTimeGreaterThanEqualAndSnapshotTimeLessThanOrderBySnapshotTimeAsc(
+            LocalDateTime from, LocalDateTime to);
 }
