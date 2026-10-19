@@ -1,6 +1,7 @@
 package dev.eolmae.marketry.domain.stock.scheduler;
 
 import dev.eolmae.marketry.common.enums.Zone;
+import dev.eolmae.marketry.common.exception.BusinessException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.common.util.KstClock;
@@ -38,6 +39,7 @@ public class CollectionScheduler {
     private static final String KST_ZONE_ID = "Asia/Seoul";
 
     private volatile CollectionResult lastCollection;
+    private volatile String lastCollectionFailureCode;
 
     /**
      * 장중 시장 데이터 수집: 평일 collect.start-hour~end-hour, interval-minutes 간격.
@@ -66,8 +68,9 @@ public class CollectionScheduler {
         if (shouldCollect) {
             log.info("장중 시장 데이터 수집 시작: snapshotTime={}", snapshotTime);
 
+            lastCollectionFailureCode = null;
             boolean success = run("시장스냅샷", () -> marketSnapshotCollector.collect(snapshotTime));
-            lastCollection = new CollectionResult(snapshotTime, success);
+            lastCollection = new CollectionResult(snapshotTime, success, lastCollectionFailureCode);
 
             log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
         }
@@ -110,7 +113,16 @@ public class CollectionScheduler {
         log.info("종목 정보 동기화 완료");
     }
 
-    private record CollectionResult(LocalDateTime snapshotTime, boolean success) {}
+    private record CollectionResult(LocalDateTime snapshotTime, boolean success, String failureCode) {}
+
+    public record CollectionStatus(LocalDateTime snapshotTime, boolean success, String failureCode) {}
+
+    public CollectionStatus lastCollectionStatus() {
+        CollectionResult collection = lastCollection;
+        return collection == null
+                ? null
+                : new CollectionStatus(collection.snapshotTime(), collection.success(), collection.failureCode());
+    }
 
     // 예외 없이 끝나면 true, 잡히면 escalate 후 false — 호출부가 "이 단계가 성공했는지"를 별도 재조회
     // 없이 실행 결과 자체로 바로 알 수 있다. 반환값이 필요 없는 호출부는 그냥 무시하면 된다.
@@ -121,6 +133,11 @@ public class CollectionScheduler {
         try {
             task.run();
         } catch (Exception e) {
+            if ("시장스냅샷".equals(collectorName)) {
+                lastCollectionFailureCode = e instanceof BusinessException businessException
+                        ? businessException.getErrorCode().name()
+                        : e.getClass().getSimpleName();
+            }
             escalationPublisher.report(EscalateException.wrap(ErrorCode.COLLECTOR_EXECUTION_FAILED, e, collectorName));
             success = false;
         } finally {
