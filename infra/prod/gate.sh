@@ -441,7 +441,7 @@ diagnostics() {
     marketry-application marketry-nginx marketry-renderer marketry-cloudflared marketry-postgres
   docker exec marketry-application printenv SPRING_PROFILES_ACTIVE
   docker logs --since 24h marketry-application 2>&1 | \
-    grep -E '스냅샷 정리|종목 정보 동기화 (시작|완료)|휴장일|Started MarketryApplication|profiles? (is|are) active' | tail -n 30 || true
+    grep -E '스냅샷 정리|종목 정보 동기화 (시작|완료)|휴장일|Started MarketryApplication|profiles? (is|are) active|시장 시간표 (조회 또는 저장 실패|저장 완료)|장중 시장 데이터 수집 (시작|완료)|\[시장스냅샷\] (시작|종료)|Kiwoom API (429 rate limit|5xx 오류|연결 실패/타임아웃|rate limit 재시도 횟수 초과|연결 실패/서버 오류 재시도 횟수 초과)' | tail -n 90 || true
   /bin/launchctl print system/kr.co.marketry.backup | \
     grep -E 'state =|runs =|last exit code =|"Hour"|"Minute"'
   echo 'PASS: 앱·nginx upstream 응답 및 고정 범위 진단 완료'
