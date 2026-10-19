@@ -30,6 +30,11 @@ public class MarketCalendarCollector {
     private final TossMarketCalendarClient client;
     private final MarketCalendarService service;
 
+    /** 운영 진단용: 토스 응답과 시간표 형식만 확인하고 DB는 변경하지 않는다. */
+    public void probe(LocalDate date) {
+        validateResponse(date, client.fetch(date));
+    }
+
     public boolean collect(LocalDate date) {
         try {
             service.saveSuccess(Country.KR, validateResponse(date, client.fetch(date)));

@@ -1,5 +1,8 @@
 package dev.eolmae.marketry.domain.stock.scheduler;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
@@ -133,10 +136,27 @@ class CollectionSchedulerTest {
         when(schedule.due(DATE.atTime(20, 10), false)).thenReturn(true);
 
         scheduler.collectMarketData(DATE.atTime(20, 0));
+        assertEquals(DATE.atTime(20, 0), scheduler.lastCollectionStatus().snapshotTime());
+        assertFalse(scheduler.lastCollectionStatus().success());
+        assertEquals("RuntimeException", scheduler.lastCollectionStatus().failureCode());
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
         verify(failureNotifier).notify(DATE.atTime(20, 0));
         verify(dispatcher, never()).sendSector(any());
+    }
+
+    @Test
+    void 다음_수집이_성공하면_진단실패코드를_지운다() {
+        doThrow(new RuntimeException("collection failed"))
+                .when(snapshotCollector)
+                .collect(DATE.atTime(8, 0));
+
+        scheduler.collectMarketData(DATE.atTime(8, 0));
+        scheduler.collectMarketData(DATE.atTime(8, 5));
+
+        assertTrue(scheduler.lastCollectionStatus().success());
+        assertEquals(DATE.atTime(8, 5), scheduler.lastCollectionStatus().snapshotTime());
+        assertEquals(null, scheduler.lastCollectionStatus().failureCode());
     }
 
     @Test
