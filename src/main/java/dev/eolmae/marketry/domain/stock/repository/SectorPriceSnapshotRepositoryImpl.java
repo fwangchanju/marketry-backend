@@ -68,7 +68,7 @@ public class SectorPriceSnapshotRepositoryImpl implements SectorPriceSnapshotRep
                 .from(marketCalendar)
                 .where(
                         marketCalendar.country.eq(Country.KR),
-                        marketCalendar.status.eq(MarketCalendarStatus.TRADING_DAY),
+                        marketCalendar.status.in(MarketCalendarStatus.TRADING_DAY, MarketCalendarStatus.FAILED),
                         marketCalendar.date.loe(throughDate),
                         pricesPresent)
                 .orderBy(marketCalendar.date.desc())
@@ -88,7 +88,8 @@ public class SectorPriceSnapshotRepositoryImpl implements SectorPriceSnapshotRep
                                 .from(marketCalendar)
                                 .where(
                                         marketCalendar.country.eq(Country.KR),
-                                        marketCalendar.status.eq(MarketCalendarStatus.TRADING_DAY),
+                                        marketCalendar.status.in(
+                                                MarketCalendarStatus.TRADING_DAY, MarketCalendarStatus.FAILED),
                                         matchesCalendarDate())
                                 .exists())
                 .groupBy(
