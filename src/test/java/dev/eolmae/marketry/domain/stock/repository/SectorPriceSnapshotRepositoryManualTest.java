@@ -32,7 +32,7 @@ class SectorPriceSnapshotRepositoryManualTest {
     private static final LocalDate FIRST = LocalDate.of(2026, 10, 1);
 
     @Test
-    void 확인된_과거_거래일과_시장별_종가를_조회하고_대상_날짜만_정리한다() {
+    void 달력_확인에_실패해도_가격자료가_있는_날짜를_최신_자료로_조회한다() {
         var registry = new StandardServiceRegistryBuilder()
                 .applySettings(Map.of(
                         "jakarta.persistence.jdbc.url", "jdbc:postgresql://localhost:15439/snapshot_query_test",
@@ -55,7 +55,9 @@ class SectorPriceSnapshotRepositoryManualTest {
             LocalDate latest = FIRST.plusDays(6);
             LocalDate today = FIRST.plusDays(7);
             for (LocalDate date : List.of(FIRST, second, soleAfter, noCandidate, latest, today, FIRST.plusDays(11))) {
-                session.persist(MarketCalendar.create(Country.KR, date, MarketCalendarStatus.TRADING_DAY, null));
+                MarketCalendarStatus status =
+                        date.equals(today) ? MarketCalendarStatus.FAILED : MarketCalendarStatus.TRADING_DAY;
+                session.persist(MarketCalendar.create(Country.KR, date, status, null));
             }
             session.persist(MarketCalendar.create(Country.KR, FIRST.plusDays(2), MarketCalendarStatus.HOLIDAY, null));
             session.persist(MarketCalendar.create(Country.KR, FIRST.plusDays(3), MarketCalendarStatus.FAILED, null));
@@ -80,7 +82,7 @@ class SectorPriceSnapshotRepositoryManualTest {
             session.flush();
             var repository = new SectorPriceSnapshotRepositoryImpl(new JPAQueryFactory(session));
             assertThat(repository.findTradingSnapshotDates(today))
-                    .containsExactly(latest, noCandidate, soleAfter, second, FIRST);
+                    .containsExactly(today, latest, noCandidate, soleAfter, second, FIRST);
             assertThat(repository.findLatestCommonSnapshotTime(List.of(Market.KOSPI), today))
                     .contains(latest.atTime(20, 0));
             assertThat(repository.findLatestCommonSnapshotTime(List.of(Market.KOSPI, Market.KOSDAQ), today))
