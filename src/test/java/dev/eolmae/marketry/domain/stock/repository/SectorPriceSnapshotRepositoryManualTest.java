@@ -55,9 +55,8 @@ class SectorPriceSnapshotRepositoryManualTest {
             LocalDate latest = FIRST.plusDays(6);
             LocalDate today = FIRST.plusDays(7);
             for (LocalDate date : List.of(FIRST, second, soleAfter, noCandidate, latest, today, FIRST.plusDays(11))) {
-                MarketCalendarStatus status = date.equals(today)
-                        ? MarketCalendarStatus.FAILED
-                        : MarketCalendarStatus.TRADING_DAY;
+                MarketCalendarStatus status =
+                        date.equals(today) ? MarketCalendarStatus.FAILED : MarketCalendarStatus.TRADING_DAY;
                 session.persist(MarketCalendar.create(Country.KR, date, status, null));
             }
             session.persist(MarketCalendar.create(Country.KR, FIRST.plusDays(2), MarketCalendarStatus.HOLIDAY, null));
