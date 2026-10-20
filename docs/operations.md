@@ -249,6 +249,15 @@ config 문법 오류면 즉시 기동 실패하는 이진적 실패 모드라 �
 
 ## 장애 시 확인 순서
 
+### 2026-10-20 홈페이지 자료가 어제로 보인 사례
+
+- 08:45 수집은 성공했고 운영 DB와 `/api/map`의 명시적 `snapshotTime` 조회에는 오늘 자료가 있었다. 수집 장애가 아니었다.
+- 오늘 거래일 확인이 `FAILED`였다. 진단 API `/api/operations/collection-status`는 `TOSS_AUTH_NOT_CONFIGURED`를 반환했다. 운영 환경의 `TOSS_CLIENT_ID` 또는 `TOSS_CLIENT_SECRET` 설정을 확인해야 한다. 키 값은 문서나 채팅에 남기지 않는다.
+- 기본 최신 자료 조회가 `TRADING_DAY`인 날짜만 골라, `FAILED`인 오늘 자료를 건너뛰고 어제 자료를 표시했다. 거래일 확인이 실패해도 이미 수집된 자료는 조회하도록 두 쿼리를 수정했다([PR #223](https://github.com/fwangchanju/marketry-backend/pull/223)). macmini Release 후 기본 `/api/map`이 오늘 08:50 자료를 반환했고 홈페이지 표시가 회복됐다.
+- 재발 점검: 08시 이후 기본 `/api/map`의 `snapshotTime`, 명시적 시각의 자료 유무, `/api/operations/collection-status`의 수집 결과와 달력 오류를 각각 확인한다. `FAILED` 달력과 오래된 기본 자료는 별도 알림 대상으로 추가한다. Toss 인증 설정을 복구한 뒤 오늘 달력이 `TRADING_DAY`로 바뀌는지 확인한다.
+
+이 사례에서 로컬 DB 복원은 로컬 프로필/DB를 대상으로 했고 운영 수집 및 표시 오류의 원인은 아니었다.
+
 1. `/actuator/health`: 앱이 떠 있는가
 2. GitHub Actions의 마지막 배포 로그: 헬스체크가 실패했다면 `docker logs`가 찍혀 있다
 3. `logs/exception.log`: **throwable이 붙은 로그가 전부 여기 쌓인다.** `EscalateException`으로 분류된
