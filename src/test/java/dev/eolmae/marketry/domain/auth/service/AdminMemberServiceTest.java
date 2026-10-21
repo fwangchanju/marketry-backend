@@ -10,11 +10,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import dev.eolmae.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
@@ -241,5 +243,55 @@ class AdminMemberServiceTest {
         assertThat(result.items()).extracting(AdminMemberResponse::accessDays).containsExactly(12L, 0L);
         assertThat(result.total()).isEqualTo(2);
         assertThat(result.accessTrackingAvailable()).isTrue();
+    }
+
+    @Test
+    void 가입_추이는_기간_시작_전_회원_수에서_출발해_하루씩_누적한다() {
+        LocalDate today = LocalDate.of(2026, 10, 21);
+        LocalDate from = LocalDate.of(2026, 10, 19);
+        when(repository.countJoinedByDate(from, today))
+                .thenReturn(List.of(new AdminDailyAccessResponse(from, 2), new AdminDailyAccessResponse(today, 1)));
+        when(repository.countJoinedBefore(from.atStartOfDay())).thenReturn(10L);
+
+        assertThat(service.getSignups(today, 3))
+                .containsExactly(
+                        new AdminSignupDailyResponse(from, 2, 12),
+                        new AdminSignupDailyResponse(LocalDate.of(2026, 10, 20), 0, 12),
+                        new AdminSignupDailyResponse(today, 1, 13));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1, 181})
+    void 가입_추이는_1일_미만_또는_180일_초과_기간을_거부한다(int days) {
+        assertThatThrownBy(() -> service.getSignups(LocalDate.of(2026, 10, 21), days))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void 접속_빈도는_접속한_날_수를_구간으로_나누고_한_번도_접속하지_않은_회원은_0일로_센다() {
+        LocalDate today = LocalDate.of(2026, 10, 21);
+        // 접속한 회원 6명: 1일, 2일, 3일, 6일, 7일, 14일 — 마지막에 15일, 30일도 있어 8명
+        when(accessDailyRepository.countAccessDaysPerMember(today.minusDays(29), today))
+                .thenReturn(List.of(1L, 2L, 3L, 6L, 7L, 14L, 15L, 30L));
+        when(repository.countMembers()).thenReturn(11L);
+
+        assertThat(service.getAccessFrequency(today))
+                .containsExactly(
+                        new AdminAccessFrequencyResponse("0일", 3),
+                        new AdminAccessFrequencyResponse("1~2일", 2),
+                        new AdminAccessFrequencyResponse("3~6일", 2),
+                        new AdminAccessFrequencyResponse("7~14일", 2),
+                        new AdminAccessFrequencyResponse("15일 이상", 2));
+    }
+
+    @Test
+    void 접속_빈도는_전체_회원_수가_접속_회원_수보다_적어도_음수로_세지_않는다() {
+        LocalDate today = LocalDate.of(2026, 10, 21);
+        when(accessDailyRepository.countAccessDaysPerMember(today.minusDays(29), today))
+                .thenReturn(List.of(1L, 1L));
+        when(repository.countMembers()).thenReturn(1L);
+
+        assertThat(service.getAccessFrequency(today).get(0)).isEqualTo(new AdminAccessFrequencyResponse("0일", 0));
     }
 }

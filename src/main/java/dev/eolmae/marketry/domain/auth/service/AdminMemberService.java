@@ -1,11 +1,13 @@
 package dev.eolmae.marketry.domain.auth.service;
 
 import dev.eolmae.marketry.common.enums.Zone;
+import dev.eolmae.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
@@ -13,6 +15,7 @@ import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -35,7 +38,9 @@ public class AdminMemberService {
     private static final int RECENT_ACCESS_DAYS = 7;
     private static final int MAX_DAILY_ACCESS_DAYS = 90;
     private static final int ACCESS_DAYS_WINDOW = 30;
+    private static final int MAX_SIGNUP_DAYS = 180;
     private static final int MAX_SPECIAL_CHANGE = 100;
+    private static final String[] ACCESS_FREQUENCY_LABELS = {"0일", "1~2일", "3~6일", "7~14일", "15일 이상"};
     private static final Set<String> SORT_KEYS =
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
     private final UserAccountRepository userAccountRepository;
@@ -135,5 +140,61 @@ public class AdminMemberService {
         return from.datesUntil(today.plusDays(1))
                 .map(date -> new AdminDailyAccessResponse(date, countByDate.getOrDefault(date, 0L)))
                 .toList();
+    }
+
+    /**
+     * 오늘을 포함한 최근 days일의 일별 신규 가입 수와 누적 회원 수. 가입한 사람이 없는 날도 0명으로 채운다.
+     * 누적은 기간 시작 전에 이미 가입한 회원 수에서 출발해 하루씩 더한다(과거 가입일도 그대로 쓰므로 접속 기록과 달리 처음부터 채워진다).
+     */
+    @Transactional(readOnly = true)
+    public List<AdminSignupDailyResponse> getSignups(LocalDate today, int days) {
+        if (days < 1 || days > MAX_SIGNUP_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회 기간이 올바르지 않습니다.");
+        }
+        LocalDate from = today.minusDays(days - 1L);
+        Map<LocalDate, Long> joinedByDate = new HashMap<>();
+        userAccountRepository
+                .countJoinedByDate(from, today)
+                .forEach(row -> joinedByDate.put(row.date(), row.members()));
+        long[] total = {userAccountRepository.countJoinedBefore(from.atStartOfDay())};
+        return from.datesUntil(today.plusDays(1))
+                .map(date -> {
+                    long joined = joinedByDate.getOrDefault(date, 0L);
+                    total[0] += joined;
+                    return new AdminSignupDailyResponse(date, joined, total[0]);
+                })
+                .toList();
+    }
+
+    /**
+     * 최근 30일(오늘 포함) 중 며칠 접속했는지로 회원을 구간에 나눠 센다. 한 번도 접속하지 않은 회원(기록이 생기기 전 가입자 포함)은
+     * "0일"에 들어간다. 접속 기록은 기록을 시작한 날부터라 처음에는 "0일"이 많게 나온다.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminAccessFrequencyResponse> getAccessFrequency(LocalDate today) {
+        List<Long> accessDays =
+                userAccessDailyRepository.countAccessDaysPerMember(today.minusDays(ACCESS_DAYS_WINDOW - 1L), today);
+        long neverAccessed = Math.max(0, userAccountRepository.countMembers() - accessDays.size());
+        long[] counts = new long[ACCESS_FREQUENCY_LABELS.length];
+        counts[0] = neverAccessed;
+        for (long days : accessDays) {
+            counts[accessFrequencyBucket(days)]++;
+        }
+        List<AdminAccessFrequencyResponse> result = new ArrayList<>();
+        for (int i = 0; i < counts.length; i++) {
+            result.add(new AdminAccessFrequencyResponse(ACCESS_FREQUENCY_LABELS[i], counts[i]));
+        }
+        return result;
+    }
+
+    // 1~2일, 3~6일, 7~14일, 15일 이상 — 0일은 접속 기록이 없는 회원이라 따로 센다.
+    private static int accessFrequencyBucket(long days) {
+        if (days <= 2) {
+            return 1;
+        }
+        if (days <= 6) {
+            return 2;
+        }
+        return days <= 14 ? 3 : 4;
     }
 }

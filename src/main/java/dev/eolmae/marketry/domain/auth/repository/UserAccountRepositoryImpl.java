@@ -11,14 +11,19 @@ import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -81,6 +86,36 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                 users,
                 count(userAccount.createdAt.goe(joinedSince)),
                 count(userAccount.lastAccessAt.goe(accessedSince)));
+    }
+
+    @Override
+    public List<AdminDailyAccessResponse> countJoinedByDate(LocalDate from, LocalDate to) {
+        // 가입 시각을 가져와 날짜별로 센다 — DB의 날짜 변환(cast as date)은 java.sql.Date를 돌려줘 LocalDate로 받지 못한다.
+        // 기간 안의 가입자만 가져오므로(회원 수만큼) 양이 작다.
+        List<LocalDateTime> joinedAt = queryFactory
+                .select(userAccount.createdAt)
+                .from(userAccount)
+                .where(
+                        managedMember(),
+                        userAccount.createdAt.goe(from.atStartOfDay()),
+                        userAccount.createdAt.lt(to.plusDays(1).atStartOfDay()))
+                .fetch();
+        return joinedAt.stream()
+                .collect(Collectors.groupingBy(LocalDateTime::toLocalDate, TreeMap::new, Collectors.counting()))
+                .entrySet()
+                .stream()
+                .map(entry -> new AdminDailyAccessResponse(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    @Override
+    public long countJoinedBefore(LocalDateTime before) {
+        return count(userAccount.createdAt.lt(before));
+    }
+
+    @Override
+    public long countMembers() {
+        return count(userAccount.id.isNotNull());
     }
 
     // 관리자는 권한으로, 특별 회원은 일반 권한(USER) 중 특별 표시가 켜진 회원으로 본다.
