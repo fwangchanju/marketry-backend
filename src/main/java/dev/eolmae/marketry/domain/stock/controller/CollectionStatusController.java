@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** 자격 증명과 원문 예외를 내보내지 않는 운영 수집 상태 조회. */
+/** 운영 수집 상태 조회 — 내부 상태를 담으므로 /api/admin/** 규칙(ADMIN 전용)을 그대로 쓴다. */
 @RestController
-@RequestMapping("/api/operations/collection-status")
+@RequestMapping("/api/admin/operations/collection-status")
 @RequiredArgsConstructor
 public class CollectionStatusController {
 
