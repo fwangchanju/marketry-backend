@@ -3,12 +3,15 @@ package dev.eolmae.marketry.domain.auth.controller;
 import dev.eolmae.marketry.domain.auth.dto.NicknameAvailabilityResponse;
 import dev.eolmae.marketry.domain.auth.dto.NicknameRequest;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
+import dev.eolmae.marketry.domain.auth.service.AccountWithdrawalService;
 import dev.eolmae.marketry.domain.auth.service.CurrentUser;
 import dev.eolmae.marketry.domain.auth.service.UserProfileService;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,10 +32,20 @@ public class ProfileController {
     private static final Duration IMAGE_CACHE_DURATION = Duration.ofDays(1);
 
     private final UserProfileService userProfileService;
+    private final AccountWithdrawalService accountWithdrawalService;
+    private final AuthCookies authCookies;
 
     @GetMapping
     public ProfileResponse getProfile() {
         return userProfileService.getProfile(CurrentUser.requireId());
+    }
+
+    // 회원 탈퇴 — 회원의 데이터를 즉시 모두 지우고 로그인 쿠키를 만료시킨다.
+    @DeleteMapping("/account")
+    public void withdraw(HttpServletResponse response) {
+        accountWithdrawalService.withdraw(CurrentUser.requireId());
+        authCookies.expireSessionCookies(response);
+        response.setStatus(HttpStatus.NO_CONTENT.value());
     }
 
     @GetMapping("/nickname/availability")
