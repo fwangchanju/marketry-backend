@@ -1,8 +1,10 @@
 package dev.eolmae.marketry.domain.auth.service;
 
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
+import java.time.LocalDateTime;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -14,7 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class AdminMemberService {
     private static final int PAGE_SIZE = 50;
-    private static final Set<String> SORT_KEYS = Set.of("id", "email", "nickname", "role", "createdAt");
+    private static final int RECENT_JOIN_DAYS = 7;
+    private static final Set<String> SORT_KEYS = Set.of("id", "email", "nickname", "role", "createdAt", "lastAccessAt");
     private final UserAccountRepository userAccountRepository;
 
     @Transactional(readOnly = true)
@@ -32,5 +35,11 @@ public class AdminMemberService {
                     default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 권한이 올바르지 않습니다.");
                 };
         return userAccountRepository.findMembers(keyword, selectedRole, sort, ascending, page, PAGE_SIZE);
+    }
+
+    /** 지금 시각을 받아 최근 가입 기준(7일 전)을 정한다. */
+    @Transactional(readOnly = true)
+    public AdminMemberSummaryResponse getSummary(LocalDateTime now) {
+        return userAccountRepository.summarize(now.minusDays(RECENT_JOIN_DAYS));
     }
 }

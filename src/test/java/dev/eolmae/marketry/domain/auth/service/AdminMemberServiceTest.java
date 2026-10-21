@@ -7,8 +7,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,7 +43,7 @@ class AdminMemberServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"id", "email", "nickname", "role", "createdAt"})
+    @ValueSource(strings = {"id", "email", "nickname", "role", "createdAt", "lastAccessAt"})
     void 지원하는_정렬_기준은_방향과_함께_저장소에_넘긴다(String sort) {
         var ascending = new AdminMemberPageResponse(List.of(), 1, false);
         var descending = new AdminMemberPageResponse(List.of(), 2, false);
@@ -52,7 +54,7 @@ class AdminMemberServiceTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"lastAccessAt", "invalid", ""})
+    @ValueSource(strings = {"invalid", "password", ""})
     void 지원하지_않는_정렬은_거부한다(String sort) {
         assertThatThrownBy(() -> service.findMembers("", "", sort, "desc", 0))
                 .isInstanceOf(ResponseStatusException.class);
@@ -76,5 +78,12 @@ class AdminMemberServiceTest {
         assertThatThrownBy(() -> service.findMembers("", "OWNER", "createdAt", "desc", 0))
                 .isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(repository);
+    }
+
+    @Test
+    void 현황은_지금부터_7일_전을_최근_가입_기준으로_조회한다() {
+        var expected = new AdminMemberSummaryResponse(4, 1, 3, 2);
+        when(repository.summarize(LocalDateTime.of(2026, 10, 14, 12, 0))).thenReturn(expected);
+        assertThat(service.getSummary(LocalDateTime.of(2026, 10, 21, 12, 0))).isEqualTo(expected);
     }
 }
