@@ -35,6 +35,10 @@ public class UserAccount {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    // 특별 회원 여부 — 권한과 별개다. 관리자가 아닌 회원에게만 의미가 있다.
+    @Column(nullable = false)
+    private boolean special;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 

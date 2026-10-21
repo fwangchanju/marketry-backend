@@ -1,6 +1,8 @@
 package dev.eolmae.marketry.domain.auth.controller;
 
+import dev.eolmae.marketry.common.util.KstClock;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.service.AdminMemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
@@ -26,5 +28,12 @@ public class AdminMemberController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(adminMemberService.findMembers(query, role, sort, order, page));
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<AdminMemberSummaryResponse> summary() {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(adminMemberService.getSummary(KstClock.now()));
     }
 }

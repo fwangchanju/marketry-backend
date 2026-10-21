@@ -7,13 +7,17 @@ import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.OrderSpecifier.NullHandling;
+import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
+import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import java.time.LocalDateTime;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -22,14 +26,16 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
 
     @Override
     public AdminMemberPageResponse findMembers(
-            String query, Role role, String sort, boolean ascending, int page, int size) {
+            String query, Set<MemberGrade> grades, String sort, boolean ascending, int page, int size) {
         var predicate = new BooleanBuilder();
         if (!query.isEmpty()) {
             predicate.and(
                     userAccount.email.containsIgnoreCase(query).or(userProfile.nickname.containsIgnoreCase(query)));
         }
-        if (role != null) {
-            predicate.and(userAccount.role.eq(role));
+        if (!grades.isEmpty()) {
+            var gradePredicate = new BooleanBuilder();
+            grades.forEach(grade -> gradePredicate.or(gradeCondition(grade)));
+            predicate.and(gradePredicate);
         }
         Long total = queryFactory
                 .select(userAccount.count())
@@ -43,9 +49,11 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                 .select(Projections.constructor(
                         AdminMemberResponse.class,
                         userAccount.id,
+                        userAccount.issuer,
                         userAccount.email,
                         userProfile.nickname,
                         userAccount.role,
+                        userAccount.special,
                         userAccount.createdAt,
                         Expressions.nullExpression(LocalDateTime.class)))
                 .from(userAccount)
@@ -59,6 +67,33 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
         return new AdminMemberPageResponse(items, total == null ? 0 : total, false);
     }
 
+    @Override
+    public AdminMemberSummaryResponse summarize(LocalDateTime joinedSince) {
+        long admins = count(gradeCondition(MemberGrade.ADMIN));
+        long specials = count(gradeCondition(MemberGrade.SPECIAL));
+        long users = count(gradeCondition(MemberGrade.USER));
+        return new AdminMemberSummaryResponse(
+                admins + specials + users, admins, specials, users, count(userAccount.createdAt.goe(joinedSince)));
+    }
+
+    // 관리자는 권한으로, 특별 회원은 일반 권한(USER) 중 특별 표시가 켜진 회원으로 본다.
+    private Predicate gradeCondition(MemberGrade grade) {
+        return switch (grade) {
+            case ADMIN -> userAccount.role.eq(Role.ADMIN);
+            case SPECIAL -> userAccount.role.eq(Role.USER).and(userAccount.special.isTrue());
+            case USER -> userAccount.role.eq(Role.USER).and(userAccount.special.isFalse());
+        };
+    }
+
+    private long count(Predicate condition) {
+        Long count = queryFactory
+                .select(userAccount.count())
+                .from(userAccount)
+                .where(condition)
+                .fetchOne();
+        return count == null ? 0 : count;
+    }
+
     // 정렬 기준이 같은 값이 많아도 페이지가 겹치거나 빠지지 않도록 같은 방향의 회원 ID를 보조 기준으로 둔다.
     // 이메일·닉네임은 비어 있을 수 있어 방향과 상관없이 비어 있는 쪽을 뒤로 보낸다.
     private OrderSpecifier<?>[] orderBy(String sort, boolean ascending) {
@@ -66,12 +101,24 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
         OrderSpecifier<?> primary =
                 switch (sort) {
                     case "id" -> new OrderSpecifier<>(direction, userAccount.id);
+                    case "issuer" -> new OrderSpecifier<>(direction, userAccount.issuer, NullHandling.NullsLast);
                     case "email" -> new OrderSpecifier<>(direction, userAccount.email, NullHandling.NullsLast);
                     case "nickname" -> new OrderSpecifier<>(direction, userProfile.nickname, NullHandling.NullsLast);
                     case "role" -> new OrderSpecifier<>(direction, userAccount.role);
+                    // 접속 기록은 아직 저장하지 않아 모든 회원이 같은 값(없음)이다 — 지금은 회원 ID 순과 같고, 기록이 생기면 그 열로 바꾼다.
+                    case "lastAccessAt" -> new OrderSpecifier<>(direction, userAccount.id);
                     default -> new OrderSpecifier<>(direction, userAccount.createdAt);
                 };
-        return "id".equals(sort)
+        if ("role".equals(sort)) {
+            // 구분 순서는 관리자 → 특별 회원 → 일반 회원이고, 내림차순이면 그 반대다.
+            Order specialDirection = ascending ? Order.DESC : Order.ASC;
+            return new OrderSpecifier<?>[] {
+                primary,
+                new OrderSpecifier<>(specialDirection, userAccount.special),
+                new OrderSpecifier<>(direction, userAccount.id)
+            };
+        }
+        return "id".equals(sort) || "lastAccessAt".equals(sort)
                 ? new OrderSpecifier<?>[] {primary}
                 : new OrderSpecifier<?>[] {primary, new OrderSpecifier<>(direction, userAccount.id)};
     }
