@@ -4,6 +4,9 @@ import static dev.eolmae.marketry.domain.auth.entity.QUserAccount.userAccount;
 import static dev.eolmae.marketry.domain.auth.entity.QUserProfile.userProfile;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Order;
+import com.querydsl.core.types.OrderSpecifier;
+import com.querydsl.core.types.OrderSpecifier.NullHandling;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -18,7 +21,8 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public AdminMemberPageResponse findMembers(String query, Role role, int page, int size) {
+    public AdminMemberPageResponse findMembers(
+            String query, Role role, String sort, boolean ascending, int page, int size) {
         var predicate = new BooleanBuilder();
         if (!query.isEmpty()) {
             predicate.and(
@@ -48,10 +52,27 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                 .leftJoin(userProfile)
                 .on(userProfile.userId.eq(userAccount.id))
                 .where(predicate)
-                .orderBy(userAccount.createdAt.desc(), userAccount.id.desc())
+                .orderBy(orderBy(sort, ascending))
                 .offset((long) page * size)
                 .limit(size)
                 .fetch();
         return new AdminMemberPageResponse(items, total == null ? 0 : total, false);
+    }
+
+    // 정렬 기준이 같은 값이 많아도 페이지가 겹치거나 빠지지 않도록 같은 방향의 회원 ID를 보조 기준으로 둔다.
+    // 이메일·닉네임은 비어 있을 수 있어 방향과 상관없이 비어 있는 쪽을 뒤로 보낸다.
+    private OrderSpecifier<?>[] orderBy(String sort, boolean ascending) {
+        Order direction = ascending ? Order.ASC : Order.DESC;
+        OrderSpecifier<?> primary =
+                switch (sort) {
+                    case "id" -> new OrderSpecifier<>(direction, userAccount.id);
+                    case "email" -> new OrderSpecifier<>(direction, userAccount.email, NullHandling.NullsLast);
+                    case "nickname" -> new OrderSpecifier<>(direction, userProfile.nickname, NullHandling.NullsLast);
+                    case "role" -> new OrderSpecifier<>(direction, userAccount.role);
+                    default -> new OrderSpecifier<>(direction, userAccount.createdAt);
+                };
+        return "id".equals(sort)
+                ? new OrderSpecifier<?>[] {primary}
+                : new OrderSpecifier<?>[] {primary, new OrderSpecifier<>(direction, userAccount.id)};
     }
 }

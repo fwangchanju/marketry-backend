@@ -21,9 +21,10 @@ public class AdminMemberController {
             @RequestParam(defaultValue = "") String query,
             @RequestParam(defaultValue = "") String role,
             @RequestParam(defaultValue = "createdAt") String sort,
+            @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "0") int page) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(adminMemberService.findMembers(query, role, sort, page));
+                .body(adminMemberService.findMembers(query, role, sort, order, page));
     }
 }

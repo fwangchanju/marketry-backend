@@ -4,5 +4,5 @@ import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 
 public interface UserAccountRepositoryCustom {
-    AdminMemberPageResponse findMembers(String query, Role role, int page, int size);
+    AdminMemberPageResponse findMembers(String query, Role role, String sort, boolean ascending, int page, int size);
 }
