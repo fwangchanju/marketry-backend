@@ -89,9 +89,10 @@ class AdminMemberServiceTest {
     }
 
     @Test
-    void 현황은_지금부터_7일_전을_최근_가입_기준으로_조회한다() {
-        var expected = new AdminMemberSummaryResponse(6, 1, 2, 3, 2);
-        when(repository.summarize(LocalDateTime.of(2026, 10, 14, 12, 0))).thenReturn(expected);
+    void 현황은_지금부터_7일_전을_최근_가입과_최근_접속_기준으로_조회한다() {
+        var expected = new AdminMemberSummaryResponse(6, 1, 2, 3, 2, 4);
+        when(repository.summarize(LocalDateTime.of(2026, 10, 14, 12, 0), LocalDateTime.of(2026, 10, 14, 12, 0)))
+                .thenReturn(expected);
         assertThat(service.getSummary(LocalDateTime.of(2026, 10, 21, 12, 0))).isEqualTo(expected);
     }
 
