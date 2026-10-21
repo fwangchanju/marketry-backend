@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserRefreshTokenRepository;
@@ -32,6 +33,7 @@ class AccountWithdrawalServiceTest {
     private final UserAccountRepository userAccountRepository = mock(UserAccountRepository.class);
     private final UserProfileRepository userProfileRepository = mock(UserProfileRepository.class);
     private final UserRefreshTokenRepository userRefreshTokenRepository = mock(UserRefreshTokenRepository.class);
+    private final UserAccessDailyRepository userAccessDailyRepository = mock(UserAccessDailyRepository.class);
     private final UserPreferenceRepository userPreferenceRepository = mock(UserPreferenceRepository.class);
     private final CustomStockSectorRepository customStockSectorRepository = mock(CustomStockSectorRepository.class);
     private final CustomStockAliasRepository customStockAliasRepository = mock(CustomStockAliasRepository.class);
@@ -44,6 +46,7 @@ class AccountWithdrawalServiceTest {
     private final AccountWithdrawalService service = new AccountWithdrawalService(
             userAccountRepository,
             userProfileRepository,
+            userAccessDailyRepository,
             userRefreshTokenRepository,
             userPreferenceRepository,
             customStockSectorRepository,
@@ -76,6 +79,7 @@ class AccountWithdrawalServiceTest {
         verify(customValueTierThresholdRepository).deleteAllByUserId(USER_ID);
         verify(userPreferenceRepository).deleteAllOfUser(USER_ID);
         verify(userRefreshTokenRepository).deleteAllOfUser(USER_ID);
+        verify(userAccessDailyRepository).deleteAllOfUser(USER_ID);
     }
 
     @Test

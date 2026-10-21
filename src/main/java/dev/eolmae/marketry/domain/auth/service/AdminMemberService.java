@@ -1,17 +1,22 @@
 package dev.eolmae.marketry.domain.auth.service;
 
+import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -26,10 +31,12 @@ public class AdminMemberService {
     private static final int PAGE_SIZE = 50;
     private static final int RECENT_JOIN_DAYS = 7;
     private static final int RECENT_ACCESS_DAYS = 7;
+    private static final int MAX_DAILY_ACCESS_DAYS = 90;
     private static final int MAX_SPECIAL_CHANGE = 100;
     private static final Set<String> SORT_KEYS =
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
     private final UserAccountRepository userAccountRepository;
+    private final UserAccessDailyRepository userAccessDailyRepository;
 
     @Transactional(readOnly = true)
     public AdminMemberPageResponse findMembers(String query, String role, String sort, String order, int page) {
@@ -89,5 +96,24 @@ public class AdminMemberService {
     @Transactional(readOnly = true)
     public AdminMemberSummaryResponse getSummary(LocalDateTime now) {
         return userAccountRepository.summarize(now.minusDays(RECENT_JOIN_DAYS), now.minusDays(RECENT_ACCESS_DAYS));
+    }
+
+    /**
+     * 오늘을 포함한 최근 days일의 일별 접속 회원 수. 접속한 사람이 없는 날도 0명으로 채워 날짜가 빠지지 않게 한다.
+     * 접속 기록은 기록을 시작한 날부터만 있어서 그 전 날짜는 0명이다.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminDailyAccessResponse> getDailyAccess(LocalDate today, int days) {
+        if (days < 1 || days > MAX_DAILY_ACCESS_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회 기간이 올바르지 않습니다.");
+        }
+        LocalDate from = today.minusDays(days - 1L);
+        Map<LocalDate, Long> countByDate = new HashMap<>();
+        userAccessDailyRepository
+                .countMembersByDate(from, today)
+                .forEach(row -> countByDate.put(row.date(), row.members()));
+        return from.datesUntil(today.plusDays(1))
+                .map(date -> new AdminDailyAccessResponse(date, countByDate.getOrDefault(date, 0L)))
+                .toList();
     }
 }

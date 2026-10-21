@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserRefreshToken;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
+import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserRefreshTokenRepository;
 import java.nio.charset.StandardCharsets;
@@ -58,6 +59,7 @@ public class AuthService {
     private final ApplicationEventPublisher eventPublisher;
     private final AppJwtService appJwtService;
     private final JdbcTemplate jdbcTemplate;
+    private final UserAccessDailyRepository userAccessDailyRepository;
     private final UserProfileService userProfileService;
 
     @Transactional
@@ -188,7 +190,7 @@ public class AuthService {
         return userAccountRepository
                 .findById(principal.userId())
                 .map(user -> {
-                    user.recordAccess(LocalDateTime.now(Zone.KST.zoneId()));
+                    recordAccess(user);
                     return toSessionResponse(user);
                 })
                 .orElseGet(AuthSessionResponse::anonymous);
@@ -206,8 +208,16 @@ public class AuthService {
                 profile.nicknameChangeableAt());
     }
 
+    // 마지막 접속 시각과 일별 접속 기록을 같은 간격(회원당 5분에 한 번)으로 남긴다.
+    private void recordAccess(UserAccount user) {
+        LocalDateTime now = LocalDateTime.now(Zone.KST.zoneId());
+        if (user.recordAccess(now)) {
+            userAccessDailyRepository.recordAccess(user.getId(), now);
+        }
+    }
+
     private IssuedTokens createTokens(UserAccount user) {
-        user.recordAccess(LocalDateTime.now(Zone.KST.zoneId()));
+        recordAccess(user);
         var principal = new AuthenticatedUserPrincipal(user.getId(), user.getRole());
         byte[] tokenBytes = new byte[32];
         RANDOM.nextBytes(tokenBytes);
