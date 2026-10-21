@@ -108,7 +108,8 @@ class AuthConfigurationTest {
                     .isEqualTo(401);
             assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/admin/operations/collection-status", userToken))
                     .isEqualTo(403);
-            assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/admin/operations/collection-status", adminToken))
+            assertThat(statusOfWithToken(
+                            filterChainProxy, "GET", "/api/admin/operations/collection-status", adminToken))
                     .isEqualTo(200);
         }
     }
