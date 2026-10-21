@@ -26,7 +26,7 @@ Release의 기본 서버는 `macmini`다. 맥미니 구성은 `infra/prod/compos
 일반 앱 배포는 터널을 전환하지 않는다. nginx는 `X-Forwarded-Proto`를 `https`로 고정하고
 실제 접속자 IP는 `CF-Connecting-IP`에서 가져온다.
 
-nginx 이미지는 프론트 레포가 만든 `market-monitor-assets:latest`를 `FROM`으로 가져다 굽는다
+nginx 이미지는 프론트 레포가 만든 `marketry-assets:latest`를 `FROM`으로 가져다 굽는다
 (`containers/nginx/Dockerfile`). 프론트 코드는 nginx 이미지 안에 박히므로, 프론트를 배포하려면
 nginx 이미지를 다시 빌드해야 한다.
 
@@ -237,7 +237,7 @@ config 문법 오류면 즉시 기동 실패하는 이진적 실패 모드라 �
 
 ## 프론트 배포
 
-프론트 레포에서 Release 워크플로를 실행하면 `market-monitor-assets:latest`가 갱신되고,
+프론트 레포에서 Release 워크플로를 실행하면 `marketry-assets:latest`가 갱신되고,
 `repository_dispatch`로 이 레포의 `nginx` job이 트리거되어 nginx 이미지를 다시 빌드하고 배포한다.
 이건 자동으로 유지한다.
 

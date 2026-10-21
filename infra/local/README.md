@@ -8,7 +8,7 @@ Compose 프로젝트명은 `market-monitor-local`이다. DB는 전용 named volu
 ## 시작
 
 ```sh
-cd market-monitor-backend/infra/local
+cd marketry-backend/infra/local
 cp .env.example .env  # 최초 1회만
 # 상위 폴더의 local/start-db.command 더블클릭
 # 상위 폴더의 start-backend.command 더블클릭
