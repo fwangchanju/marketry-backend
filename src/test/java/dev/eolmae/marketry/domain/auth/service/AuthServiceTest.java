@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -22,16 +23,17 @@ import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserRefreshTokenRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -126,45 +128,41 @@ class AuthServiceTest {
     }
 
     @Test
-    void signupForDevelopment은_매번_새_USER를_만들고_가입초기화_후_세션을_발급한다() {
-        AtomicLong nextUserId = new AtomicLong(41L);
-        when(userAccountRepository.save(any(UserAccount.class))).thenAnswer(invocation -> {
-            UserAccount user = invocation.getArgument(0);
-            ReflectionTestUtils.setField(user, "id", nextUserId.incrementAndGet());
-            return user;
-        });
+    void signupForDevelopment은_테스트_회원_한_명만_정해_둔_번호로_만들고_있으면_그_회원으로_로그인한다() {
+        UserAccount testMember = userAccount(800001L);
+        when(userAccountRepository.findByIssuerAndSub("local-test", "local-test-member"))
+                .thenReturn(Optional.of(testMember));
+        when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(Object[].class)))
+                .thenReturn(List.of(800001L))
+                .thenReturn(List.of());
         when(appJwtService.issueAccessToken(any())).thenReturn("access-token");
 
         AuthService.IssuedTokens first = authService.signupForDevelopment();
         AuthService.IssuedTokens second = authService.signupForDevelopment();
 
-        ArgumentCaptor<UserAccount> users = ArgumentCaptor.forClass(UserAccount.class);
-        verify(userAccountRepository, times(2)).save(users.capture());
-        assertThat(users.getAllValues()).extracting(UserAccount::getRole).containsOnly(Role.USER);
-        assertThat(users.getAllValues()).extracting(UserAccount::getIssuer).containsOnly("local-test");
-        assertThat(users.getAllValues().get(0).getSub())
-                .isNotEqualTo(users.getAllValues().get(1).getSub());
-        ArgumentCaptor<UserSignedUpEvent> events = ArgumentCaptor.forClass(UserSignedUpEvent.class);
-        verify(eventPublisher, times(2)).publishEvent(events.capture());
-        assertThat(events.getAllValues())
-                .extracting(UserSignedUpEvent::userId)
-                .containsExactly(
-                        users.getAllValues().get(0).getId(),
-                        users.getAllValues().get(1).getId());
-        InOrder order = Mockito.inOrder(userAccountRepository, eventPublisher, userRefreshTokenRepository);
-        order.verify(userAccountRepository).save(users.getAllValues().get(0));
-        order.verify(eventPublisher)
-                .publishEvent(new UserSignedUpEvent(users.getAllValues().get(0).getId()));
+        // 새로 만든 첫 번째에만 가입 초기화가 돌고, 이미 있는 두 번째는 그대로 로그인만 한다. 번호는 자동 번호가 아니다.
+        verify(eventPublisher, times(1)).publishEvent(new UserSignedUpEvent(800001L));
+        verify(userAccountRepository, never()).save(any(UserAccount.class));
+        InOrder order = Mockito.inOrder(jdbcTemplate, eventPublisher, userRefreshTokenRepository);
+        order.verify(jdbcTemplate)
+                .query(
+                        anyString(),
+                        ArgumentMatchers.<RowMapper<Long>>any(),
+                        eq(800001L),
+                        eq("local-test"),
+                        eq("local-test-member"),
+                        any());
+        order.verify(eventPublisher).publishEvent(new UserSignedUpEvent(800001L));
         order.verify(userRefreshTokenRepository).save(any(UserRefreshToken.class));
         assertThat(first.accessToken()).isEqualTo("access-token");
         assertThat(second.refreshToken()).isNotEqualTo(first.refreshToken());
-        Mockito.verifyNoInteractions(restClient, jdbcTemplate);
+        Mockito.verifyNoInteractions(restClient);
     }
 
     @Test
     void signupForDevelopment은_가입초기화에_실패하면_세션을_발급하지_않는다() {
-        UserAccount user = userAccount(42L);
-        when(userAccountRepository.save(any(UserAccount.class))).thenReturn(user);
+        when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(Object[].class)))
+                .thenReturn(List.of(800001L));
         Mockito.doThrow(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR))
                 .when(eventPublisher)
                 .publishEvent(any(UserSignedUpEvent.class));
