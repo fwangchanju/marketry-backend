@@ -253,5 +253,5 @@ function maybeRecycleContext() {
 }
 
 app.listen(PORT, () => {
-  console.log(`market-monitor-renderer 시작 — port ${PORT}, base: ${BASE_URL}`)
+  console.log(`marketry-renderer 시작 — port ${PORT}, base: ${BASE_URL}`)
 })

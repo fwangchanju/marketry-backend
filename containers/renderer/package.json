@@ -1,5 +1,5 @@
 {
-  "name": "market-monitor-renderer",
+  "name": "marketry-renderer",
   "version": "1.0.0",
   "type": "commonjs",
   "main": "server.js",

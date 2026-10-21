@@ -144,7 +144,7 @@ GHCR 이름은 `marketry-application`, `marketry-nginx`, `marketry-renderer`, `m
 ## 개발 계정
 
 개발 DB는 `infra/local/restore-snapshot.sh`로 스냅샷에서 다시 만든다. 기존 개발 DB 전체를 교체하므로
-첫 실행 전 개발 DB를 별도로 백업한다. 스크립트는 개발 계정의 OrbStack 소켓과 `market-monitor-local`
+첫 실행 전 개발 DB를 별도로 백업한다. 스크립트는 개발 계정의 OrbStack 소켓과 `marketry-local`
 Compose 프로젝트만 사용하고 Docker·Compose 접속 대상을 바꾸는 상속 변수를 제거한다.
 덤프 목록 검사 실패 시 기존 DB를 유지한다. 복원 실패 시 일회성 백업으로 개발 DB를 되돌린다.
 스냅샷이 없으면 종료 코드 0으로 건너뛰므로 실제 완료 로그와 마스킹·토큰 제거를 확인해야 한다.

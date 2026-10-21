@@ -55,7 +55,7 @@ abstract class StockDailyPriceSpringManualTest {
 
     @DynamicPropertySource
     static void localDatabase(DynamicPropertyRegistry registry) {
-        String url = option("DAILY_PRICE_DB_URL", "jdbc:postgresql://127.0.0.1:15432/market_monitor_db");
+        String url = option("DAILY_PRICE_DB_URL", "jdbc:postgresql://127.0.0.1:15432/marketry_db");
         if (url.matches("jdbc:postgresql://(127\\.0\\.0\\.1|localhost):[0-9]+/[a-z_]+") == false) {
             throw new AssertionError("수동 적재 테스트는 로컬 DB만 연결할 수 있습니다.");
         }

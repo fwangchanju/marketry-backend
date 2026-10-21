@@ -3,12 +3,12 @@
 PostgreSQL만 Docker에서 실행한다. 백엔드는 설치된 Java 21로, 프론트엔드는 Vite로 실행한다.
 상위 폴더의 `local/start-db.command`, `start-backend.command`,
 `start-frontend.command`를 차례로 더블클릭하면 된다.
-Compose 프로젝트명은 `market-monitor-local`이다. DB는 전용 named volume에 저장된다.
+Compose 프로젝트명은 `marketry-local`이다. DB는 전용 named volume에 저장된다.
 
 ## 시작
 
 ```sh
-cd market-monitor-backend/infra/local
+cd marketry-backend/infra/local
 cp .env.example .env  # 최초 1회만
 # 상위 폴더의 local/start-db.command 더블클릭
 # 상위 폴더의 start-backend.command 더블클릭
