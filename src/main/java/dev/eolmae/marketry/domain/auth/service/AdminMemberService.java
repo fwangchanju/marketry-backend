@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminVisitorDailyResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
@@ -16,6 +17,7 @@ import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
+import dev.eolmae.marketry.domain.auth.repository.VisitorDailyRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -49,6 +51,7 @@ public class AdminMemberService {
     private final UserAccountRepository userAccountRepository;
     private final UserAccessDailyRepository userAccessDailyRepository;
     private final UserProfileRepository userProfileRepository;
+    private final VisitorDailyRepository visitorDailyRepository;
 
     @Transactional(readOnly = true)
     public AdminMemberPageResponse findMembers(String query, String role, String sort, String order, int page) {
@@ -190,6 +193,34 @@ public class AdminMemberService {
                     long joined = joinedByDate.getOrDefault(date, 0L);
                     total[0] += joined;
                     return new AdminSignupDailyResponse(date, joined, total[0]);
+                })
+                .toList();
+    }
+
+    /**
+     * 최근 N일(오늘 포함)의 일별 비회원 방문자 수와 신규 가입 수, 가입 전환율(가입 수 ÷ 방문자 수). 방문자를 세기 시작하기 전의 날은
+     * 방문자 0명으로 나오고 전환율은 비어 있다.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminVisitorDailyResponse> getVisitors(LocalDate today, int days) {
+        if (days < 1 || days > MAX_SIGNUP_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회 기간이 올바르지 않습니다.");
+        }
+        LocalDate from = today.minusDays(days - 1L);
+        Map<LocalDate, Long> visitorsByDate = new HashMap<>();
+        visitorDailyRepository
+                .countVisitorsByDate(from, today)
+                .forEach(row -> visitorsByDate.put(row.date(), row.members()));
+        Map<LocalDate, Long> joinedByDate = new HashMap<>();
+        userAccountRepository
+                .countJoinedByDate(from, today)
+                .forEach(row -> joinedByDate.put(row.date(), row.members()));
+        return from.datesUntil(today.plusDays(1))
+                .map(date -> {
+                    long visitors = visitorsByDate.getOrDefault(date, 0L);
+                    long joined = joinedByDate.getOrDefault(date, 0L);
+                    Double rate = visitors == 0 ? null : joined * 100.0 / visitors;
+                    return new AdminVisitorDailyResponse(date, visitors, joined, rate);
                 })
                 .toList();
     }

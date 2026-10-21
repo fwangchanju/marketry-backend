@@ -18,6 +18,7 @@ import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminVisitorDailyResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
@@ -25,6 +26,7 @@ import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
+import dev.eolmae.marketry.domain.auth.repository.VisitorDailyRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -39,8 +41,9 @@ class AdminMemberServiceTest {
     private final UserAccountRepository repository = mock(UserAccountRepository.class);
     private final UserAccessDailyRepository accessDailyRepository = mock(UserAccessDailyRepository.class);
     private final UserProfileRepository profileRepository = mock(UserProfileRepository.class);
+    private final VisitorDailyRepository visitorRepository = mock(VisitorDailyRepository.class);
     private final AdminMemberService service =
-            new AdminMemberService(repository, accessDailyRepository, profileRepository);
+            new AdminMemberService(repository, accessDailyRepository, profileRepository, visitorRepository);
 
     @Test
     void 검색어_공백을_제거하고_권한과_50명_페이지를_조회한다() {
@@ -326,5 +329,27 @@ class AdminMemberServiceTest {
 
         assertThatThrownBy(() -> service.resetNicknames(List.of(1L))).isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(profileRepository);
+    }
+
+    @Test
+    void 방문자_수와_가입_수로_일별_전환율을_계산한다() {
+        LocalDate today = LocalDate.of(2026, 10, 21);
+        LocalDate from = LocalDate.of(2026, 10, 19);
+        when(visitorRepository.countVisitorsByDate(from, today))
+                .thenReturn(List.of(new AdminDailyAccessResponse(from, 40), new AdminDailyAccessResponse(today, 10)));
+        when(repository.countJoinedByDate(from, today)).thenReturn(List.of(new AdminDailyAccessResponse(today, 1)));
+
+        assertThat(service.getVisitors(today, 3))
+                .containsExactly(
+                        new AdminVisitorDailyResponse(from, 40, 0, 0.0),
+                        new AdminVisitorDailyResponse(LocalDate.of(2026, 10, 20), 0, 0, null),
+                        new AdminVisitorDailyResponse(today, 10, 1, 10.0));
+    }
+
+    @Test
+    void 방문자_조회_기간이_범위를_벗어나면_거부한다() {
+        LocalDate today = LocalDate.of(2026, 10, 21);
+        assertThatThrownBy(() -> service.getVisitors(today, 0)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.getVisitors(today, 181)).isInstanceOf(ResponseStatusException.class);
     }
 }
