@@ -14,6 +14,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
+import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
     @Override
     public AdminMemberPageResponse findMembers(
             String query, Set<MemberGrade> grades, String sort, boolean ascending, int page, int size) {
-        var predicate = new BooleanBuilder();
+        var predicate = new BooleanBuilder(managedMember());
         if (!query.isEmpty()) {
             predicate.and(
                     userAccount.email.containsIgnoreCase(query).or(userProfile.nickname.containsIgnoreCase(query)));
@@ -85,11 +86,20 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
         };
     }
 
+    // 회원 관리(목록·집계·내보내기)에는 실제 가입 회원만 센다 — 로컬 테스트 회원과 시스템 회원은 따로 관리한다.
+    // 연동 값으로 거르므로 나중에 시스템 회원이 더 생겨도(예: 거래소 공개본 계정) 자동으로 빠진다.
+    private Predicate managedMember() {
+        return userAccount
+                .issuer
+                .isNull()
+                .or(userAccount.issuer.notIn(UserAccount.LOCAL_TEST_ISSUER, UserAccount.SYSTEM_ISSUER));
+    }
+
     private long count(Predicate condition) {
         Long count = queryFactory
                 .select(userAccount.count())
                 .from(userAccount)
-                .where(condition)
+                .where(managedMember(), condition)
                 .fetchOne();
         return count == null ? 0 : count;
     }

@@ -18,6 +18,12 @@ import lombok.Getter;
 @Getter
 public class UserAccount {
 
+    /** 로컬 개발용 테스트 회원의 연동 값. */
+    public static final String LOCAL_TEST_ISSUER = "local-test";
+
+    /** 서비스가 내부에서 쓰는 시스템 회원의 연동 값(예: MARKETRY 분류 공개본을 담는 계정). 사람이 아니다. */
+    public static final String SYSTEM_ISSUER = "marketry-system";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

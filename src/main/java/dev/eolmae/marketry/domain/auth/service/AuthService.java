@@ -17,7 +17,6 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -45,7 +44,10 @@ public class AuthService {
     private static final String GOOGLE_ISSUER = "https://accounts.google.com";
     private static final String GOOGLE_TOKEN_URI = "https://oauth2.googleapis.com/token";
     private static final String GOOGLE_JWK_SET_URI = "https://www.googleapis.com/oauth2/v3/certs";
-    private static final String LOCAL_TEST_ISSUER = "local-test";
+    private static final String LOCAL_TEST_ISSUER = UserAccount.LOCAL_TEST_ISSUER;
+    private static final String LOCAL_TEST_SUBJECT = "local-test-member";
+    // 테스트 회원은 실제 가입 번호(users.id 자동 번호)를 쓰지 않고 따로 정한 번호를 쓴다 — 실제 가입자 번호가 섞이거나 건너뛰지 않게 한다.
+    private static final long LOCAL_TEST_USER_ID = 800001L;
     private static final int REFRESH_TOKEN_DAYS = 14;
     private static final SecureRandom RANDOM = new SecureRandom();
 
@@ -124,12 +126,28 @@ public class AuthService {
         return createTokens(user);
     }
 
+    // 테스트 회원은 한 명만 둔다 — 없으면 정해 둔 번호로 만들고(가입 초기화 포함), 있으면 그 회원으로 로그인한다.
     @Transactional
     public IssuedTokens signupForDevelopment() {
-        String subject = UUID.randomUUID().toString();
-        UserAccount user = userAccountRepository.save(
-                UserAccount.create(LOCAL_TEST_ISSUER, subject, "local-test-" + subject + "@example.invalid"));
-        eventPublisher.publishEvent(new UserSignedUpEvent(user.getId()));
+        List<Long> insertedIds = jdbcTemplate.query(
+                """
+                INSERT INTO users (id, issuer, sub, email, role, created_at, updated_at)
+                OVERRIDING SYSTEM VALUE
+                VALUES (?, ?, ?, ?, 'USER', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                ON CONFLICT DO NOTHING
+                RETURNING id
+                """,
+                (resultSet, rowNumber) -> resultSet.getLong(1),
+                LOCAL_TEST_USER_ID,
+                LOCAL_TEST_ISSUER,
+                LOCAL_TEST_SUBJECT,
+                "local-test-member@example.invalid");
+        if (!insertedIds.isEmpty()) {
+            eventPublisher.publishEvent(new UserSignedUpEvent(insertedIds.getFirst()));
+        }
+        UserAccount user = userAccountRepository
+                .findByIssuerAndSub(LOCAL_TEST_ISSUER, LOCAL_TEST_SUBJECT)
+                .orElseThrow();
         return createTokens(user);
     }
 
