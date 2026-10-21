@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import dev.eolmae.marketry.domain.auth.dto.NicknameAvailabilityResponse;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.service.AccountWithdrawalService;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import dev.eolmae.marketry.domain.auth.service.UserProfileService;
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +34,9 @@ class ProfileControllerTest {
     private static final AuthenticatedUserPrincipal PRINCIPAL = new AuthenticatedUserPrincipal(42L, Role.USER);
 
     private final UserProfileService userProfileService = mock(UserProfileService.class);
-    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new ProfileController(userProfileService))
+    private final AccountWithdrawalService accountWithdrawalService = mock(AccountWithdrawalService.class);
+    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
+                    new ProfileController(userProfileService, accountWithdrawalService, new AuthCookies()))
             .build();
 
     @BeforeEach
@@ -112,5 +115,18 @@ class ProfileControllerTest {
                 .andExpect(content().contentType(MediaType.IMAGE_JPEG))
                 .andExpect(header().string("Cache-Control", "max-age=86400, private"))
                 .andExpect(content().bytes(image));
+    }
+
+    @Test
+    void 회원_탈퇴는_본인_데이터를_지우고_로그인_쿠키를_만료시킨다() throws Exception {
+        mockMvc.perform(delete("/api/profile/account"))
+                .andExpect(status().isNoContent())
+                .andExpect(header().stringValues(
+                                "Set-Cookie",
+                                org.hamcrest.Matchers.hasItems(
+                                        org.hamcrest.Matchers.containsString("mm_access=;"),
+                                        org.hamcrest.Matchers.containsString("mm_refresh=;"))));
+
+        verify(accountWithdrawalService).withdraw(42L);
     }
 }

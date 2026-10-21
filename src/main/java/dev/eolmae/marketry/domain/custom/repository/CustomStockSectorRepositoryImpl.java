@@ -44,4 +44,12 @@ public class CustomStockSectorRepositoryImpl implements CustomStockSectorReposit
                 .where(customStockSector.id.userId.eq(userId))
                 .fetchOne();
     }
+
+    @Override
+    public void deleteAllByUserId(Long userId) {
+        queryFactory
+                .delete(customStockSector)
+                .where(customStockSector.id.userId.eq(userId))
+                .execute();
+    }
 }

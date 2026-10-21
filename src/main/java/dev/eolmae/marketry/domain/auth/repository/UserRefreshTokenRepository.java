@@ -28,4 +28,9 @@ public interface UserRefreshTokenRepository extends JpaRepository<UserRefreshTok
     @Query(
             "delete from UserRefreshToken t where t.expiresAt < :now or t.revokedAt < :staleCutoff or t.replacedAt < :staleCutoff")
     int deleteExpiredOrStaleTokens(@Param("now") LocalDateTime now, @Param("staleCutoff") LocalDateTime staleCutoff);
+
+    // 회원 탈퇴 — 한 회원의 갱신 토큰을 모두 지운다.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from UserRefreshToken t where t.user.id = :userId")
+    void deleteAllOfUser(@Param("userId") Long userId);
 }
