@@ -97,6 +97,23 @@ class AuthConfigurationTest {
     }
 
     @Test
+    void 수집_상태는_관리자만_조회한다() throws Exception {
+        try (AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
+            FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
+            AppJwtService appJwtService = context.getBean(AppJwtService.class);
+            String userToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(1L, Role.USER));
+            String adminToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(2L, Role.ADMIN));
+            assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/admin/operations/collection-status", null))
+                    .isEqualTo(401);
+            assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/admin/operations/collection-status", userToken))
+                    .isEqualTo(403);
+            assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/admin/operations/collection-status", adminToken))
+                    .isEqualTo(200);
+        }
+    }
+
+    @Test
     void 약칭_수정은_관리자만_허용한다() throws Exception {
         try (AnnotationConfigApplicationContext context =
                 new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
