@@ -65,6 +65,11 @@ public class UserAccount {
         return user;
     }
 
+    public void changeSpecial(boolean special) {
+        this.special = special;
+        this.updatedAt = LocalDateTime.now(Zone.KST.zoneId());
+    }
+
     public void updateEmail(String email) {
         this.email = email;
         this.updatedAt = LocalDateTime.now(Zone.KST.zoneId());

@@ -3,12 +3,17 @@ package dev.eolmae.marketry.domain.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
+import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
+import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -121,5 +126,69 @@ class AdminMemberServiceTest {
         assertThatThrownBy(() -> service.findMembers("", role, "createdAt", "desc", 0))
                 .isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(repository);
+    }
+
+    private UserAccount member(Role role, String issuer) {
+        UserAccount user = mock(UserAccount.class);
+        when(user.getRole()).thenReturn(role);
+        when(user.getIssuer()).thenReturn(issuer);
+        return user;
+    }
+
+    @Test
+    void 일반_권한_가입_회원은_특별_회원으로_지정한다() {
+        UserAccount first = member(Role.USER, "https://accounts.google.com");
+        UserAccount second = member(Role.USER, "https://accounts.google.com");
+        when(repository.findAllById(Set.of(2L, 3L))).thenReturn(List.of(first, second));
+
+        AdminMemberSpecialResponse response = service.changeSpecial(List.of(2L, 3L, 3L), true);
+
+        assertThat(response.changed()).isEqualTo(2);
+        verify(first).changeSpecial(true);
+        verify(second).changeSpecial(true);
+    }
+
+    @Test
+    void 특별_회원을_일반으로_해제한다() {
+        UserAccount user = member(Role.USER, "https://accounts.google.com");
+        when(repository.findAllById(Set.of(2L))).thenReturn(List.of(user));
+
+        service.changeSpecial(List.of(2L), false);
+
+        verify(user).changeSpecial(false);
+    }
+
+    @Test
+    void 관리자_시스템_테스트_회원이_하나라도_섞이면_아무도_바꾸지_않는다() {
+        UserAccount normal = member(Role.USER, "https://accounts.google.com");
+        for (UserAccount unsupported : List.of(
+                member(Role.ADMIN, "https://accounts.google.com"),
+                member(Role.USER, UserAccount.SYSTEM_ISSUER),
+                member(Role.USER, UserAccount.LOCAL_TEST_ISSUER))) {
+            when(repository.findAllById(Set.of(2L, 3L))).thenReturn(List.of(normal, unsupported));
+
+            assertThatThrownBy(() -> service.changeSpecial(List.of(2L, 3L), true))
+                    .isInstanceOf(ResponseStatusException.class);
+        }
+        verify(normal, never()).changeSpecial(true);
+    }
+
+    @Test
+    void 없는_회원이_섞이면_바꾸지_않는다() {
+        UserAccount user = member(Role.USER, "https://accounts.google.com");
+        when(repository.findAllById(Set.of(2L, 99L))).thenReturn(List.of(user));
+
+        assertThatThrownBy(() -> service.changeSpecial(List.of(2L, 99L), true))
+                .isInstanceOf(ResponseStatusException.class);
+        verify(user, never()).changeSpecial(true);
+    }
+
+    @Test
+    void 선택이_비었거나_너무_많으면_거부한다() {
+        assertThatThrownBy(() -> service.changeSpecial(List.of(), true)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.changeSpecial(null, true)).isInstanceOf(ResponseStatusException.class);
+        List<Long> tooMany =
+                java.util.stream.LongStream.rangeClosed(1, 101).boxed().toList();
+        assertThatThrownBy(() -> service.changeSpecial(tooMany, true)).isInstanceOf(ResponseStatusException.class);
     }
 }

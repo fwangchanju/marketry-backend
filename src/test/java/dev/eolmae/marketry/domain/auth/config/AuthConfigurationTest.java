@@ -97,6 +97,23 @@ class AuthConfigurationTest {
     }
 
     @Test
+    void 특별_회원_변경은_관리자만_허용한다() throws Exception {
+        try (AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
+            FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
+            AppJwtService appJwtService = context.getBean(AppJwtService.class);
+            String userToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(1L, Role.USER));
+            String adminToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(2L, Role.ADMIN));
+            assertThat(statusOfWithToken(filterChainProxy, "PATCH", "/api/admin/members/special", null))
+                    .isEqualTo(401);
+            assertThat(statusOfWithToken(filterChainProxy, "PATCH", "/api/admin/members/special", userToken))
+                    .isEqualTo(403);
+            assertThat(statusOfWithToken(filterChainProxy, "PATCH", "/api/admin/members/special", adminToken))
+                    .isEqualTo(200);
+        }
+    }
+
+    @Test
     void 수집_상태는_관리자만_조회한다() throws Exception {
         try (AnnotationConfigApplicationContext context =
                 new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
