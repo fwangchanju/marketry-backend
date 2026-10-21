@@ -2,6 +2,8 @@ package dev.eolmae.marketry.domain.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -10,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
@@ -20,6 +23,7 @@ import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -218,5 +222,24 @@ class AdminMemberServiceTest {
         assertThatThrownBy(() -> service.getDailyAccess(LocalDate.of(2026, 10, 21), days))
                 .isInstanceOf(ResponseStatusException.class);
         verifyNoInteractions(accessDailyRepository);
+    }
+
+    @Test
+    void 회원_목록은_이_페이지_회원들의_최근_30일_접속한_날_수를_채운다() {
+        var active = new AdminMemberResponse(
+                1L, "issuer", "a@example.com", "가", Role.USER, false, LocalDateTime.of(2026, 9, 1, 9, 0), null, null);
+        var inactive = new AdminMemberResponse(
+                2L, "issuer", "b@example.com", "나", Role.USER, false, LocalDateTime.of(2026, 9, 2, 9, 0), null, null);
+        when(repository.findMembers("", Set.of(), "createdAt", false, 0, 50))
+                .thenReturn(new AdminMemberPageResponse(List.of(active, inactive), 2, true));
+        when(accessDailyRepository.countAccessDaysByUser(
+                        eq(List.of(1L, 2L)), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(Map.of(1L, 12L));
+
+        var result = service.findMembers("", "", "createdAt", "desc", 0);
+
+        assertThat(result.items()).extracting(AdminMemberResponse::accessDays).containsExactly(12L, 0L);
+        assertThat(result.total()).isEqualTo(2);
+        assertThat(result.accessTrackingAvailable()).isTrue();
     }
 }

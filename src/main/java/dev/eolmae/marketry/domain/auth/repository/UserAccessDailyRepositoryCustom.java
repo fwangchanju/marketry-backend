@@ -3,7 +3,9 @@ package dev.eolmae.marketry.domain.auth.repository;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 public interface UserAccessDailyRepositoryCustom {
 
@@ -15,4 +17,7 @@ public interface UserAccessDailyRepositoryCustom {
 
     /** 실제 가입 회원 중 날짜별로 접속한 서로 다른 회원 수를 센다. 접속한 사람이 없는 날은 빠진다. */
     List<AdminDailyAccessResponse> countMembersByDate(LocalDate from, LocalDate to);
+
+    /** 주어진 회원들이 기간(from~to) 중 접속한 날 수를 센다. 접속한 날이 없는 회원은 결과에 없다. */
+    Map<Long, Long> countAccessDaysByUser(Collection<Long> userIds, LocalDate from, LocalDate to);
 }

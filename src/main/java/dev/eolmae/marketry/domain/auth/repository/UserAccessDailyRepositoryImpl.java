@@ -3,13 +3,17 @@ package dev.eolmae.marketry.domain.auth.repository;
 import static dev.eolmae.marketry.domain.auth.entity.QUserAccessDaily.userAccessDaily;
 import static dev.eolmae.marketry.domain.auth.entity.QUserAccount.userAccount;
 
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -49,5 +53,22 @@ public class UserAccessDailyRepositoryImpl implements UserAccessDailyRepositoryC
                 .groupBy(userAccessDaily.id.accessDate)
                 .orderBy(userAccessDaily.id.accessDate.asc())
                 .fetch();
+    }
+
+    @Override
+    public Map<Long, Long> countAccessDaysByUser(Collection<Long> userIds, LocalDate from, LocalDate to) {
+        if (userIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, Long> daysByUser = new HashMap<>();
+        for (Tuple row : queryFactory
+                .select(userAccessDaily.id.userId, userAccessDaily.id.accessDate.count())
+                .from(userAccessDaily)
+                .where(userAccessDaily.id.userId.in(userIds), userAccessDaily.id.accessDate.between(from, to))
+                .groupBy(userAccessDaily.id.userId)
+                .fetch()) {
+            daysByUser.put(row.get(userAccessDaily.id.userId), row.get(userAccessDaily.id.accessDate.count()));
+        }
+        return daysByUser;
     }
 }
