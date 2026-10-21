@@ -9,6 +9,7 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.OrderSpecifier.NullHandling;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
@@ -54,7 +55,9 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                         userAccount.role,
                         userAccount.special,
                         userAccount.createdAt,
-                        userAccount.lastAccessAt))
+                        userAccount.lastAccessAt,
+                        // 접속한 날 수는 서비스가 일별 접속 기록에서 채운다.
+                        Expressions.nullExpression(Long.class)))
                 .from(userAccount)
                 .leftJoin(userProfile)
                 .on(userProfile.userId.eq(userAccount.id))

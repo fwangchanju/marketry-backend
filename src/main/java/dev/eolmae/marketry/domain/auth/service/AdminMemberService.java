@@ -1,7 +1,9 @@
 package dev.eolmae.marketry.domain.auth.service;
 
+import dev.eolmae.marketry.common.enums.Zone;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
@@ -32,6 +34,7 @@ public class AdminMemberService {
     private static final int RECENT_JOIN_DAYS = 7;
     private static final int RECENT_ACCESS_DAYS = 7;
     private static final int MAX_DAILY_ACCESS_DAYS = 90;
+    private static final int ACCESS_DAYS_WINDOW = 30;
     private static final int MAX_SPECIAL_CHANGE = 100;
     private static final Set<String> SORT_KEYS =
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
@@ -46,7 +49,24 @@ public class AdminMemberService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 조회 조건이 올바르지 않습니다.");
         }
         Set<MemberGrade> grades = parseGrades(role);
-        return userAccountRepository.findMembers(keyword, grades, sort, ascending, page, PAGE_SIZE);
+        AdminMemberPageResponse result =
+                userAccountRepository.findMembers(keyword, grades, sort, ascending, page, PAGE_SIZE);
+        return withAccessDays(result, LocalDate.now(Zone.KST.zoneId()));
+    }
+
+    // 이 페이지 회원들의 최근 30일(오늘 포함) 접속한 날 수를 일별 접속 기록에서 채운다. 한 번의 집계로 페이지 전체를 센다.
+    private AdminMemberPageResponse withAccessDays(AdminMemberPageResponse page, LocalDate today) {
+        if (page.items().isEmpty()) {
+            return page;
+        }
+        Map<Long, Long> daysByUser = userAccessDailyRepository.countAccessDaysByUser(
+                page.items().stream().map(AdminMemberResponse::id).toList(),
+                today.minusDays(ACCESS_DAYS_WINDOW - 1L),
+                today);
+        List<AdminMemberResponse> items = page.items().stream()
+                .map(member -> member.withAccessDays(daysByUser.getOrDefault(member.id(), 0L)))
+                .toList();
+        return new AdminMemberPageResponse(items, page.total(), page.accessTrackingAvailable());
     }
 
     /**

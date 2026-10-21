@@ -12,4 +12,11 @@ public record AdminMemberResponse(
         Role role,
         boolean special,
         LocalDateTime createdAt,
-        LocalDateTime lastAccessAt) {}
+        LocalDateTime lastAccessAt,
+        // 최근 30일(오늘 포함) 중 접속한 날 수. 접속 기록은 기록을 시작한 날부터만 있어서 처음에는 적게 나온다.
+        Long accessDays) {
+
+    public AdminMemberResponse withAccessDays(long accessDays) {
+        return new AdminMemberResponse(id, issuer, email, nickname, role, special, createdAt, lastAccessAt, accessDays);
+    }
+}
