@@ -179,14 +179,18 @@ public class AuthService {
         log.info("갱신 토큰 정리 완료: deletedCount={}", deletedCount);
     }
 
-    @Transactional(readOnly = true)
+    // 화면을 열 때의 세션 확인도 접속으로 본다 — 접속 시각 기록(회원당 5분에 한 번만 DB에 쓴다) 때문에 읽기 전용이 아니다.
+    @Transactional
     public AuthSessionResponse session(AuthenticatedUserPrincipal principal) {
         if (principal == null) {
             return AuthSessionResponse.anonymous();
         }
         return userAccountRepository
                 .findById(principal.userId())
-                .map(this::toSessionResponse)
+                .map(user -> {
+                    user.recordAccess(LocalDateTime.now(Zone.KST.zoneId()));
+                    return toSessionResponse(user);
+                })
                 .orElseGet(AuthSessionResponse::anonymous);
     }
 
@@ -203,6 +207,7 @@ public class AuthService {
     }
 
     private IssuedTokens createTokens(UserAccount user) {
+        user.recordAccess(LocalDateTime.now(Zone.KST.zoneId()));
         var principal = new AuthenticatedUserPrincipal(user.getId(), user.getRole());
         byte[] tokenBytes = new byte[32];
         RANDOM.nextBytes(tokenBytes);
