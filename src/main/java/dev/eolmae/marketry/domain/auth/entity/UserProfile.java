@@ -51,6 +51,13 @@ public class UserProfile {
         this.updatedAt = now;
     }
 
+    /** 관리자가 닉네임을 지운다. 교체 시각도 지워서 본인이 바로 새 닉네임을 등록할 수 있다. */
+    public void resetNickname() {
+        this.nickname = null;
+        this.nicknameChangedAt = null;
+        this.updatedAt = LocalDateTime.now(Zone.KST.zoneId());
+    }
+
     public void changeImage(byte[] image) {
         LocalDateTime now = LocalDateTime.now(Zone.KST.zoneId());
         this.image = image;

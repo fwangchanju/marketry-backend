@@ -430,4 +430,26 @@ class UserProfileServiceTest {
         when(summary.getNicknameChangedAt()).thenReturn(nicknameChangedAt);
         return summary;
     }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(
+            strings = {
+                "MARKETRY",
+                "marketry1",
+                "Admin",
+                "내관리자",
+                "운영자님",
+                "SYSTEM",
+                "거래소",
+                "한국거래소",
+                "krx",
+                "NXT1",
+                "넥스트레이드"
+            })
+    void 운영자로_오해할_닉네임은_등록할_수_없다(String nickname) {
+        assertThatThrownBy(() -> userProfileService.updateNickname(USER_ID, nickname))
+                .isInstanceOfSatisfying(BadRequestException.class, e -> assertThat(e.getMessage())
+                        .contains(ErrorCode.PROFILE_NICKNAME_RESERVED.getMessage()));
+        verify(userProfileRepository, never()).saveAndFlush(any());
+    }
 }
