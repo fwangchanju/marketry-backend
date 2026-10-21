@@ -13,6 +13,8 @@ import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
 import java.text.Normalizer;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,21 @@ public class UserProfileService {
 
     static final int MAX_UPLOAD_BYTES = 512 * 1024;
     private static final Pattern NICKNAME_PATTERN = Pattern.compile("^[가-힣A-Za-z0-9]{2,12}$");
+    // 운영자나 거래소로 오해받을 수 있는 이름. 소문자로 바꾼 닉네임에 이 낱말이 들어 있으면 쓸 수 없다.
+    private static final List<String> RESERVED_WORDS = List.of(
+            "marketry",
+            "admin",
+            "administrator",
+            "system",
+            "관리자",
+            "운영자",
+            "운영진",
+            "시스템",
+            "거래소",
+            "한국거래소",
+            "krx",
+            "nxt",
+            "넥스트레이드");
     private static final String NICKNAME_UNIQUE_INDEX = "uk_user_profile_nickname_lower";
     private static final int SAVE_ATTEMPTS = 2;
     // 닉네임을 한 번 바꾼 뒤 다시 바꿀 수 있게 되기까지의 간격. 닉네임이 없던 계정의 첫 등록에는 적용하지 않는다.
@@ -100,10 +117,14 @@ public class UserProfileService {
         }
         String nickname =
                 Normalizer.normalize(requestedNickname, Normalizer.Form.NFC).strip();
-        if (NICKNAME_PATTERN.matcher(nickname).matches()) {
-            return nickname;
+        if (!NICKNAME_PATTERN.matcher(nickname).matches()) {
+            throw new BadRequestException(ErrorCode.PROFILE_NICKNAME_INVALID, requestedNickname);
         }
-        throw new BadRequestException(ErrorCode.PROFILE_NICKNAME_INVALID, requestedNickname);
+        String lowered = nickname.toLowerCase(Locale.ROOT);
+        if (RESERVED_WORDS.stream().anyMatch(lowered::contains)) {
+            throw new BadRequestException(ErrorCode.PROFILE_NICKNAME_RESERVED, requestedNickname);
+        }
+        return nickname;
     }
 
     // 닉네임 유니크 인덱스 위반만 409로 바꾼다. 같은 사용자의 첫 저장이 동시에 겹쳐 기본키(user_id)가 충돌하면

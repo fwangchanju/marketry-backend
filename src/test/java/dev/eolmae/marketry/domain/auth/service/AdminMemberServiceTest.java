@@ -12,16 +12,19 @@ import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberNicknameResetResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
+import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
+import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,7 +38,9 @@ import org.springframework.web.server.ResponseStatusException;
 class AdminMemberServiceTest {
     private final UserAccountRepository repository = mock(UserAccountRepository.class);
     private final UserAccessDailyRepository accessDailyRepository = mock(UserAccessDailyRepository.class);
-    private final AdminMemberService service = new AdminMemberService(repository, accessDailyRepository);
+    private final UserProfileRepository profileRepository = mock(UserProfileRepository.class);
+    private final AdminMemberService service =
+            new AdminMemberService(repository, accessDailyRepository, profileRepository);
 
     @Test
     void 검색어_공백을_제거하고_권한과_50명_페이지를_조회한다() {
@@ -293,5 +298,33 @@ class AdminMemberServiceTest {
         when(repository.countMembers()).thenReturn(1L);
 
         assertThat(service.getAccessFrequency(today).get(0)).isEqualTo(new AdminAccessFrequencyResponse("0일", 0));
+    }
+
+    @Test
+    void 닉네임이_있는_회원만_닉네임을_지우고_센다() {
+        UserAccount first = member(Role.USER, "https://accounts.google.com");
+        UserAccount second = member(Role.USER, "https://accounts.google.com");
+        when(first.getId()).thenReturn(2L);
+        when(second.getId()).thenReturn(3L);
+        when(repository.findAllById(Set.of(2L, 3L))).thenReturn(List.of(first, second));
+        UserProfile withNickname = mock(UserProfile.class);
+        when(withNickname.getNickname()).thenReturn("나쁜말");
+        UserProfile withoutNickname = mock(UserProfile.class);
+        when(profileRepository.findAllById(List.of(2L, 3L))).thenReturn(List.of(withNickname, withoutNickname));
+
+        AdminMemberNicknameResetResponse response = service.resetNicknames(List.of(2L, 3L));
+
+        assertThat(response.reset()).isEqualTo(1);
+        verify(withNickname).resetNickname();
+        verify(withoutNickname, never()).resetNickname();
+    }
+
+    @Test
+    void 관리자나_시스템_회원이_섞이면_닉네임을_지우지_않는다() {
+        UserAccount unsupported = member(Role.ADMIN, "https://accounts.google.com");
+        when(repository.findAllById(Set.of(1L))).thenReturn(List.of(unsupported));
+
+        assertThatThrownBy(() -> service.resetNicknames(List.of(1L))).isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(profileRepository);
     }
 }

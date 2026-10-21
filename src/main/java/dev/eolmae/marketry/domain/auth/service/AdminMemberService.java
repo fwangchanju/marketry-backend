@@ -3,16 +3,19 @@ package dev.eolmae.marketry.domain.auth.service;
 import dev.eolmae.marketry.common.enums.Zone;
 import dev.eolmae.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberNicknameResetResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
+import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
+import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -45,6 +48,7 @@ public class AdminMemberService {
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
     private final UserAccountRepository userAccountRepository;
     private final UserAccessDailyRepository userAccessDailyRepository;
+    private final UserProfileRepository userProfileRepository;
 
     @Transactional(readOnly = true)
     public AdminMemberPageResponse findMembers(String query, String role, String sort, String order, int page) {
@@ -79,6 +83,31 @@ public class AdminMemberService {
      */
     @Transactional
     public AdminMemberSpecialResponse changeSpecial(List<Long> userIds, boolean special) {
+        List<UserAccount> users = findRegularMembers(userIds, "일반 회원만 특별 회원으로 바꿀 수 있습니다.");
+        users.forEach(user -> user.changeSpecial(special));
+        return new AdminMemberSpecialResponse(users.size());
+    }
+
+    /**
+     * 체크한 회원의 닉네임을 지운다. 대상 조건은 특별 회원 지정과 같다. 닉네임이 없던 회원은 그대로 두고 센 수에서 뺀다.
+     * 지워진 회원은 닉네임 변경 간격 없이 바로 새 닉네임을 등록할 수 있다.
+     */
+    @Transactional
+    public AdminMemberNicknameResetResponse resetNicknames(List<Long> userIds) {
+        List<UserAccount> users = findRegularMembers(userIds, "일반 회원의 닉네임만 지울 수 있습니다.");
+        List<UserProfile> profiles = userProfileRepository.findAllById(
+                users.stream().map(UserAccount::getId).toList());
+        int reset = 0;
+        for (UserProfile profile : profiles) {
+            if (profile.getNickname() != null) {
+                profile.resetNickname();
+                reset++;
+            }
+        }
+        return new AdminMemberNicknameResetResponse(reset);
+    }
+
+    private List<UserAccount> findRegularMembers(List<Long> userIds, String unsupportedMessage) {
         if (userIds == null
                 || userIds.isEmpty()
                 || userIds.size() > MAX_SPECIAL_CHANGE
@@ -95,10 +124,9 @@ public class AdminMemberService {
                         || UserAccount.SYSTEM_ISSUER.equals(user.getIssuer())
                         || UserAccount.LOCAL_TEST_ISSUER.equals(user.getIssuer()));
         if (hasUnsupportedMember) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "일반 회원만 특별 회원으로 바꿀 수 있습니다.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, unsupportedMessage);
         }
-        users.forEach(user -> user.changeSpecial(special));
-        return new AdminMemberSpecialResponse(users.size());
+        return users;
     }
 
     // 회원 구분은 쉼표로 여러 개를 받는다(예: "USER,SPECIAL"). 비어 있거나 셋 모두면 구분 없이 전체를 본다.

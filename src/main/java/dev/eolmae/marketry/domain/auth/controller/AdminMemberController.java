@@ -3,6 +3,8 @@ package dev.eolmae.marketry.domain.auth.controller;
 import dev.eolmae.marketry.common.util.KstClock;
 import dev.eolmae.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberNicknameResetRequest;
+import dev.eolmae.marketry.domain.auth.dto.AdminMemberNicknameResetResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialRequest;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
@@ -74,5 +76,13 @@ public class AdminMemberController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(adminMemberService.changeSpecial(request.userIds(), request.special()));
+    }
+
+    @PatchMapping("/nickname-reset")
+    public ResponseEntity<AdminMemberNicknameResetResponse> resetNicknames(
+            @RequestBody AdminMemberNicknameResetRequest request) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(adminMemberService.resetNicknames(request.userIds()));
     }
 }
