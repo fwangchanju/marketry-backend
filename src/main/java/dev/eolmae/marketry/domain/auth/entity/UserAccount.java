@@ -77,12 +77,16 @@ public class UserAccount {
         this.updatedAt = LocalDateTime.now(Zone.KST.zoneId());
     }
 
-    /** 접속 시각을 기록한다. 마지막 기록 뒤 {@link #ACCESS_RECORD_INTERVAL}이 지나지 않았으면 건너뛴다. */
-    public void recordAccess(LocalDateTime now) {
+    /**
+     * 접속 시각을 기록한다. 마지막 기록 뒤 {@link #ACCESS_RECORD_INTERVAL}이 지나지 않았으면 건너뛰고 false를 돌려준다.
+     * 실제로 기록했을 때만 true라서, 호출한 쪽이 일별 접속 기록도 같은 간격으로만 남길 수 있다.
+     */
+    public boolean recordAccess(LocalDateTime now) {
         if (lastAccessAt != null && lastAccessAt.plus(ACCESS_RECORD_INTERVAL).isAfter(now)) {
-            return;
+            return false;
         }
         this.lastAccessAt = now;
+        return true;
     }
 
     public void updateEmail(String email) {

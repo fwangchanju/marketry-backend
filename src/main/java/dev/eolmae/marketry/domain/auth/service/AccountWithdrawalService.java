@@ -2,6 +2,7 @@ package dev.eolmae.marketry.domain.auth.service;
 
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserRefreshTokenRepository;
@@ -30,6 +31,7 @@ public class AccountWithdrawalService {
 
     private final UserAccountRepository userAccountRepository;
     private final UserProfileRepository userProfileRepository;
+    private final UserAccessDailyRepository userAccessDailyRepository;
     private final UserRefreshTokenRepository userRefreshTokenRepository;
     private final UserPreferenceRepository userPreferenceRepository;
     private final CustomStockSectorRepository customStockSectorRepository;
@@ -56,6 +58,7 @@ public class AccountWithdrawalService {
         customValueTierThresholdRepository.deleteAllByUserId(userId);
         userPreferenceRepository.deleteAllOfUser(userId);
         userRefreshTokenRepository.deleteAllOfUser(userId);
+        userAccessDailyRepository.deleteAllOfUser(userId);
         userProfileRepository.deleteAllOfUser(userId);
         userAccountRepository.deleteById(userId);
         log.info("회원 탈퇴 처리: userId={}", userId);

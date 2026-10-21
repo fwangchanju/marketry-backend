@@ -8,13 +8,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
@@ -25,7 +28,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 class AdminMemberServiceTest {
     private final UserAccountRepository repository = mock(UserAccountRepository.class);
-    private final AdminMemberService service = new AdminMemberService(repository);
+    private final UserAccessDailyRepository accessDailyRepository = mock(UserAccessDailyRepository.class);
+    private final AdminMemberService service = new AdminMemberService(repository, accessDailyRepository);
 
     @Test
     void 검색어_공백을_제거하고_권한과_50명_페이지를_조회한다() {
@@ -191,5 +195,28 @@ class AdminMemberServiceTest {
         List<Long> tooMany =
                 java.util.stream.LongStream.rangeClosed(1, 101).boxed().toList();
         assertThatThrownBy(() -> service.changeSpecial(tooMany, true)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void 일별_접속은_기간의_모든_날짜를_채우고_접속한_사람이_없는_날은_0명이다() {
+        LocalDate today = LocalDate.of(2026, 10, 21);
+        when(accessDailyRepository.countMembersByDate(LocalDate.of(2026, 10, 19), today))
+                .thenReturn(List.of(
+                        new AdminDailyAccessResponse(LocalDate.of(2026, 10, 19), 2),
+                        new AdminDailyAccessResponse(today, 5)));
+
+        assertThat(service.getDailyAccess(today, 3))
+                .containsExactly(
+                        new AdminDailyAccessResponse(LocalDate.of(2026, 10, 19), 2),
+                        new AdminDailyAccessResponse(LocalDate.of(2026, 10, 20), 0),
+                        new AdminDailyAccessResponse(today, 5));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1, 91})
+    void 일별_접속은_1일_미만_또는_90일_초과_기간을_거부한다(int days) {
+        assertThatThrownBy(() -> service.getDailyAccess(LocalDate.of(2026, 10, 21), days))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(accessDailyRepository);
     }
 }

@@ -20,6 +20,7 @@ import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserRefreshToken;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
+import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserRefreshTokenRepository;
 import java.time.LocalDateTime;
@@ -46,6 +47,7 @@ class AuthServiceTest {
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final AppJwtService appJwtService = mock(AppJwtService.class);
     private final JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
+    private final UserAccessDailyRepository userAccessDailyRepository = mock(UserAccessDailyRepository.class);
     private final UserProfileService userProfileService = mock(UserProfileService.class);
 
     private final AuthService authService = new AuthService(
@@ -56,6 +58,7 @@ class AuthServiceTest {
             eventPublisher,
             appJwtService,
             jdbcTemplate,
+            userAccessDailyRepository,
             userProfileService);
 
     @Test
@@ -214,9 +217,25 @@ class AuthServiceTest {
         when(userAccountRepository.findById(42L)).thenReturn(Optional.of(user));
         when(userProfileService.getProfile(42L)).thenReturn(ProfileResponse.empty());
 
+        when(user.recordAccess(any(LocalDateTime.class))).thenReturn(true);
+
         authService.session(principal);
 
         verify(user).recordAccess(any(LocalDateTime.class));
+        verify(userAccessDailyRepository).recordAccess(eq(42L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void session은_접속_시각을_방금_기록했으면_일별_접속_기록을_또_남기지_않는다() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(42L, Role.USER);
+        UserAccount user = userAccount(42L);
+        when(userAccountRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(userProfileService.getProfile(42L)).thenReturn(ProfileResponse.empty());
+        when(user.recordAccess(any(LocalDateTime.class))).thenReturn(false);
+
+        authService.session(principal);
+
+        verify(userAccessDailyRepository, never()).recordAccess(any(), any());
     }
 
     @Test

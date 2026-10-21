@@ -1,11 +1,13 @@
 package dev.eolmae.marketry.domain.auth.controller;
 
 import dev.eolmae.marketry.common.util.KstClock;
+import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialRequest;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.service.AdminMemberService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +41,14 @@ public class AdminMemberController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(adminMemberService.getSummary(KstClock.now()));
+    }
+
+    // 최근 N일(기본 14일, 오늘 포함)의 일별 접속 회원 수.
+    @GetMapping("/access-daily")
+    public ResponseEntity<List<AdminDailyAccessResponse>> accessDaily(@RequestParam(defaultValue = "14") int days) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(adminMemberService.getDailyAccess(KstClock.now().toLocalDate(), days));
     }
 
     @PatchMapping("/special")
