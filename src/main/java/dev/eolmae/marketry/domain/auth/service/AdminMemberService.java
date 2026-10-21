@@ -25,6 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminMemberService {
     private static final int PAGE_SIZE = 50;
     private static final int RECENT_JOIN_DAYS = 7;
+    private static final int RECENT_ACCESS_DAYS = 7;
     private static final int MAX_SPECIAL_CHANGE = 100;
     private static final Set<String> SORT_KEYS =
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
@@ -84,9 +85,9 @@ public class AdminMemberService {
         return grades.size() == MemberGrade.values().length ? Set.of() : grades;
     }
 
-    /** 지금 시각을 받아 최근 가입 기준(7일 전)을 정한다. */
+    /** 지금 시각을 받아 최근 가입·최근 접속 기준(각각 7일 전)을 정한다. */
     @Transactional(readOnly = true)
     public AdminMemberSummaryResponse getSummary(LocalDateTime now) {
-        return userAccountRepository.summarize(now.minusDays(RECENT_JOIN_DAYS));
+        return userAccountRepository.summarize(now.minusDays(RECENT_JOIN_DAYS), now.minusDays(RECENT_ACCESS_DAYS));
     }
 }

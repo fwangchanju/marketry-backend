@@ -10,5 +10,5 @@ public interface UserAccountRepositoryCustom {
     AdminMemberPageResponse findMembers(
             String query, Set<MemberGrade> grades, String sort, boolean ascending, int page, int size);
 
-    AdminMemberSummaryResponse summarize(LocalDateTime joinedSince);
+    AdminMemberSummaryResponse summarize(LocalDateTime joinedSince, LocalDateTime accessedSince);
 }

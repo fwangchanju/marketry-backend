@@ -67,12 +67,17 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
     }
 
     @Override
-    public AdminMemberSummaryResponse summarize(LocalDateTime joinedSince) {
+    public AdminMemberSummaryResponse summarize(LocalDateTime joinedSince, LocalDateTime accessedSince) {
         long admins = count(gradeCondition(MemberGrade.ADMIN));
         long specials = count(gradeCondition(MemberGrade.SPECIAL));
         long users = count(gradeCondition(MemberGrade.USER));
         return new AdminMemberSummaryResponse(
-                admins + specials + users, admins, specials, users, count(userAccount.createdAt.goe(joinedSince)));
+                admins + specials + users,
+                admins,
+                specials,
+                users,
+                count(userAccount.createdAt.goe(joinedSince)),
+                count(userAccount.lastAccessAt.goe(accessedSince)));
     }
 
     // 관리자는 권한으로, 특별 회원은 일반 권한(USER) 중 특별 표시가 켜진 회원으로 본다.
