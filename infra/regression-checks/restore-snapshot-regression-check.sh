@@ -23,7 +23,7 @@ if [ "$1 $2 $3" = 'context inspect orbstack' ]; then
   printf '%s\n' "${MOCK_ENDPOINT:-unix://$HOME/.orbstack/run/docker.sock}"
   exit 0
 fi
-[ "$1 $2 $3" = 'compose --project-name market-monitor-local' ] || exit 88
+[ "$1 $2 $3" = 'compose --project-name marketry-local' ] || exit 88
 shift 3
 [ "$1" = --project-directory ] && [ "${2##*/}" = local ] || exit 88
 local_dir="$2"
@@ -41,7 +41,7 @@ case "$1" in
     if [ "${2-}" = --list ]; then [ "${MOCK_INVALID:-0}" = 0 ]; else [ "${MOCK_RESTORE_FAIL:-0}" = 0 ]; fi
     ;;
   psql)
-    [[ "$*" = *'market_monitor_db'* ]] || exit 88
+    [[ "$*" = *'marketry_db'* ]] || exit 88
     ;;
   *) exit 88 ;;
 esac
@@ -77,7 +77,7 @@ export DOCKER_HOST=unix:///wrong DOCKER_CONTEXT=wrong COMPOSE_FILE=wrong
 export COMPOSE_PROJECT_NAME=production COMPOSE_PROFILES=wrong COMPOSE_ENV_FILES=wrong COMPOSE_PATH_SEPARATOR=wrong
 run
 [ "$status" = 0 ] || { cat "$test_root/err"; exit 1; }
-grep -q 'DROP DATABASE IF EXISTS market_monitor_db' "$test_root/trace"
+grep -q 'DROP DATABASE IF EXISTS marketry_db' "$test_root/trace"
 grep -q -- '--single-transaction' "$test_root/trace"
 grep -q '^완료$' "$test_root/out"
 unset DOCKER_HOST DOCKER_CONTEXT COMPOSE_FILE COMPOSE_PROJECT_NAME COMPOSE_PROFILES COMPOSE_ENV_FILES COMPOSE_PATH_SEPARATOR

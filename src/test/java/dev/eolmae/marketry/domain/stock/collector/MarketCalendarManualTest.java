@@ -38,7 +38,7 @@ import org.springframework.web.client.RestClient;
  * 월 또는 날짜 범위의 실제 토스 시간표를 운영 수집기로 요청하고 로컬 market_calendar에 적재한다.
  * 일반 test와 CI에서 제외된다. 애플리케이션을 따로 실행할 필요가 없다.
  *
- * <p>실행 조건: 127.0.0.1:15432/market_monitor_db에 현재 앱 전체 스키마를 준비하고 POSTGRES_PASSWORD 및
+ * <p>실행 조건: 127.0.0.1:15432/marketry_db에 현재 앱 전체 스키마를 준비하고 POSTGRES_PASSWORD 및
  * TOSS_CLIENT_ID / TOSS_CLIENT_SECRET을 프로세스 환경에 주입한다. 토스 허용 IP 등록이 필요하다.
  * 보호 env 파일은 읽지 않는다. local 프로파일에서도 실제 토스 API를 호출한다.
  * DB URL은 테스트에서 로컬로 고정한다. Flyway와 DDL 생성은 꺼져 있으며 실제 데이터는 롤백하지 않는다.
@@ -70,7 +70,7 @@ import org.springframework.web.client.RestClient;
         webEnvironment = SpringBootTest.WebEnvironment.NONE,
         properties = {
             "scheduling.enabled=false",
-            "spring.datasource.url=jdbc:postgresql://127.0.0.1:15432/market_monitor_db",
+            "spring.datasource.url=jdbc:postgresql://127.0.0.1:15432/marketry_db",
             "spring.flyway.enabled=false",
             "spring.jpa.hibernate.ddl-auto=validate",
             "spring.jpa.show-sql=false",

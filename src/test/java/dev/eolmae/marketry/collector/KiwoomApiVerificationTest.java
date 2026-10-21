@@ -37,7 +37,7 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(
         properties = {
             "spring.test.database.replace=none",
-            "spring.datasource.url=jdbc:postgresql://localhost:5433/market_monitor_db"
+            "spring.datasource.url=jdbc:postgresql://localhost:5433/marketry_db"
         })
 class KiwoomApiVerificationTest {
 

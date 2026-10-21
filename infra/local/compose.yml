@@ -1,19 +1,19 @@
-name: market-monitor-local
+name: marketry-local
 
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: market_monitor_db
-      POSTGRES_USER: market_monitor
+      POSTGRES_DB: marketry_db
+      POSTGRES_USER: marketry
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in infra/local/.env}
     ports:
       - "127.0.0.1:${LOCAL_DB_PORT:-15432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U market_monitor -d market_monitor_db"]
+      test: ["CMD-SHELL", "pg_isready -U marketry -d marketry_db"]
       interval: 5s
       timeout: 3s
       retries: 10

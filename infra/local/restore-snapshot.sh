@@ -5,8 +5,8 @@
 set -euo pipefail
 
 SNAPSHOT="${SNAPSHOT_FILE:-/Users/Shared/marketry-dev-snapshot/latest.dump}"
-DB_NAME="market_monitor_db"
-DB_USER="market_monitor"
+DB_NAME="marketry_db"
+DB_USER="marketry"
 
 LOCAL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -18,7 +18,7 @@ local_docker() {
 }
 
 local_compose() {
-  local_docker compose --project-name market-monitor-local \
+  local_docker compose --project-name marketry-local \
     --project-directory "$LOCAL_DIR" -f "$LOCAL_DIR/compose.yml" \
     --env-file "$LOCAL_DIR/.env" "$@"
 }
