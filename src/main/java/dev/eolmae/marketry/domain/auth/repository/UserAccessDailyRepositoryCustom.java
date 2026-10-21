@@ -20,4 +20,7 @@ public interface UserAccessDailyRepositoryCustom {
 
     /** 주어진 회원들이 기간(from~to) 중 접속한 날 수를 센다. 접속한 날이 없는 회원은 결과에 없다. */
     Map<Long, Long> countAccessDaysByUser(Collection<Long> userIds, LocalDate from, LocalDate to);
+
+    /** 기간(from~to) 중 한 번이라도 접속한 실제 가입 회원마다의 접속한 날 수 목록. 한 번도 접속하지 않은 회원은 없다. */
+    List<Long> countAccessDaysPerMember(LocalDate from, LocalDate to);
 }

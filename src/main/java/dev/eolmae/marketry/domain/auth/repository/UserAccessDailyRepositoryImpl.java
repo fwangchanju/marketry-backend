@@ -71,4 +71,21 @@ public class UserAccessDailyRepositoryImpl implements UserAccessDailyRepositoryC
         }
         return daysByUser;
     }
+
+    @Override
+    public List<Long> countAccessDaysPerMember(LocalDate from, LocalDate to) {
+        return queryFactory
+                .select(userAccessDaily.id.accessDate.count())
+                .from(userAccessDaily)
+                .join(userAccount)
+                .on(userAccount.id.eq(userAccessDaily.id.userId))
+                .where(
+                        userAccessDaily.id.accessDate.between(from, to),
+                        userAccount
+                                .issuer
+                                .isNull()
+                                .or(userAccount.issuer.notIn(UserAccount.LOCAL_TEST_ISSUER, UserAccount.SYSTEM_ISSUER)))
+                .groupBy(userAccessDaily.id.userId)
+                .fetch();
+    }
 }
