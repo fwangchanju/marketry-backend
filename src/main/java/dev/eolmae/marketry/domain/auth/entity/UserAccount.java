@@ -10,6 +10,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import lombok.Getter;
 
@@ -23,6 +24,9 @@ public class UserAccount {
 
     /** 서비스가 내부에서 쓰는 시스템 회원의 연동 값(예: MARKETRY 분류 공개본을 담는 계정). 사람이 아니다. */
     public static final String SYSTEM_ISSUER = "marketry-system";
+
+    /** 접속 시각을 다시 기록하기까지의 최소 간격 — 화면을 열 때마다 DB에 쓰지 않도록 이 안에서는 기록을 건너뛴다. */
+    static final Duration ACCESS_RECORD_INTERVAL = Duration.ofMinutes(5);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,6 +48,9 @@ public class UserAccount {
     // 특별 회원 여부 — 권한과 별개다. 관리자가 아닌 회원에게만 의미가 있다.
     @Column(nullable = false)
     private boolean special;
+
+    // 마지막으로 접속한 시각 — 로그인·세션 갱신·세션 확인에서 기록한다. 기록이 생기기 전의 회원은 비어 있다.
+    private LocalDateTime lastAccessAt;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -68,6 +75,14 @@ public class UserAccount {
     public void changeSpecial(boolean special) {
         this.special = special;
         this.updatedAt = LocalDateTime.now(Zone.KST.zoneId());
+    }
+
+    /** 접속 시각을 기록한다. 마지막 기록 뒤 {@link #ACCESS_RECORD_INTERVAL}이 지나지 않았으면 건너뛴다. */
+    public void recordAccess(LocalDateTime now) {
+        if (lastAccessAt != null && lastAccessAt.plus(ACCESS_RECORD_INTERVAL).isAfter(now)) {
+            return;
+        }
+        this.lastAccessAt = now;
     }
 
     public void updateEmail(String email) {

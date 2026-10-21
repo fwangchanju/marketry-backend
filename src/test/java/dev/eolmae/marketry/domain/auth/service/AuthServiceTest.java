@@ -208,6 +208,26 @@ class AuthServiceTest {
     }
 
     @Test
+    void session은_회원의_접속_시각을_기록한다() {
+        AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(42L, Role.USER);
+        UserAccount user = userAccount(42L);
+        when(userAccountRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(userProfileService.getProfile(42L)).thenReturn(ProfileResponse.empty());
+
+        authService.session(principal);
+
+        verify(user).recordAccess(any(LocalDateTime.class));
+    }
+
+    @Test
+    void session은_로그인하지_않았으면_접속을_기록하지_않는다() {
+        AuthSessionResponse session = authService.session(null);
+
+        assertThat(session.authenticated()).isFalse();
+        verify(userAccountRepository, never()).findById(any());
+    }
+
+    @Test
     void session은_프로필이_없으면_닉네임과_사진_버전이_null이다() {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(42L, Role.USER);
         UserAccount user = userAccount(42L);

@@ -9,7 +9,6 @@ import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.OrderSpecifier.NullHandling;
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberPageResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberResponse;
@@ -45,7 +44,6 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                 .on(userProfile.userId.eq(userAccount.id))
                 .where(predicate)
                 .fetchOne();
-        // 접속 기록은 스키마 선행 배포 뒤 별도 단계에서 추가한다. 프로필 수정 시각으로 대체하지 않는다.
         var items = queryFactory
                 .select(Projections.constructor(
                         AdminMemberResponse.class,
@@ -56,7 +54,7 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                         userAccount.role,
                         userAccount.special,
                         userAccount.createdAt,
-                        Expressions.nullExpression(LocalDateTime.class)))
+                        userAccount.lastAccessAt))
                 .from(userAccount)
                 .leftJoin(userProfile)
                 .on(userProfile.userId.eq(userAccount.id))
@@ -65,7 +63,7 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                 .offset((long) page * size)
                 .limit(size)
                 .fetch();
-        return new AdminMemberPageResponse(items, total == null ? 0 : total, false);
+        return new AdminMemberPageResponse(items, total == null ? 0 : total, true);
     }
 
     @Override
@@ -115,8 +113,9 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                     case "email" -> new OrderSpecifier<>(direction, userAccount.email, NullHandling.NullsLast);
                     case "nickname" -> new OrderSpecifier<>(direction, userProfile.nickname, NullHandling.NullsLast);
                     case "role" -> new OrderSpecifier<>(direction, userAccount.role);
-                    // 접속 기록은 아직 저장하지 않아 모든 회원이 같은 값(없음)이다 — 지금은 회원 ID 순과 같고, 기록이 생기면 그 열로 바꾼다.
-                    case "lastAccessAt" -> new OrderSpecifier<>(direction, userAccount.id);
+                    // 접속 기록이 없는 회원(기록이 생기기 전 가입자)은 방향과 상관없이 뒤로 보낸다.
+                    case "lastAccessAt" ->
+                        new OrderSpecifier<>(direction, userAccount.lastAccessAt, NullHandling.NullsLast);
                     default -> new OrderSpecifier<>(direction, userAccount.createdAt);
                 };
         if ("role".equals(sort)) {
@@ -128,7 +127,7 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
                 new OrderSpecifier<>(direction, userAccount.id)
             };
         }
-        return "id".equals(sort) || "lastAccessAt".equals(sort)
+        return "id".equals(sort)
                 ? new OrderSpecifier<?>[] {primary}
                 : new OrderSpecifier<?>[] {primary, new OrderSpecifier<>(direction, userAccount.id)};
     }
