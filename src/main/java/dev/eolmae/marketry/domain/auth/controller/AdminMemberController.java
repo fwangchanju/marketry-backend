@@ -10,6 +10,7 @@ import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialRequest;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminVisitorDailyResponse;
 import dev.eolmae.marketry.domain.auth.service.AdminMemberService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -61,6 +62,14 @@ public class AdminMemberController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(adminMemberService.getSignups(KstClock.now().toLocalDate(), days));
+    }
+
+    // 최근 N일(기본 30일, 오늘 포함)의 일별 비회원 방문자 수와 가입 전환율.
+    @GetMapping("/visitors")
+    public ResponseEntity<List<AdminVisitorDailyResponse>> visitors(@RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(adminMemberService.getVisitors(KstClock.now().toLocalDate(), days));
     }
 
     // 최근 30일 중 접속한 날 수 구간별 회원 수.

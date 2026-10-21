@@ -22,6 +22,7 @@ import dev.eolmae.marketry.domain.auth.service.AppJwtService;
 import dev.eolmae.marketry.domain.auth.service.AuthService;
 import dev.eolmae.marketry.domain.auth.service.AuthService.IssuedTokens;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
+import dev.eolmae.marketry.domain.auth.service.VisitorService;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -38,8 +39,9 @@ class AuthControllerTest {
 
     private final AuthService authService = mock(AuthService.class);
     private final AppJwtService appJwtService = mock(AppJwtService.class);
-    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
-                    new AuthController(authService, new AuthProperties(), appJwtService, new AuthCookies()))
+    private final VisitorService visitorService = mock(VisitorService.class);
+    private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new AuthController(
+                    authService, new AuthProperties(), appJwtService, new AuthCookies(), visitorService))
             .build();
 
     @AfterEach
@@ -96,6 +98,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(false))
                 .andExpect(header().stringValues("Set-Cookie", hasItem(containsString("mm_refresh=;"))));
+        verify(visitorService).record(any());
     }
 
     @Test
@@ -104,6 +107,18 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(false));
         verify(authService, never()).refresh(any());
+        verify(visitorService).record(any());
+    }
+
+    @Test
+    void session_로그인한_사용자는_방문자로_세지_않는다() throws Exception {
+        setAuthenticatedUser();
+        when(authService.session(PRINCIPAL))
+                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null));
+
+        mockMvc.perform(get("/api/auth/session")).andExpect(status().isOk());
+
+        verify(visitorService, never()).record(any());
     }
 
     @Test

@@ -7,6 +7,7 @@ import dev.eolmae.marketry.domain.auth.service.AuthService;
 import dev.eolmae.marketry.domain.auth.service.AuthService.IssuedTokens;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import dev.eolmae.marketry.domain.auth.service.CurrentUser;
+import dev.eolmae.marketry.domain.auth.service.VisitorService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -46,6 +47,7 @@ public class AuthController {
     private final AuthProperties authProperties;
     private final AppJwtService appJwtService;
     private final AuthCookies authCookies;
+    private final VisitorService visitorService;
 
     @GetMapping("/google")
     public RedirectView beginGoogleLogin(
@@ -116,13 +118,18 @@ public class AuthController {
             return authService.session(principal);
         }
         String refreshToken = cookie(request, REFRESH_COOKIE);
-        if (request.getHeader(CAPTURE_TOKEN_HEADER) != null || refreshToken == null) {
+        if (request.getHeader(CAPTURE_TOKEN_HEADER) != null) {
+            return AuthSessionResponse.anonymous();
+        }
+        if (refreshToken == null) {
+            visitorService.record(request);
             return AuthSessionResponse.anonymous();
         }
         try {
             return refreshSession(refreshToken, response);
         } catch (ResponseStatusException e) {
             authCookies.expire(response, REFRESH_COOKIE, "/api/auth");
+            visitorService.record(request);
             return AuthSessionResponse.anonymous();
         }
     }
