@@ -117,6 +117,23 @@ class SectorRankingTextBuilderTest {
 
         String text = builder.buildMapCaption(topSectors);
 
-        assertThat(text).isEqualTo("[#코스피 / #코스닥 섹터 등락률]\n반도체 +1.35%\n제약 +1.20%");
+        assertThat(text).isEqualTo("[그룹 등락률]\n반도체 +1.35%\n제약 +1.20%");
+    }
+
+    @Test
+    void 홈_캡션은_상위와_하위_그룹을_한_줄씩_콜론과_함께_보여준다() {
+        String text = builder.buildHomeCaption(
+                new TopSectorItem("필수소비재", new BigDecimal("-0.384")),
+                new TopSectorItem("신규 상장", new BigDecimal("-31.93")));
+
+        assertThat(text).isEqualTo("[그룹 등락률]\n상위: 필수소비재 -0.38%\n하위: 신규 상장 -31.93%");
+    }
+
+    @Test
+    void 홈_캡션은_오르는_그룹에_부호를_붙인다() {
+        String text = builder.buildHomeCaption(
+                new TopSectorItem("반도체", new BigDecimal("2.1")), new TopSectorItem("화학", new BigDecimal("-1.5")));
+
+        assertThat(text).isEqualTo("[그룹 등락률]\n상위: 반도체 +2.10%\n하위: 화학 -1.50%");
     }
 }

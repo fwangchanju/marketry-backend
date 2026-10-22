@@ -415,6 +415,17 @@ public class TreemapQueryService {
      */
     public List<TopSectorItem> getMergedTopSectorRanking(
             MarketQuery marketQuery, LocalDateTime snapshotTime, AverageMode averageMode, boolean sectorFilter) {
+        return getMergedSectorRanking(marketQuery, snapshotTime, averageMode, sectorFilter).stream()
+                .limit(TOP_N)
+                .toList();
+    }
+
+    /**
+     * {@link #getMergedTopSectorRanking}과 같은 조건의 전체 순위 — 등락률이 높은 순이고 개수를 자르지 않는다. 홈 발송 캡션이 맨 위(상위)와
+     * 맨 아래(하위) 한 개씩 고르는 데 쓴다.
+     */
+    public List<TopSectorItem> getMergedSectorRanking(
+            MarketQuery marketQuery, LocalDateTime snapshotTime, AverageMode averageMode, boolean sectorFilter) {
         List<Market> markets = marketQuery.toMarkets();
         List<Map<Long, List<SectorTierBreakdown>>> breakdownsByMarket = markets.stream()
                 .map(market ->
@@ -446,7 +457,6 @@ public class TreemapQueryService {
                         sectorById.get(entry.getKey()).getName(), entry.getValue(), excludedTierIds, averageMode))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(TopSectorItem::changeRate).reversed())
-                .limit(TOP_N)
                 .toList();
     }
 
