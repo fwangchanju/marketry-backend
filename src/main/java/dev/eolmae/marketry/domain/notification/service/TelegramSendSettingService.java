@@ -9,10 +9,6 @@ import dev.eolmae.marketry.domain.notification.entity.TelegramSendSetting;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
 import dev.eolmae.marketry.domain.notification.repository.TelegramSendSettingRepository;
 import dev.eolmae.marketry.domain.notification.schedule.TelegramSendSchedule;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -22,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class TelegramSendSettingService {
-    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final TelegramSendSettingRepository repository;
     private final TelegramProperties telegramProperties;
@@ -40,42 +35,33 @@ public class TelegramSendSettingService {
     public TelegramSendPlan current() {
         return repository
                 .findById(TelegramSendSetting.SINGLETON_ID)
-                .map(setting -> new TelegramSendPlan(
-                        setting.isEnabled(),
-                        setting.getSectorSendMinute(),
-                        setting.getSectorSendIntervalMinutes(),
-                        setting.mapSendTimeList()))
+                .map(this::toPlan)
                 .orElseGet(this::defaultPlan);
     }
 
     @Transactional(readOnly = true)
     public TelegramSendSettingResponse find() {
-        Optional<TelegramSendSetting> setting = repository.findById(TelegramSendSetting.SINGLETON_ID);
-        return toResponse(setting.orElse(null));
+        return toResponse(repository.findById(TelegramSendSetting.SINGLETON_ID).orElse(null));
     }
 
     @Transactional
     public TelegramSendSettingResponse update(TelegramSendSettingRequest request) {
-        List<LocalTime> mapSendTimes = List.of();
-        if (request.mapSendTimes() != null) {
-            mapSendTimes = request.mapSendTimes().stream().distinct().sorted().toList();
-        }
-        validate(request.sectorSendMinute(), request.sectorSendIntervalMinutes(), mapSendTimes);
-        TelegramSendSetting setting =
-                repository.findById(TelegramSendSetting.SINGLETON_ID).orElseGet(TelegramSendSetting::create);
-        setting.update(
-                request.enabled(), request.sectorSendMinute(), request.sectorSendIntervalMinutes(), mapSendTimes);
+        validate(request.sectorSendMinute(), request.sectorSendIntervalMinutes());
+        TelegramSendSetting setting = repository
+                .findById(TelegramSendSetting.SINGLETON_ID)
+                .orElseGet(() -> TelegramSendSetting.create(telegramProperties.mapSendTimes()));
+        setting.update(request.enabled(), request.sectorSendMinute(), request.sectorSendIntervalMinutes());
         return toResponse(repository.save(setting));
     }
 
-    // 서버가 시작할 때 설정값에 하던 검사와 같은 기준이다 — 저장된 값 때문에 발송 시각 판정이 깨지지 않게 한다.
-    private void validate(int sectorSendMinute, int sectorSendIntervalMinutes, List<LocalTime> mapSendTimes) {
+    // 서버가 시작할 때 설정값에 하던 시각 검사와 같은 기준이다 — 저장된 값 때문에 발송 시각 판정이 깨지지 않게 한다.
+    private void validate(int sectorSendMinute, int sectorSendIntervalMinutes) {
         try {
             TelegramSendSchedule.validate(
                     sectorSendMinute,
                     sectorSendIntervalMinutes,
                     telegramProperties.beforeMinutes(),
-                    mapSendTimes,
+                    telegramProperties.mapSendTimes(),
                     collectIntervalMinutes,
                     startHour,
                     endHour);
@@ -84,39 +70,30 @@ public class TelegramSendSettingService {
         }
     }
 
-    private TelegramSendPlan defaultPlan() {
+    private TelegramSendPlan toPlan(TelegramSendSetting setting) {
         return new TelegramSendPlan(
-                false,
-                telegramProperties.sendMinute(),
-                telegramProperties.sendIntervalMinutes(),
-                telegramProperties.mapSendTimes());
+                setting.isEnabled(), setting.getSectorSendMinute(), setting.getSectorSendIntervalMinutes());
+    }
+
+    private TelegramSendPlan defaultPlan() {
+        return new TelegramSendPlan(false, telegramProperties.sendMinute(), telegramProperties.sendIntervalMinutes());
     }
 
     private TelegramSendSettingResponse toResponse(TelegramSendSetting setting) {
         TelegramSendPlan plan = defaultPlan();
         if (setting != null) {
-            plan = new TelegramSendPlan(
-                    setting.isEnabled(),
-                    setting.getSectorSendMinute(),
-                    setting.getSectorSendIntervalMinutes(),
-                    setting.mapSendTimeList());
+            plan = toPlan(setting);
         }
         return new TelegramSendSettingResponse(
                 plan.enabled(),
                 plan.sendMinute(),
                 plan.sendIntervalMinutes(),
-                formatTimes(plan.mapSendTimes()),
                 setting != null,
                 setting == null ? null : setting.getUpdatedAt(),
                 collectIntervalMinutes,
                 startHour,
                 endHour,
                 telegramProperties.sendMinute(),
-                telegramProperties.sendIntervalMinutes(),
-                formatTimes(telegramProperties.mapSendTimes()));
-    }
-
-    private List<String> formatTimes(List<LocalTime> times) {
-        return times.stream().map(TIME_FORMAT::format).toList();
+                telegramProperties.sendIntervalMinutes());
     }
 }

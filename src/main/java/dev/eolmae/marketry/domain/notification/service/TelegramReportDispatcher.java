@@ -14,6 +14,14 @@ public class TelegramReportDispatcher {
 
     private final SectorTelegramReportSender sectorTelegramReportSender;
     private final TreemapAlbumReportSender treemapAlbumReportSender;
+    private final HomeReportSender homeReportSender;
+
+    // 정기 발송은 홈 화면 한 장이다(관리자 메시지 페이지). 아래 sendSector·sendMap은 정기 발송에서 빠졌고 수동 테스트만 쓴다.
+    // TODO 홈 발송이 운영에서 확인되면 sendSector·sendMap·sendAll과 SectorTelegramReportSender·TreemapAlbumReportSender·dueForMap을
+    // 정리한다.
+    public void sendHome(LocalDateTime dataTime) {
+        homeReportSender.send(dataTime);
+    }
 
     public void sendSector(LocalDateTime dataTime) {
         sectorTelegramReportSender.send(dataTime);

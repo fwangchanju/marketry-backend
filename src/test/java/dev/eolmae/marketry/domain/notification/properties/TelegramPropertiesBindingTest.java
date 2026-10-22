@@ -38,8 +38,8 @@ class TelegramPropertiesBindingTest {
             assertThat(properties.developerChatId()).isEqualTo("dev-chat-id");
             // application.properties에 적힌 값 그대로. 발송 주기를 바꾸면 여기도 같이 바꾼다 —
             // 의도적인 변경일 때만 고치게 되는 것이 이 단언의 목적이다.
-            assertThat(properties.sendMinute()).isEqualTo(10);
-            assertThat(properties.sendIntervalMinutes()).isEqualTo(15);
+            assertThat(properties.sendMinute()).isEqualTo(5);
+            assertThat(properties.sendIntervalMinutes()).isEqualTo(30);
             assertThat(properties.beforeMinutes()).isEqualTo(15);
             assertThat(properties.averageMode()).isEqualTo(AverageMode.SIMPLE);
             assertThat(properties.sectorFilter()).isTrue();

@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -25,7 +24,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 import org.mockito.Mockito;
 
 class CollectionSchedulerTest {
@@ -78,7 +76,7 @@ class CollectionSchedulerTest {
     }
 
     @Test
-    void 지연개장일은_10시전_수집과_앞두_지도발송을_생략한다() {
+    void 지연개장일은_10시전_수집과_발송을_생략한다() {
         when(timeService.resolveForCollection(DATE))
                 .thenReturn(new CalendarDayTimes(
                         false,
@@ -108,13 +106,13 @@ class CollectionSchedulerTest {
     }
 
     @Test
-    void 마지막_20시10분_섹터발송은_실제_당일_수집시각을_사용한다() {
+    void 마지막_20시10분_홈발송은_실제_당일_수집시각을_사용한다() {
         when(schedule.due(DATE.atTime(20, 10), false)).thenReturn(true);
 
         scheduler.collectMarketData(DATE.atTime(19, 55));
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
-        verify(dispatcher).sendSector(DATE.atTime(19, 55));
+        verify(dispatcher).sendHome(DATE.atTime(19, 55));
         verify(snapshotCollector, never()).collect(DATE.atTime(20, 10));
     }
 
@@ -143,7 +141,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
         verify(failureNotifier).notify(DATE.atTime(20, 0));
-        verify(dispatcher, never()).sendSector(any());
+        verify(dispatcher, never()).sendHome(any());
     }
 
     @Test
@@ -170,29 +168,15 @@ class CollectionSchedulerTest {
 
         scheduler.collectMarketData(DATE.atTime(8, 10));
 
-        verify(dispatcher).sendSector(DATE.atTime(8, 10));
+        verify(dispatcher).sendHome(DATE.atTime(8, 10));
         verifyNoInteractions(failureNotifier);
     }
 
     @Test
-    void 수집실패여도_지도발송_정책은_유지한다() {
-        LocalDateTime tick = DATE.atTime(8, 15);
-        doThrow(new RuntimeException("collection failed"))
-                .when(snapshotCollector)
-                .collect(tick);
-        when(schedule.dueForMap(tick, true, DATE.atTime(15, 30))).thenReturn(true);
-
-        scheduler.collectMarketData(tick);
-
-        verify(dispatcher).sendMap(tick);
-    }
-
-    @Test
-    void 발송_스위치가_꺼져_있으면_섹터와_지도를_보내지_않는다() {
+    void 발송_스위치가_꺼져_있으면_홈을_보내지_않는다() {
         LocalDateTime tick = DATE.atTime(8, 15);
         when(schedule.sendEnabled()).thenReturn(false);
         when(schedule.due(tick, true)).thenReturn(true);
-        when(schedule.dueForMap(tick, true, DATE.atTime(15, 30))).thenReturn(true);
 
         scheduler.collectMarketData(tick);
 
@@ -212,45 +196,6 @@ class CollectionSchedulerTest {
 
         verify(failureNotifier).notify(DATE.atTime(20, 0));
         verifyNoInteractions(dispatcher);
-    }
-
-    @Test
-    void 지도는_정규종료_tick의_수집이_끝난_뒤_발송한다() {
-        LocalDateTime tick = DATE.atTime(16, 35);
-        when(timeService.resolveForCollection(DATE))
-                .thenReturn(new CalendarDayTimes(
-                        false,
-                        DATE.atTime(10, 0),
-                        DATE.atTime(20, 0),
-                        DATE.atTime(16, 32),
-                        DATE.atTime(16, 32),
-                        DATE.atTime(16, 42)));
-        when(schedule.dueForMap(tick, true, DATE.atTime(16, 32))).thenReturn(true);
-
-        scheduler.collectMarketData(tick);
-
-        InOrder order = inOrder(snapshotCollector, dispatcher);
-        order.verify(snapshotCollector).collect(tick);
-        order.verify(dispatcher).sendMap(tick);
-    }
-
-    @Test
-    void 정규종료_이후_첫tick이_수집불가여도_오늘_마지막_지도를_보낸다() {
-        when(timeService.resolveForCollection(DATE))
-                .thenReturn(new CalendarDayTimes(
-                        false,
-                        DATE.atTime(10, 0),
-                        DATE.atTime(16, 32),
-                        DATE.atTime(16, 32),
-                        DATE.atTime(15, 30),
-                        DATE.atTime(15, 40)));
-        when(schedule.dueForMap(DATE.atTime(16, 35), false, DATE.atTime(16, 32)))
-                .thenReturn(true);
-        scheduler.collectMarketData(DATE.atTime(16, 30));
-
-        scheduler.collectMarketData(DATE.atTime(16, 35));
-
-        verify(dispatcher).sendMap(DATE.atTime(16, 30));
     }
 
     @Test

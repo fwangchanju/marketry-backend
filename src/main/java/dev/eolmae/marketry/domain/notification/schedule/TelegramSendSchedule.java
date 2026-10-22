@@ -88,7 +88,7 @@ public class TelegramSendSchedule {
      * 종료가 수집 격자 사이에 있으면 고정 cron 범위 안의 다음 tick에 발송한다.
      */
     public boolean dueForMap(LocalDateTime now, boolean shouldCollect, LocalDateTime regularMarketEnd) {
-        List<LocalTime> mapSendTimes = telegramSendSettingService.current().mapSendTimes();
+        List<LocalTime> mapSendTimes = telegramProperties.mapSendTimes();
         LocalDateTime lastTick = resolveLastMapTick(regularMarketEnd, collectIntervalMinutes);
         if (lastTick.isBefore(now.toLocalDate().atTime(startHour, 0))
                 || lastTick.isAfter(now.toLocalDate().atTime(endHour, 59))) {
