@@ -64,6 +64,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
@@ -112,16 +113,20 @@ public class TreemapQueryService {
 
     /** 기본 마켓맵: stock_info 섹터 그대로(override 없이) 기준, 자식 없는 1뎁스 노드로 감싸서 반환
      * (getCustomTreemap과 응답 모양 통일). snapshotTime이 없으면 최신, 있으면 그 시각 그대로(결정 4). */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getDefaultTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime) {
         return getDefaultTreemap(marketQuery, snapshotTime, false);
     }
 
     /** nxtOnly면 NXT 거래 가능 종목만 담는다. 업종 분류와 가격은 그대로다(가격은 KRX·NXT 통합 가격). */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getDefaultTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly) {
         return getDefaultTreemap(marketQuery, snapshotTime, nxtOnly, ChangeRateMode.DAILY);
     }
 
     /** basis가 AFTER_HOURS면 등락률을 그날 정규장 종가 대비로 계산해서 담는다(적용 조건은 {@link #applyBasis}). */
+    // 달력 조회가 REQUIRES_NEW이므로 지도 전체에서 연결을 점유한 채 두 번째 연결을 기다리지 않는다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getDefaultTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
         List<Market> markets = marketQuery.toMarkets();
@@ -169,21 +174,25 @@ public class TreemapQueryService {
 
     /** 커스텀 마켓맵: 사용자가 구성한 섹터 트리에 배정된 종목만 반환한다.
      * snapshotTime이 없으면 최신, 있으면 그 시각 그대로(결정 4). */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getCustomTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime) {
         return getCustomTreemap(marketQuery, snapshotTime, false);
     }
 
     /** nxtOnly면 내 분류 트리에서 NXT 거래 가능 종목만 남긴다. 분류와 가격(KRX·NXT 통합 가격)은 그대로다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getCustomTreemap(MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly) {
         return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, ChangeRateMode.DAILY);
     }
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getCustomTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
         return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, CurrentUser.requireId());
     }
 
     /** MARKETRY: 운영자가 올린 고정본(발행 사용자)의 분류 기준 — 로그인 없이 누구나 읽는다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getPublishedTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
         return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, marketryProperties.publishedUserId());
@@ -204,11 +213,13 @@ public class TreemapQueryService {
     }
 
     /** from(포함하지 않음)부터 to(포함)까지의 거래일 수. 거래일은 시장 시간표(휴장일·주말 제외)로 센다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TradingDayGapResponse getTradingDayGap(LocalDate from, LocalDate to) {
         return new TradingDayGapResponse(marketCalendarTimeService.countTradingDays(from, to));
     }
 
     /** 달력에서 고를 수 있는 날짜 — 그 달의 거래일 중 종가 데이터(KRX)나 현재가 데이터의 종가가 있는 날과 그 시각. 시각을 snapshotTime으로 넘기면 그날 종가 지도를 받는다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public List<TreemapSnapshotDay> getClosingSnapshotDays(MarketQuery marketQuery, YearMonth month) {
         return sectorPriceSnapshotService.findClosingSnapshotTimes(marketQuery.toMarkets(), month).entrySet().stream()
                 .map(entry -> new TreemapSnapshotDay(entry.getKey(), entry.getValue()))

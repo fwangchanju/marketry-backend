@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -39,6 +40,7 @@ public class MarketQueryService {
     private final TreemapQueryService treemapQueryService;
 
     /** 홈이 쓰는 시장 종합 현황(지수·등락·상하한가) 반환 */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MarketSummaryResponse getMarketSummary() {
         return new MarketSummaryResponse(getMarketOverviews(), getMarketOverviewTrends(), getSectorOverviewTrends());
     }

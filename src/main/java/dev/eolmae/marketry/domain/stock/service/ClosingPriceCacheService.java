@@ -52,8 +52,12 @@ public class ClosingPriceCacheService implements CacheService<ClosingPrices> {
     }
 
     @Transactional(readOnly = true)
-    public synchronized ClosingPrices getFor(LocalDate baseDate, LocalDateTime now) {
-        CalendarDayTimes times = marketCalendarTimeService.resolve(baseDate);
+    public ClosingPrices getFor(LocalDate baseDate, LocalDateTime now) {
+        return getFor(baseDate, now, marketCalendarTimeService.resolve(baseDate));
+    }
+
+    @Transactional(readOnly = true)
+    public synchronized ClosingPrices getFor(LocalDate baseDate, LocalDateTime now, CalendarDayTimes times) {
         if (times.holiday()) {
             closingPricesByDate.invalidate(baseDate);
             return new ClosingPrices(baseDate, Map.of());

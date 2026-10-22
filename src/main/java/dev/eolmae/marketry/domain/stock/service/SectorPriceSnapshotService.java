@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 시장별 최신 종목 가격 스냅샷 조회. */
@@ -73,6 +74,8 @@ public class SectorPriceSnapshotService {
      * latest), 종가 데이터만 있는 날은 그날 종가 구간 끝 시각을 쓴다. 시장끼리 현재가 데이터 시각이 엇갈린 날은 종가 데이터가 없으면 뺀다(그
      * 시각으로는 모든 시장의 지도를 그릴 수 없다). 명시적 휴장일은 가격이 있어도 뺀다.
      */
+    // 달력 조회가 REQUIRES_NEW이므로 이 메서드에서 연결을 점유한 채 두 번째 연결을 기다리지 않는다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public Map<LocalDate, LocalDateTime> findClosingSnapshotTimes(List<Market> markets, YearMonth month) {
         return findClosingSnapshotTimes(markets, month, KstClock.now().toLocalDate());
     }
