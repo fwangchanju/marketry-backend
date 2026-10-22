@@ -63,6 +63,12 @@ public class SectorRankingTextBuilder {
         return MAP_CAPTION_HEADER + "\n" + body;
     }
 
+    /** 홈 발송 캡션 — 두 마켓을 합친 그룹 중 등락률이 가장 높은 그룹(상위)과 가장 낮은 그룹(하위)을 한 줄씩 보여준다. 단위는 %다. */
+    public String buildHomeCaption(TopSectorItem top, TopSectorItem bottom) {
+        return MAP_CAPTION_HEADER + "\n상위: " + formatTopSectorChangeRate(top) + "\n하위: "
+                + formatTopSectorChangeRate(bottom);
+    }
+
     // TopSectorItem.changeRate는 "N분 전 대비 변화"라 단위가 %가 아니라 %p다.
     private String formatTopSectorDelta(TopSectorItem top) {
         return top.sectorName() + " " + formatPercent(top.changeRate()) + "p";

@@ -51,14 +51,17 @@ public class HomeReportSender {
         log.info("홈 리포트 발송 완료: 이미지={}장", images.size());
     }
 
-    /** 캡션을 못 만들면 null — TelegramClient가 null/공백 캡션을 붙이지 않는다. 이미지는 이미 찍었으므로 캡션만 버리고 보낸다. */
+    /**
+     * 캡션을 못 만들면 null — TelegramClient가 null/공백 캡션을 붙이지 않는다. 이미지는 이미 찍었으므로 캡션만 버리고 보낸다.
+     * 상위는 등락률이 가장 높은 그룹, 하위는 가장 낮은 그룹이고, 그룹이 하나뿐이면 둘이 같은 그룹이라 캡션을 만들지 않는다.
+     */
     private String buildCaption(LocalDateTime dataTime) {
-        List<TopSectorItem> topSectors = treemapQueryService.getMergedTopSectorRanking(
+        List<TopSectorItem> ranking = treemapQueryService.getMergedSectorRanking(
                 HOME_MARKETS, dataTime, telegramProperties.averageMode(), telegramProperties.sectorFilter());
-        if (topSectors.isEmpty()) {
-            log.warn("{} 시각 병합 섹터 랭킹이 비어 있어 홈 캡션 없이 발송", dataTime);
+        if (ranking.size() < 2) {
+            log.warn("{} 시각 병합 섹터 랭킹이 2개 미만이라 홈 캡션 없이 발송", dataTime);
             return null;
         }
-        return sectorRankingTextBuilder.buildMapCaption(topSectors);
+        return sectorRankingTextBuilder.buildHomeCaption(ranking.getFirst(), ranking.getLast());
     }
 }

@@ -15,9 +15,11 @@ import dev.eolmae.marketry.domain.notification.enums.RenderTarget;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
 import dev.eolmae.marketry.domain.renderer.client.ScreenshotClient;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
+import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
 import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -65,17 +67,33 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 홈_3대4_판을_찍어_한_장으로_보낸다() {
+    void 홈_3대4_판을_찍고_상위_하위_그룹_캡션과_함께_한_장으로_보낸다() {
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
         when(screenshotClient.capture(RenderTarget.HOME_MOBILE.path(), RenderTarget.HOME_MOBILE.selector()))
                 .thenReturn(List.of(IMAGE));
-        when(treemapQueryService.getMergedTopSectorRanking(
+        TopSectorItem top = new TopSectorItem("필수소비재", new BigDecimal("-0.38"));
+        TopSectorItem middle = new TopSectorItem("금융", new BigDecimal("-2.07"));
+        TopSectorItem bottom = new TopSectorItem("신규 상장", new BigDecimal("-31.93"));
+        when(treemapQueryService.getMergedSectorRanking(
                         eq(MarketQuery.ALL_STOCK), eq(DATA_TIME), eq(AverageMode.SIMPLE), eq(true)))
-                .thenReturn(List.of());
+                .thenReturn(List.of(top, middle, bottom));
+        when(sectorRankingTextBuilder.buildHomeCaption(top, bottom)).thenReturn("캡션");
 
         sender.send(DATA_TIME);
 
-        // 랭킹이 비면 캡션만 버리고 이미지는 보낸다.
+        // 랭킹의 맨 위가 상위, 맨 아래가 하위다.
+        verify(telegramClient).sendPhoto("chat", IMAGE, "캡션");
+    }
+
+    @Test
+    void 순위가_2개_미만이면_캡션만_버리고_이미지는_보낸다() {
+        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
+        when(screenshotClient.capture(any(), any())).thenReturn(List.of(IMAGE));
+        when(treemapQueryService.getMergedSectorRanking(any(), any(), any(), eq(true)))
+                .thenReturn(List.of(new TopSectorItem("금융", BigDecimal.ONE)));
+
+        sender.send(DATA_TIME);
+
         verify(telegramClient).sendPhoto("chat", IMAGE, null);
     }
 

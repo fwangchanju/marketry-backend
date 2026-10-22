@@ -1158,6 +1158,47 @@ class TreemapQueryServiceTest {
     }
 
     @Test
+    void getMergedSectorRanking_자르지_않고_등락률_높은_순으로_전체를_돌려준다() {
+        LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
+        CustomSector a = sector(1L, null, "반도체");
+        CustomSector b = sector(2L, null, "화학");
+        CustomSector c = sector(3L, null, "자동차");
+        stubSectorTree(
+                List.of(a, b, c),
+                List.of(
+                        CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "A2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "B1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "B2", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 3L)));
+        stubStockCache(
+                stock("A1", Market.KOSPI),
+                stock("A2", Market.KOSDAQ),
+                stock("B1", Market.KOSPI),
+                stock("B2", Market.KOSDAQ),
+                stock("C1", Market.KOSPI));
+        // a는 KOSPI 단독으로 보면 압도적 1위(+100%)지만 KOSDAQ에서 -90%라 합치면 +5%로 밀린다.
+        stubPrices(
+                Market.KOSPI,
+                snapshotTime,
+                price("A1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(100)),
+                price("B1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(8)),
+                price("C1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(6)));
+        stubPrices(
+                Market.KOSDAQ,
+                snapshotTime,
+                price("A2", Market.KOSDAQ, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(-90)),
+                price("B2", Market.KOSDAQ, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(8)));
+
+        List<TopSectorItem> merged =
+                service.getMergedSectorRanking(MarketQuery.ALL_STOCK, snapshotTime, AverageMode.WEIGHTED, false);
+
+        // 병합 평균: a=(1,000,000-900,000)/20,000=+5%, b=(80,000+80,000)/20,000=+8%, c=60,000/10,000=+6%
+        // 상위 2개로 자르지 않아 맨 아래(하위) 그룹까지 나온다.
+        assertThat(merged).extracting(TopSectorItem::sectorName).containsExactly("화학", "자동차", "반도체");
+    }
+
+    @Test
     void getMergedTopSectorRanking_원시값을_합산한_뒤_한_번만_나눈다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector a = sector(1L, null, "반도체");
