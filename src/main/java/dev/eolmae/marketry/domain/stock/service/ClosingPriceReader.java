@@ -24,7 +24,8 @@ public class ClosingPriceReader {
         if (hasOfficialClose(baseDate)) {
             return new ClosingPrices(baseDate, stockDailyPriceService.findKrxClosePrices(baseDate));
         }
-        return closingPriceCacheService.getFor(baseDate, KstClock.now());
+        CalendarDayTimes times = marketCalendarTimeService.resolve(baseDate);
+        return closingPriceCacheService.getFor(baseDate, KstClock.now(), times);
     }
 
     /** date의 직전 거래일 종가 — 공통 거래일 판정으로 찾으며, 찾을 수 없으면 가격이 비어 있다. */

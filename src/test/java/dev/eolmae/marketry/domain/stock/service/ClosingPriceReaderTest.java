@@ -25,8 +25,10 @@ class ClosingPriceReaderTest {
     @Test
     void 종가_데이터가_없으면_조회하는_날짜의_현재가_데이터_종가를_읽는다() {
         ClosingPrices prices = new ClosingPrices(TODAY, Map.of("005930", BigDecimal.TEN));
+        CalendarDayTimes times = new CalendarDayTimes(true, null, null, null, null, null);
         when(dailyPrices.existsKrxPrice(TODAY)).thenReturn(false);
-        when(cache.getFor(eq(TODAY), any())).thenReturn(prices);
+        when(calendars.resolve(TODAY)).thenReturn(times);
+        when(cache.getFor(eq(TODAY), any(), eq(times))).thenReturn(prices);
 
         assertThat(reader.closingPricesFor(TODAY, TODAY)).isEqualTo(prices);
         verify(dailyPrices, never()).findKrxClosePrices(any());
@@ -42,15 +44,17 @@ class ClosingPriceReaderTest {
 
         assertThat(prices.baseDate()).isEqualTo(YESTERDAY);
         assertThat(prices.priceByStockCode()).containsEntry("005930", BigDecimal.valueOf(100));
-        verify(cache, never()).getFor(any(), any());
+        verify(cache, never()).getFor(any(), any(), any());
     }
 
     @Test
     void 명시적_휴장일은_종가_데이터가_있어도_현재가_데이터_경로로_읽는다() {
         ClosingPrices empty = new ClosingPrices(YESTERDAY, Map.of());
+        CalendarDayTimes times = new CalendarDayTimes(true, null, null, null, null, null);
         when(dailyPrices.existsKrxPrice(YESTERDAY)).thenReturn(true);
         when(calendars.isTradingDay(YESTERDAY)).thenReturn(false);
-        when(cache.getFor(eq(YESTERDAY), any())).thenReturn(empty);
+        when(calendars.resolve(YESTERDAY)).thenReturn(times);
+        when(cache.getFor(eq(YESTERDAY), any(), eq(times))).thenReturn(empty);
 
         assertThat(reader.hasOfficialClose(YESTERDAY)).isFalse();
         assertThat(reader.closingPricesFor(YESTERDAY, TODAY)).isEqualTo(empty);
@@ -74,9 +78,11 @@ class ClosingPriceReaderTest {
     @Test
     void 직전_거래일의_종가_데이터가_없으면_수집_실패와_무관하게_현재가_데이터_종가로_대체한다() {
         ClosingPrices snapshotClose = new ClosingPrices(YESTERDAY, Map.of("005930", BigDecimal.valueOf(65)));
+        CalendarDayTimes times = new CalendarDayTimes(true, null, null, null, null, null);
         when(calendars.findPreviousTradingDay(TODAY)).thenReturn(Optional.of(YESTERDAY));
         when(dailyPrices.existsKrxPrice(YESTERDAY)).thenReturn(false);
-        when(cache.getFor(eq(YESTERDAY), any())).thenReturn(snapshotClose);
+        when(calendars.resolve(YESTERDAY)).thenReturn(times);
+        when(cache.getFor(eq(YESTERDAY), any(), eq(times))).thenReturn(snapshotClose);
 
         assertThat(reader.previousClosingPricesFor(TODAY)).isEqualTo(snapshotClose);
     }
