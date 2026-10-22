@@ -117,6 +117,6 @@ class SectorRankingTextBuilderTest {
 
         String text = builder.buildMapCaption(topSectors);
 
-        assertThat(text).isEqualTo("[#코스피 / #코스닥 섹터 등락률]\n반도체 +1.35%\n제약 +1.20%");
+        assertThat(text).isEqualTo("[그룹 등락률]\n반도체 +1.35%\n제약 +1.20%");
     }
 }
