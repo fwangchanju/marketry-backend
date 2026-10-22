@@ -205,7 +205,8 @@ public class AuthService {
                 user.getRole(),
                 profile.nickname(),
                 profile.imageVersion(),
-                profile.nicknameChangeableAt());
+                profile.nicknameChangeableAt(),
+                user.isSpecial());
     }
 
     // 마지막 접속 시각과 일별 접속 기록을 같은 간격(회원당 5분에 한 번)으로 남긴다.
