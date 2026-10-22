@@ -14,10 +14,19 @@ class TelegramReportDispatcherTest {
     private final SectorTelegramReportSender sectorTelegramReportSender =
             Mockito.mock(SectorTelegramReportSender.class);
     private final TreemapAlbumReportSender treemapAlbumReportSender = Mockito.mock(TreemapAlbumReportSender.class);
+    private final HomeReportSender homeReportSender = Mockito.mock(HomeReportSender.class);
     private final TelegramReportDispatcher dispatcher =
-            new TelegramReportDispatcher(sectorTelegramReportSender, treemapAlbumReportSender);
+            new TelegramReportDispatcher(sectorTelegramReportSender, treemapAlbumReportSender, homeReportSender);
 
     private final LocalDateTime dataTime = LocalDateTime.of(2025, 6, 2, 8, 15);
+
+    @Test
+    void sendHome_홈_발송기만_부른다() {
+        dispatcher.sendHome(dataTime);
+
+        verify(homeReportSender).send(dataTime);
+        verifyNoMoreInteractions(sectorTelegramReportSender, treemapAlbumReportSender);
+    }
 
     @Test
     void sendSector_섹터_발송기만_부른다() {

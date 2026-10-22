@@ -7,6 +7,8 @@ import java.util.Locale;
 // 캡처할 프론트 페이지와 그 안에서 스크린샷 찍을 영역(data-captureid, 프론트와 값 합의)
 public enum RenderTarget {
     SUMMARY("/summary", "summary-capture"),
+    // 홈 화면을 지도 페이지 모바일 캡처와 같은 3:4 세로 판(툴바·시장 지도·그룹 등락률)으로 찍는다 — 프론트가 capture=mobile일 때만 이 판을 그린다.
+    HOME_MOBILE("/home?capture=mobile", "summary-capture"),
     MAP("/map", "map-capture"),
     SECTOR("/sector", "sector-capture");
 
