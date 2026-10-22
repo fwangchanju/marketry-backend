@@ -59,7 +59,7 @@ class AuthControllerTest {
     void session_인증된_사용자면_기존_세션을_반환하고_refresh를_호출하지_않는다() throws Exception {
         setAuthenticatedUser();
         when(authService.session(PRINCIPAL))
-                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null));
+                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null, false));
 
         mockMvc.perform(get("/api/auth/session"))
                 .andExpect(status().isOk())
@@ -77,7 +77,7 @@ class AuthControllerTest {
         when(authService.refresh("refresh-token")).thenReturn(tokens);
         when(appJwtService.parse("access-token")).thenReturn(PRINCIPAL);
         when(authService.session(PRINCIPAL))
-                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null));
+                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null, false));
 
         mockMvc.perform(get("/api/auth/session").cookie(new Cookie("mm_refresh", "refresh-token")))
                 .andExpect(status().isOk())
@@ -114,7 +114,7 @@ class AuthControllerTest {
     void session_로그인한_사용자는_방문자로_세지_않는다() throws Exception {
         setAuthenticatedUser();
         when(authService.session(PRINCIPAL))
-                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null));
+                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null, false));
 
         mockMvc.perform(get("/api/auth/session")).andExpect(status().isOk());
 
@@ -127,7 +127,7 @@ class AuthControllerTest {
         when(authService.refresh("refresh-token")).thenReturn(tokens);
         when(appJwtService.parse("access-token")).thenReturn(PRINCIPAL);
         when(authService.session(PRINCIPAL))
-                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null));
+                .thenReturn(new AuthSessionResponse(true, 42L, "user@example.com", Role.USER, null, null, null, false));
 
         mockMvc.perform(post("/api/auth/refresh").cookie(new Cookie("mm_refresh", "refresh-token")))
                 .andExpect(status().isOk())

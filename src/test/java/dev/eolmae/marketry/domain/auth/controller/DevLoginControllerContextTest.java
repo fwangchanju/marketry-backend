@@ -43,7 +43,7 @@ class DevLoginControllerContextTest {
                     AppJwtService jwtService = context.getBean(AppJwtService.class);
                     var principal = new AuthenticatedUserPrincipal(42L, Role.USER);
                     var session =
-                            new AuthSessionResponse(true, 42L, "test@example.invalid", Role.USER, null, null, null);
+                            new AuthSessionResponse(true, 42L, "test@example.invalid", Role.USER, null, null, null, false);
                     when(authService.signupForDevelopment())
                             .thenReturn(new AuthService.IssuedTokens("test-access", "test-refresh"));
                     when(jwtService.parse("test-access")).thenReturn(principal);
