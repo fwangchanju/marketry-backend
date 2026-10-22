@@ -1,6 +1,8 @@
 package dev.eolmae.marketry.domain.notification.schedule;
 
+import dev.eolmae.marketry.domain.notification.dto.TelegramSendPlan;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
+import dev.eolmae.marketry.domain.notification.service.TelegramSendSettingService;
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Component;
 public class TelegramSendSchedule {
 
     private final TelegramProperties telegramProperties;
+    private final TelegramSendSettingService telegramSendSettingService;
 
     @Value("${collect.start-hour}")
     private int startHour;
@@ -52,13 +55,13 @@ public class TelegramSendSchedule {
      * 정확히 한 번만 나가게 하기 위해서다.
      */
     public boolean due(LocalDateTime now, boolean shouldCollect) {
-        return due(
-                now,
-                shouldCollect,
-                startHour,
-                endHour,
-                telegramProperties.sendMinute(),
-                telegramProperties.sendIntervalMinutes());
+        TelegramSendPlan plan = telegramSendSettingService.current();
+        return due(now, shouldCollect, startHour, endHour, plan.sendMinute(), plan.sendIntervalMinutes());
+    }
+
+    /** 관리자 메시지 페이지의 발송 스위치. 꺼져 있으면 정기 리포트를 보내지 않는다(수집 실패 알림은 따로 간다). */
+    public boolean sendEnabled() {
+        return telegramSendSettingService.current().enabled();
     }
 
     static boolean due(
@@ -85,24 +88,16 @@ public class TelegramSendSchedule {
      * 종료가 수집 격자 사이에 있으면 고정 cron 범위 안의 다음 tick에 발송한다.
      */
     public boolean dueForMap(LocalDateTime now, boolean shouldCollect, LocalDateTime regularMarketEnd) {
+        List<LocalTime> mapSendTimes = telegramSendSettingService.current().mapSendTimes();
         LocalDateTime lastTick = resolveLastMapTick(regularMarketEnd, collectIntervalMinutes);
         if (lastTick.isBefore(now.toLocalDate().atTime(startHour, 0))
                 || lastTick.isAfter(now.toLocalDate().atTime(endHour, 59))) {
             log.warn("[맵발송시각] 정규장 종료가 고정 수집 cron 범위 밖 | context : {}", regularMarketEnd);
             return shouldCollect
-                    && telegramProperties
-                            .mapSendTimes()
-                            .subList(0, telegramProperties.mapSendTimes().size() - 1)
-                            .contains(now.toLocalTime());
+                    && mapSendTimes.subList(0, mapSendTimes.size() - 1).contains(now.toLocalTime());
         }
         boolean due = dueForMap(
-                now,
-                shouldCollect,
-                telegramProperties.mapSendTimes(),
-                regularMarketEnd,
-                collectIntervalMinutes,
-                startHour,
-                endHour);
+                now, shouldCollect, mapSendTimes, regularMarketEnd, collectIntervalMinutes, startHour, endHour);
         if (due && now.equals(lastTick) && regularMarketEnd.equals(lastTick) == false) {
             log.info("[맵발송시각] 정규장 종료 이후 첫 cron tick 발송 | context : {}|{}", regularMarketEnd, lastTick);
         }
@@ -140,7 +135,7 @@ public class TelegramSendSchedule {
     //
     // send-minute이 0이면 마감 조건(shouldCollect가 꺼지고 endHour:sendMinute)이 절대 성립하지 않는다
     // — shouldCollect는 "시각 <= endHour:00"까지 true라서 20:00 정각엔 아직 꺼지지 않는다.
-    static void validate(
+    public static void validate(
             int sendMinute,
             int sendIntervalMinutes,
             int beforeMinutes,

@@ -51,6 +51,7 @@ class CollectionSchedulerTest {
 
     @BeforeEach
     void 정상_시간표() {
+        when(schedule.sendEnabled()).thenReturn(true);
         when(timeService.resolveForCollection(any(LocalDate.class))).thenAnswer(invocation -> {
             LocalDate date = invocation.getArgument(0);
             return new CalendarDayTimes(
@@ -184,6 +185,33 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(tick);
 
         verify(dispatcher).sendMap(tick);
+    }
+
+    @Test
+    void 발송_스위치가_꺼져_있으면_섹터와_지도를_보내지_않는다() {
+        LocalDateTime tick = DATE.atTime(8, 15);
+        when(schedule.sendEnabled()).thenReturn(false);
+        when(schedule.due(tick, true)).thenReturn(true);
+        when(schedule.dueForMap(tick, true, DATE.atTime(15, 30))).thenReturn(true);
+
+        scheduler.collectMarketData(tick);
+
+        verifyNoInteractions(dispatcher);
+    }
+
+    @Test
+    void 발송_스위치가_꺼져_있어도_수집실패_알림은_보낸다() {
+        doThrow(new RuntimeException("collection failed"))
+                .when(snapshotCollector)
+                .collect(DATE.atTime(20, 0));
+        when(schedule.sendEnabled()).thenReturn(false);
+        when(schedule.due(DATE.atTime(20, 10), false)).thenReturn(true);
+
+        scheduler.collectMarketData(DATE.atTime(20, 0));
+        scheduler.collectMarketData(DATE.atTime(20, 10));
+
+        verify(failureNotifier).notify(DATE.atTime(20, 0));
+        verifyNoInteractions(dispatcher);
     }
 
     @Test

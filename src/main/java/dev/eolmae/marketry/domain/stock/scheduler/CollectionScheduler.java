@@ -84,7 +84,7 @@ public class CollectionScheduler {
         if (telegramSendSchedule.due(snapshotTime, shouldCollect)) {
             if (collection.success() == false) {
                 run("데이터수집실패알림", () -> telegramCollectionFailureNotifier.notify(dataTime));
-            } else {
+            } else if (telegramSendSchedule.sendEnabled()) {
                 // 마켓별로 섹터 이미지 1장 + 캡션 1개씩 각각 발송.
                 run("섹터텔레그램발송", () -> telegramReportDispatcher.sendSector(dataTime));
             }
@@ -95,7 +95,8 @@ public class CollectionScheduler {
         // 그려지므로, 수집이 실패해도 맵 페이지는 최신 공통 시각으로 그대로 그려진다 — 그래서
         // 마지막 수집 성공 여부로 가두지 않는다. 캡션은 그 시각 랭킹이 비면 자연히
         // 빠진다(TreemapAlbumReportSender.buildCaption).
-        if (telegramSendSchedule.dueForMap(snapshotTime, shouldCollect, dayTimes.regularMarketEnd())) {
+        if (telegramSendSchedule.sendEnabled()
+                && telegramSendSchedule.dueForMap(snapshotTime, shouldCollect, dayTimes.regularMarketEnd())) {
             run("맵텔레그램발송", () -> telegramReportDispatcher.sendMap(dataTime));
         }
     }
