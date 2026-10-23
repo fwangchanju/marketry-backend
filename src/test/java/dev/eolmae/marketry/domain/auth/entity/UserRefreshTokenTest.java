@@ -12,7 +12,7 @@ class UserRefreshTokenTest {
     private static final LocalDateTime NOW = LocalDateTime.of(2026, 9, 26, 12, 0);
 
     // replace()/revoke()는 교체·폐기 시각을 실제 현재 시각으로 기록한다. 만료 시각을 고정 날짜로 두면 그
-    // 날짜가 지난 뒤부터 "교체 직후인데 이미 만료"가 되어 테스트가 깨진다(2026-09-27 12:00 이후 실제로 깨졌다).
+    // 날짜가 지난 뒤부터 "교체 직후인데 이미 만료"가 되어 테스트가 깨진다.
     private static LocalDateTime tomorrowFromNow() {
         return LocalDateTime.now(Zone.KST.zoneId()).plusDays(1);
     }

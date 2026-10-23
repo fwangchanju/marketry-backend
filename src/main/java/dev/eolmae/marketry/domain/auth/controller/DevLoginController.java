@@ -19,8 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * 로컬 프론트엔드 개발 전용 로그인. IP 화이트리스트 인증 브릿지(AuthTokenFilter의 999999 매핑, PR #132에서
- * 제거)를 대체한다. marketry.owner-user-id로 로그인하며, 구글 로그인과 동일한 쿠키·응답 형태를
+ * 로컬 프론트엔드 개발 전용 로그인. IP 화이트리스트 인증 브릿지를 대체한다. marketry.owner-user-id로 로그인하며, 구글 로그인과 동일한 쿠키·응답 형태를
  * 사용한다.
  *
  * <p>운영 환경 차단은 두 겹이다. {@code @Profile("!prod")}로 prod 프로필에서는 빈 자체가 생성되지 않고,
