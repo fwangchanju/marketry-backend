@@ -6,10 +6,7 @@ import dev.eolmae.marketry.domain.notification.service.TelegramSendSettingServic
 import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +15,6 @@ import org.springframework.stereotype.Component;
  * 위한 제약일 뿐이라 CollectionScheduler와는 별개로 각자 주입받는다. 스프링 없이 단위 테스트할 수 있게
  * 실제 판정 로직은 인자를 그대로 받는 static 메서드로 뺐다.
  */
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TelegramSendSchedule {
@@ -41,10 +37,7 @@ public class TelegramSendSchedule {
                 telegramProperties.sendMinute(),
                 telegramProperties.sendIntervalMinutes(),
                 telegramProperties.beforeMinutes(),
-                telegramProperties.mapSendTimes(),
-                collectIntervalMinutes,
-                startHour,
-                endHour);
+                collectIntervalMinutes);
     }
 
     /**
@@ -83,52 +76,6 @@ public class TelegramSendSchedule {
         return now.getHour() == endHour && now.getMinute() == sendMinute;
     }
 
-    /**
-     * 앞의 지정 시각은 수집 가능한 경우에만 발송하고, 마지막 시각은 날짜별 정규장 종료로 대체한다.
-     * 종료가 수집 격자 사이에 있으면 고정 cron 범위 안의 다음 tick에 발송한다.
-     */
-    public boolean dueForMap(LocalDateTime now, boolean shouldCollect, LocalDateTime regularMarketEnd) {
-        List<LocalTime> mapSendTimes = telegramProperties.mapSendTimes();
-        LocalDateTime lastTick = resolveLastMapTick(regularMarketEnd, collectIntervalMinutes);
-        if (lastTick.isBefore(now.toLocalDate().atTime(startHour, 0))
-                || lastTick.isAfter(now.toLocalDate().atTime(endHour, 59))) {
-            log.warn("[맵발송시각] 정규장 종료가 고정 수집 cron 범위 밖 | context : {}", regularMarketEnd);
-            return shouldCollect
-                    && mapSendTimes.subList(0, mapSendTimes.size() - 1).contains(now.toLocalTime());
-        }
-        boolean due = dueForMap(
-                now, shouldCollect, mapSendTimes, regularMarketEnd, collectIntervalMinutes, startHour, endHour);
-        if (due && now.equals(lastTick) && regularMarketEnd.equals(lastTick) == false) {
-            log.info("[맵발송시각] 정규장 종료 이후 첫 cron tick 발송 | context : {}|{}", regularMarketEnd, lastTick);
-        }
-        return due;
-    }
-
-    static boolean dueForMap(
-            LocalDateTime now,
-            boolean shouldCollect,
-            List<LocalTime> mapSendTimes,
-            LocalDateTime regularMarketEnd,
-            int collectIntervalMinutes,
-            int startHour,
-            int endHour) {
-        if (shouldCollect && mapSendTimes.subList(0, mapSendTimes.size() - 1).contains(now.toLocalTime())) {
-            return true;
-        }
-        LocalDateTime lastTick = resolveLastMapTick(regularMarketEnd, collectIntervalMinutes);
-        return lastTick.isBefore(now.toLocalDate().atTime(startHour, 0)) == false
-                && lastTick.isAfter(now.toLocalDate().atTime(endHour, 59)) == false
-                && now.equals(lastTick);
-    }
-
-    private static LocalDateTime resolveLastMapTick(LocalDateTime regularMarketEnd, int intervalMinutes) {
-        LocalDateTime tick = regularMarketEnd.truncatedTo(java.time.temporal.ChronoUnit.HOURS);
-        while (tick.isBefore(regularMarketEnd)) {
-            tick = tick.plusMinutes(intervalMinutes);
-        }
-        return tick;
-    }
-
     // 기동 실패 자체가 신호라 EscalateException을 쓰지 않는다 — @PostConstruct에서 던지면
     // EscalationPublisher를 거치지 않아 텔레그램 알림이 가지 않는데, EscalateException의 javadoc은
     // "발생 즉시 개발자에게 텔레그램 알림을 발송하는 예외"라 실제와 다르게 읽힌다.
@@ -136,13 +83,7 @@ public class TelegramSendSchedule {
     // send-minute이 0이면 마감 조건(shouldCollect가 꺼지고 endHour:sendMinute)이 절대 성립하지 않는다
     // — shouldCollect는 "시각 <= endHour:00"까지 true라서 20:00 정각엔 아직 꺼지지 않는다.
     public static void validate(
-            int sendMinute,
-            int sendIntervalMinutes,
-            int beforeMinutes,
-            List<LocalTime> mapSendTimes,
-            int collectIntervalMinutes,
-            int startHour,
-            int endHour) {
+            int sendMinute, int sendIntervalMinutes, int beforeMinutes, int collectIntervalMinutes) {
         if (sendMinute <= 0) {
             throw new IllegalStateException("telegram.send-minute은 0보다 커야 함: " + sendMinute);
         }
@@ -163,21 +104,6 @@ public class TelegramSendSchedule {
         if (beforeMinutes % collectIntervalMinutes != 0) {
             throw new IllegalStateException("telegram.before-minutes(%d)가 collect.interval-minutes(%d)의 배수가 아님"
                     .formatted(beforeMinutes, collectIntervalMinutes));
-        }
-        if (mapSendTimes.isEmpty()) {
-            throw new IllegalStateException("telegram.map-send-times는 비어 있으면 안 됨");
-        }
-        LocalTime rangeStart = LocalTime.of(startHour, 0);
-        LocalTime rangeEnd = LocalTime.of(endHour, 0);
-        for (LocalTime mapSendTime : mapSendTimes) {
-            if (mapSendTime.getMinute() % collectIntervalMinutes != 0) {
-                throw new IllegalStateException("telegram.map-send-times의 %s이 collect.interval-minutes(%d)의 배수가 아님"
-                        .formatted(mapSendTime, collectIntervalMinutes));
-            }
-            if (mapSendTime.isBefore(rangeStart) || mapSendTime.isAfter(rangeEnd)) {
-                throw new IllegalStateException(
-                        "telegram.map-send-times의 %s이 collect.start-hour~end-hour 범위 밖임".formatted(mapSendTime));
-            }
         }
     }
 }

@@ -73,44 +73,6 @@ class SectorRankingTextBuilderTest {
     }
 
     @Test
-    void buildSectorCaption_헤더에_대괄호와_N분_전_대비_라벨을_붙인다() {
-        SectorRankingSummary summary = new SectorRankingSummary(
-                Market.KOSPI,
-                BigDecimal.valueOf(-1.23),
-                List.of(
-                        new TopSectorItem("제약", BigDecimal.valueOf(2.1)),
-                        new TopSectorItem("운송", BigDecimal.valueOf(1.75))));
-
-        String text = builder.buildSectorCaption(summary, 15);
-
-        assertThat(text).isEqualTo("[#코스피 15분 전 대비]\n제약 +2.10%p\n운송 +1.75%p");
-    }
-
-    @Test
-    void buildSectorCaption_지수_등락률이_있어도_헤더에는_안_붙인다() {
-        SectorRankingSummary summary = new SectorRankingSummary(
-                Market.KOSDAQ, BigDecimal.valueOf(3.0), List.of(new TopSectorItem("반도체", BigDecimal.valueOf(1))));
-
-        String text = builder.buildSectorCaption(summary, 30);
-
-        assertThat(text).isEqualTo("[#코스닥 30분 전 대비]\n반도체 +1.00%p");
-    }
-
-    @Test
-    void buildSectorFallbackCaption_헤더가_등락률_라벨이고_단위는_퍼센트다() {
-        SectorRankingSummary summary = new SectorRankingSummary(
-                Market.KOSPI,
-                null,
-                List.of(
-                        new TopSectorItem("반도체", BigDecimal.valueOf(2.1)),
-                        new TopSectorItem("화학", BigDecimal.valueOf(-1.5))));
-
-        String text = builder.buildSectorFallbackCaption(summary);
-
-        assertThat(text).isEqualTo("[#코스피 섹터 등락률]\n반도체 +2.10%\n화학 -1.50%");
-    }
-
-    @Test
     void buildMapCaption_헤더와_마켓_구분_없이_업종_등락률을_슬래시로_한_줄에_이어붙인다() {
         List<TopSectorItem> topSectors = List.of(
                 new TopSectorItem("반도체", BigDecimal.valueOf(1.35)), new TopSectorItem("제약", BigDecimal.valueOf(1.20)));

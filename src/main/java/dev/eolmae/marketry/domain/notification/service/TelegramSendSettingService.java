@@ -47,9 +47,8 @@ public class TelegramSendSettingService {
     @Transactional
     public TelegramSendSettingResponse update(TelegramSendSettingRequest request) {
         validate(request.sectorSendMinute(), request.sectorSendIntervalMinutes());
-        TelegramSendSetting setting = repository
-                .findById(TelegramSendSetting.SINGLETON_ID)
-                .orElseGet(() -> TelegramSendSetting.create(telegramProperties.mapSendTimes()));
+        TelegramSendSetting setting =
+                repository.findById(TelegramSendSetting.SINGLETON_ID).orElseGet(() -> TelegramSendSetting.create());
         setting.update(request.enabled(), request.sectorSendMinute(), request.sectorSendIntervalMinutes());
         return toResponse(repository.save(setting));
     }
@@ -61,10 +60,7 @@ public class TelegramSendSettingService {
                     sectorSendMinute,
                     sectorSendIntervalMinutes,
                     telegramProperties.beforeMinutes(),
-                    telegramProperties.mapSendTimes(),
-                    collectIntervalMinutes,
-                    startHour,
-                    endHour);
+                    collectIntervalMinutes);
         } catch (IllegalStateException exception) {
             throw new BadRequestException(ErrorCode.TELEGRAM_SEND_SETTING_INVALID, exception, exception.getMessage());
         }
