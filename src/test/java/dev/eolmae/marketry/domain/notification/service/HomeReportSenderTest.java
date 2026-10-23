@@ -1,20 +1,26 @@
 package dev.eolmae.marketry.domain.notification.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.domain.notification.client.TelegramClient;
 import dev.eolmae.marketry.domain.notification.enums.RenderTarget;
+import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
 import dev.eolmae.marketry.domain.renderer.client.ScreenshotClient;
+import dev.eolmae.marketry.domain.renderer.client.ScreenshotClient.CaptureResult;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
@@ -31,7 +37,10 @@ import org.junit.jupiter.api.Test;
 class HomeReportSenderTest {
 
     private static final LocalDateTime DATA_TIME = LocalDateTime.of(2026, 10, 22, 8, 5);
-    private static final byte[] IMAGE = {1, 2, 3};
+    private static final byte[] SUMMARY_IMAGE = {1, 2, 3};
+    private static final byte[] MAP_IMAGE = {4, 5, 6};
+    private static final String ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
+    private static final List<String> ROWS = List.of("{\"name\":\"헬스케어\",\"value\":\"+1.91\"}");
 
     private final ScreenshotClient screenshotClient = mock(ScreenshotClient.class);
     private final TelegramClient telegramClient = mock(TelegramClient.class);
@@ -39,6 +48,7 @@ class HomeReportSenderTest {
     private final TreemapQueryService treemapQueryService = mock(TreemapQueryService.class);
     private final SectorPriceSnapshotService sectorPriceSnapshotService = mock(SectorPriceSnapshotService.class);
     private final MarketTradingScheduleService marketTradingScheduleService = mock(MarketTradingScheduleService.class);
+    private final EscalationPublisher escalationPublisher = mock(EscalationPublisher.class);
     private final TelegramProperties properties = new TelegramProperties(
             "token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true, List.of(LocalTime.of(15, 30)));
     private final HomeReportSender sender = new HomeReportSender(
@@ -48,7 +58,23 @@ class HomeReportSenderTest {
             sectorRankingTextBuilder,
             treemapQueryService,
             sectorPriceSnapshotService,
-            marketTradingScheduleService);
+            marketTradingScheduleService,
+            escalationPublisher);
+
+    private void givenTodaySnapshot() {
+        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
+    }
+
+    private void givenSummaryCapture(List<String> rows) {
+        when(screenshotClient.captureWithRows(
+                        RenderTarget.HOME_MOBILE.path(), RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), rows));
+    }
+
+    private void givenMapCapture() {
+        when(screenshotClient.capture(RenderTarget.MAP_MOBILE.path(), RenderTarget.MAP_MOBILE.selector()))
+                .thenReturn(List.of(MAP_IMAGE));
+    }
 
     @Test
     void 오늘의_공통_스냅샷이_없으면_찍지도_보내지도_않는다() {
@@ -56,8 +82,8 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(screenshotClient, never()).capture(any(), any());
-        verify(telegramClient, never()).sendPhoto(any(), any(), any());
+        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
     @Test
@@ -67,72 +93,112 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(screenshotClient, never()).capture(any(), any());
+        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+    }
+
+    // 이미지에 그려진 그룹 등락률 값으로 캡션을 만들어야 이미지와 숫자가 어긋나지 않는다.
+    @Test
+    void 시장_요약과_시장_지도_두_장을_이미지에서_읽은_값의_캡션과_함께_앨범으로_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("헬스케어 +1.91%\nS7 +1.71%");
+
+        sender.send(DATA_TIME);
+
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91%\nS7 +1.71%");
+        verify(treemapQueryService, never()).getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
     @Test
-    void 홈_3대4_판을_찍고_상위_업종_두_개_캡션과_함께_한_장으로_보낸다() {
-        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
-        when(screenshotClient.capture(RenderTarget.HOME_MOBILE.path(), RenderTarget.HOME_MOBILE.selector()))
-                .thenReturn(List.of(IMAGE));
+    void 이미지에서_값을_못_읽으면_서버_계산_순위로_캡션을_만든다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(List.of());
+        givenMapCapture();
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(List.of(), 2))
+                .thenReturn(null);
         TopSectorItem top = new TopSectorItem("필수소비재", new BigDecimal("-0.38"));
-        TopSectorItem middle = new TopSectorItem("금융", new BigDecimal("-2.07"));
-        TopSectorItem bottom = new TopSectorItem("신규 상장", new BigDecimal("-31.93"));
+        TopSectorItem second = new TopSectorItem("금융", new BigDecimal("-2.07"));
+        TopSectorItem third = new TopSectorItem("신규 상장", new BigDecimal("-31.93"));
         when(treemapQueryService.getMergedSectorRanking(
                         eq(MarketQuery.ALL_STOCK), eq(DATA_TIME), eq(AverageMode.SIMPLE), eq(true), eq(false)))
-                .thenReturn(List.of(top, middle, bottom));
-        when(sectorRankingTextBuilder.buildMapCaption(List.of(top, middle))).thenReturn("캡션");
+                .thenReturn(List.of(top, second, third));
+        when(sectorRankingTextBuilder.buildMapCaption(List.of(top, second))).thenReturn("계산 캡션");
 
         sender.send(DATA_TIME);
 
-        // 랭킹 맨 위 두 업종이 캡션에 들어간다.
-        verify(telegramClient).sendPhoto("chat", IMAGE, "캡션");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "계산 캡션");
     }
 
-    // 프리·애프터 마켓에는 화면이 NXT 종목만 보여 주므로, 캡션도 같은 종목으로 순위를 만들어야 이미지와 숫자가 맞는다.
+    // 프리·애프터 마켓에는 화면이 NXT 종목만 보여 주므로, 서버 계산 캡션도 같은 종목으로 순위를 만든다.
     @Test
-    void NXT_단독_시간대면_NXT_종목만으로_캡션_순위를_만든다() {
-        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
-        when(screenshotClient.capture(any(), any())).thenReturn(List.of(IMAGE));
+    void 서버_계산_캡션은_NXT_단독_시간대면_NXT_종목만으로_순위를_만든다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(List.of());
+        givenMapCapture();
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(any(), eq(2)))
+                .thenReturn(null);
         when(marketTradingScheduleService.isNxtOnly(DATA_TIME)).thenReturn(true);
         TopSectorItem top = new TopSectorItem("헬스케어", new BigDecimal("1.91"));
-        TopSectorItem bottom = new TopSectorItem("에너지화학", new BigDecimal("-3.49"));
+        TopSectorItem second = new TopSectorItem("S7", new BigDecimal("1.71"));
         when(treemapQueryService.getMergedSectorRanking(
                         eq(MarketQuery.ALL_STOCK), eq(DATA_TIME), eq(AverageMode.SIMPLE), eq(true), eq(true)))
-                .thenReturn(List.of(top, bottom));
-        when(sectorRankingTextBuilder.buildMapCaption(List.of(top, bottom))).thenReturn("캡션");
+                .thenReturn(List.of(top, second));
+        when(sectorRankingTextBuilder.buildMapCaption(List.of(top, second))).thenReturn("캡션");
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", IMAGE, "캡션");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
     }
 
     @Test
-    void 순위가_2개_미만이면_캡션만_버리고_이미지는_보낸다() {
-        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
-        when(screenshotClient.capture(any(), any())).thenReturn(List.of(IMAGE));
+    void 읽은_값도_계산_순위도_2개_미만이면_캡션_없이_이미지만_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(List.of());
+        givenMapCapture();
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(any(), eq(2)))
+                .thenReturn(null);
         when(treemapQueryService.getMergedSectorRanking(any(), any(), any(), eq(true), anyBoolean()))
                 .thenReturn(List.of(new TopSectorItem("금융", BigDecimal.ONE)));
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", IMAGE, null);
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), null);
+    }
+
+    // 새로 붙인 시장 지도 캡처가 실패해도 시장 요약은 나가야 한다 — 실패는 개발자 채널로 알린다.
+    @Test
+    void 시장_지도_캡처가_실패하면_시장_요약_한_장만_보내고_에스컬레이션한다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        EscalateException failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+        when(screenshotClient.capture(RenderTarget.MAP_MOBILE.path(), RenderTarget.MAP_MOBILE.selector()))
+                .thenThrow(failure);
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.send(DATA_TIME);
+
+        verify(escalationPublisher).report(failure);
+        verify(telegramClient).sendPhoto("chat", SUMMARY_IMAGE, "캡션");
+        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
     @Test
-    void 캡처가_비어_있으면_에스컬레이션한다() {
-        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
-        when(screenshotClient.capture(any(), any())).thenReturn(List.of());
+    void 시장_요약_캡처가_비어_있으면_에스컬레이션한다() {
+        givenTodaySnapshot();
+        when(screenshotClient.captureWithRows(anyString(), anyString(), anyString()))
+                .thenReturn(new CaptureResult(List.of(), List.of()));
 
         assertThatThrownBy(() -> sender.send(DATA_TIME)).isInstanceOf(EscalateException.class);
-        verify(telegramClient, never()).sendPhoto(any(), any(), any());
+        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
+        verify(telegramClient, never()).sendPhoto(any(), any(), isNull());
     }
 
     @Test
-    void 홈_캡처는_프론트의_3대4_판_주소와_캡처_이름을_쓴다() {
-        org.assertj.core.api.Assertions.assertThat(RenderTarget.HOME_MOBILE.path())
-                .isEqualTo("/home?capture=mobile");
-        org.assertj.core.api.Assertions.assertThat(RenderTarget.HOME_MOBILE.selector())
-                .isEqualTo("[data-captureid='summary-capture']");
+    void 캡처_주소와_캡처_이름은_프론트의_3대4_판과_맞다() {
+        assertThat(RenderTarget.HOME_MOBILE.path()).isEqualTo("/home?capture=mobile");
+        assertThat(RenderTarget.HOME_MOBILE.selector()).isEqualTo("[data-captureid='summary-capture']");
+        assertThat(RenderTarget.MAP_MOBILE.path()).isEqualTo("/map/allstock?capture=mobile");
+        assertThat(RenderTarget.MAP_MOBILE.selector()).isEqualTo("[data-captureid='map-mobile-capture']");
     }
 }

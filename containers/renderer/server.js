@@ -63,9 +63,10 @@ app.get('/health', (req, res) => {
 })
 
 // path: BASE_URL 뒤에 붙일 프론트 경로(쿼리 포함 가능), selector: 캡처할 요소들의 CSS 셀렉터,
-// token: 있으면 이번 캡처에만 소유자 인증 헤더를 실어 보낸다(선택 필드 — 없는 백엔드도 그대로 동작).
+// token: 있으면 이번 캡처에만 소유자 인증 헤더를 실어 보낸다(선택 필드 — 없는 백엔드도 그대로 동작),
+// rowSelector: 있으면 그 요소들의 data-capture-row 값을 이미지와 같은 화면에서 함께 읽어 rows로 돌려준다(선택 필드).
 app.post('/capture', (req, res) => {
-  const { path, selector, token } = req.body
+  const { path, selector, token, rowSelector } = req.body
 
   if (!path || !selector) {
     res.status(400).json({ error: 'path와 selector는 필수입니다' })
@@ -80,7 +81,7 @@ app.post('/capture', (req, res) => {
       error.isQueueTimeout = true
       throw error
     }
-    return handleCapture(path, selector, token)
+    return handleCapture(path, selector, token, rowSelector)
   })
   // 이번 요청이 실패해도 다음 요청이 대기열에서 계속 이어지도록, 체인 자체는 항상 성공으로 막는다.
   queueTail = turn.then(
@@ -89,10 +90,10 @@ app.post('/capture', (req, res) => {
   )
 
   turn.then(
-    (images) => {
+    ({ images, rows }) => {
       onCaptureSucceeded()
       maybeRecycleContext()
-      res.json({ images })
+      res.json({ images, rows })
       exitAfterResponse(res)
     },
     (err) => {
@@ -109,7 +110,7 @@ app.post('/capture', (req, res) => {
   )
 })
 
-async function handleCapture(path, selector, token) {
+async function handleCapture(path, selector, token, rowSelector) {
   const page = await acquirePage()
 
   try {
@@ -138,7 +139,12 @@ async function handleCapture(path, selector, token) {
       images.push({ name: `section-${i}`, data: buffer.toString('base64') })
     }
 
-    return images
+    // 이미지에 그려진 숫자를 그대로 캡션에 쓰도록, 같은 화면에서 행 값을 읽는다. 값이 없는 요소는 뺀다.
+    const rows = rowSelector
+      ? await page.$$eval(rowSelector, (elements) => elements.map((element) => element.getAttribute('data-capture-row')).filter((row) => row !== null))
+      : []
+
+    return { images, rows }
   } finally {
     if (token) {
       // 이 페이지에만 건 라우팅이므로 컨텍스트 전체 쿠키·헤더에는 소유자 인증이 남지 않는다. page.close()가
