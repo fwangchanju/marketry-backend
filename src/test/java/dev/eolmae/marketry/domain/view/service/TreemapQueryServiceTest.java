@@ -1226,7 +1226,7 @@ class TreemapQueryServiceTest {
     }
 
     // 등락률 수집만 실패한 tick이 이 모양이다 — 맵 페이지는 sector_price_snapshot으로 그려져서 멀쩡히
-    // 나오는데 여기는 빈 목록이 된다. 호출부(TreemapAlbumReportSender)가 이걸 "캡처할 마켓이 없다"로
+    // 나오는데 여기는 빈 목록이 된다. 호출부가 이걸 "캡처할 마켓이 없다"로
     // 읽으면 한 장도 안 찍고 에스컬레이션하므로, 빈 목록이 정상 반환이라는 것을 못박아둔다.
     @Test
     void getMergedTopSectorRanking_그_시각_스냅샷이_없으면_빈_목록이다() {

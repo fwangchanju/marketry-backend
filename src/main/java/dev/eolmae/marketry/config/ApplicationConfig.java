@@ -41,7 +41,7 @@ public class ApplicationConfig {
         return new JPAQueryFactory(entityManager);
     }
 
-    /** KrxCrawler 등 나머지 전부가 쓰는 기본 클라이언트. @Qualifier 없이 주입받는 곳은 전부 이 빈이다. */
+    /** 나머지 전부가 쓰는 기본 클라이언트. @Qualifier 없이 주입받는 곳은 전부 이 빈이다. */
     @Bean
     @Primary
     public RestClient restClient() {
@@ -107,7 +107,7 @@ public class ApplicationConfig {
     }
 
     // 웹 직렬화는 Jackson 3(tools.jackson)을 쓰고 이 빈은 Jackson 2(com.fasterxml.jackson)라 웹
-    // 레이어와 무관하다. KrxCrawler/TelegramClient/CustomSectorTreeService가 내부용으로 직접 쓴다.
+    // 레이어와 무관하다. TelegramClient/CustomSectorTreeService가 내부용으로 직접 쓴다.
     @Bean
     public ObjectMapper internalObjectMapper() {
         return new ObjectMapper();
