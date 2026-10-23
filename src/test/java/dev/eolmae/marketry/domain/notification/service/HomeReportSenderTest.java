@@ -113,11 +113,11 @@ class HomeReportSenderTest {
         givenTodaySnapshot();
         givenSummaryCapture(ROWS);
         givenMapCapture();
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("헬스케어 +1.91%\nS7 +1.71%");
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("헬스케어 +1.91% / S7 +1.71%");
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91%\nS7 +1.71%");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91% / S7 +1.71%");
         verify(treemapQueryService, never()).getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
@@ -157,7 +157,41 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션\n#애프터");
+    }
+
+    @Test
+    void 종가로_보내는_메시지는_캡션_아래_줄에_종가_태그를_붙인다() {
+        givenTodaySnapshot();
+        when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.CLOSE));
+        when(screenshotClient.captureWithRows(
+                        "/home?capture=mobile&basis=close", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
+        when(screenshotClient.capture("/map/allstock?capture=mobile&basis=close", RenderTarget.MAP_MOBILE.selector()))
+                .thenReturn(List.of(MAP_IMAGE));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("헬스케어 +1.91% / S7 +1.71%");
+
+        sender.send(DATA_TIME);
+
+        verify(telegramClient)
+                .sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91% / S7 +1.71%\n#종가");
+    }
+
+    @Test
+    void 별도로_보내는_메시지에는_애프터_태그를_붙인다() {
+        givenTodaySnapshot();
+        when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
+        when(screenshotClient.captureWithRows(
+                        "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
+        when(screenshotClient.capture(
+                        "/map/allstock?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
+                .thenReturn(List.of(MAP_IMAGE));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.send(DATA_TIME);
+
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션\n#애프터");
     }
 
     @Test
