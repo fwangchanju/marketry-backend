@@ -19,7 +19,7 @@ public interface CustomStockSectorRepositoryCustom {
      * 달라진다. */
     void deleteAllByIdUserId(Long userId);
 
-    /** 해당 사용자의 종목 분류가 마지막으로 배정·변경된 시각. 배정 행이 하나도 없으면 null. */
+    /** 해당 사용자의 종목 분류가 마지막으로 배정·변경된 시각. 서버가 "신규 상장" 업종에 자동으로 배정한 행은 뺀다. 센 행이 하나도 없으면 null. */
     LocalDateTime findLatestUpdatedAtByUserId(Long userId);
 
     /** 회원 탈퇴 — 한 회원의 종목 배정을 모두 지운다. 업종보다 먼저 지워야 FK를 어기지 않는다. */

@@ -676,10 +676,7 @@ public class TreemapQueryService {
 
     private LocalDateTime findLatestCustomDataUpdatedAt(Long userId) {
         LocalDateTime assignmentUpdatedAt = customStockSectorRepository.findLatestUpdatedAtByUserId(userId);
-        LocalDateTime sectorUpdatedAt = customSectorRepository
-                .findFirstByUserIdOrderByUpdatedAtDesc(userId)
-                .map(CustomSector::getUpdatedAt)
-                .orElse(null);
+        LocalDateTime sectorUpdatedAt = customSectorRepository.findLatestEditedAtByUserId(userId);
         if (assignmentUpdatedAt == null) {
             return sectorUpdatedAt;
         }

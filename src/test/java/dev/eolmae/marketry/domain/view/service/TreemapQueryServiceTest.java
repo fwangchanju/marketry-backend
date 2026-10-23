@@ -206,8 +206,8 @@ class TreemapQueryServiceTest {
                 .thenReturn(Optional.of(sectorUpdatedAt));
         when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(assignmentUpdatedAt);
-        when(treemapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
-                .thenReturn(Optional.of(ownerSector));
+        when(treemapSectorRepository.findLatestEditedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+                .thenReturn(sectorUpdatedAt);
 
         assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
@@ -237,8 +237,8 @@ class TreemapQueryServiceTest {
                 .thenReturn(Optional.of(restoredDataUpdatedAt));
         when(treemapSectorRepository.findFirstByUserIdOrderByIdAsc(PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(liveSector));
-        when(treemapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
-                .thenReturn(Optional.of(liveSector));
+        when(treemapSectorRepository.findLatestEditedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+                .thenReturn(restoredDataUpdatedAt);
         when(customSnapshotRepository.findByIdAndUserId(7L, PUBLISHED_PROPERTY_USER_ID))
                 .thenReturn(Optional.of(version));
 
@@ -256,8 +256,8 @@ class TreemapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(sectorUpdatedAt));
-        when(treemapSectorRepository.findFirstByUserIdOrderByUpdatedAtDesc(PUBLISHED_PROPERTY_USER_ID))
-                .thenReturn(Optional.of(ownerSector));
+        when(treemapSectorRepository.findLatestEditedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+                .thenReturn(sectorUpdatedAt);
 
         assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
                         .taxonomyUpdatedAt())
