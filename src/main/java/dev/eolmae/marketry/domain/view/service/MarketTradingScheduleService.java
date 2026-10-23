@@ -10,6 +10,7 @@ import dev.eolmae.marketry.domain.stock.service.MarketCalendarService;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse.TimeWindow;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,29 @@ public class MarketTradingScheduleService {
                 createSessionWindow(sessions.regularMarket()),
                 afterWindow,
                 createNxtOnlyWindows(sessions));
+    }
+
+    /**
+     * time이 NXT 단독 시간대인가 — 화면이 NXT 거래 종목만 보여 주는 때와 같은 기준이다. 서버가 주는 단독 구간 안이면 참이고, 오전 구간은 안내와 필터가 정규장 개장까지
+     * 이어지므로 끝을 정규장 시작으로 늘린다. 거래일이 아니거나 시간표가 없으면 거짓이다.
+     */
+    public boolean isNxtOnly(LocalDateTime time) {
+        MarketTradingScheduleResponse schedule = getTradingSchedule(time.toLocalDate());
+        if (schedule.status() != MarketCalendarStatus.TRADING_DAY) {
+            return false;
+        }
+        for (TimeWindow window : schedule.nxtOnlyWindows()) {
+            LocalDateTime end = window.endTime();
+            boolean isMorning = schedule.preMarket() != null
+                    && window.startTime().equals(schedule.preMarket().startTime());
+            if (isMorning && schedule.regularMarket() != null) {
+                end = schedule.regularMarket().startTime();
+            }
+            if (time.isBefore(window.startTime()) == false && time.isBefore(end)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private List<TimeWindow> createNxtOnlyWindows(IntegratedSessions sessions) {

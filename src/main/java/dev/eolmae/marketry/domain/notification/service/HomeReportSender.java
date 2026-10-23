@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.renderer.client.ScreenshotClient;
 import dev.eolmae.marketry.domain.stock.service.SectorPriceSnapshotService;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
+import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
 import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,6 +33,7 @@ public class HomeReportSender {
     private final SectorRankingTextBuilder sectorRankingTextBuilder;
     private final TreemapQueryService treemapQueryService;
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
+    private final MarketTradingScheduleService marketTradingScheduleService;
 
     public void send(LocalDateTime dataTime) {
         if (sectorPriceSnapshotService
@@ -56,8 +58,13 @@ public class HomeReportSender {
      * 상위는 등락률이 가장 높은 그룹, 하위는 가장 낮은 그룹이고, 그룹이 하나뿐이면 둘이 같은 그룹이라 캡션을 만들지 않는다.
      */
     private String buildCaption(LocalDateTime dataTime) {
+        // NXT 단독 시간대(프리·애프터 마켓)에는 화면이 NXT 거래 종목만 보여 주므로 캡션도 같은 종목으로 계산해야 이미지와 숫자가 맞는다.
         List<TopSectorItem> ranking = treemapQueryService.getMergedSectorRanking(
-                HOME_MARKETS, dataTime, telegramProperties.averageMode(), telegramProperties.sectorFilter());
+                HOME_MARKETS,
+                dataTime,
+                telegramProperties.averageMode(),
+                telegramProperties.sectorFilter(),
+                marketTradingScheduleService.isNxtOnly(dataTime));
         if (ranking.size() < 2) {
             log.warn("{} 시각 병합 섹터 랭킹이 2개 미만이라 홈 캡션 없이 발송", dataTime);
             return null;
