@@ -426,10 +426,20 @@ public class TreemapQueryService {
      */
     public List<TopSectorItem> getMergedSectorRanking(
             MarketQuery marketQuery, LocalDateTime snapshotTime, AverageMode averageMode, boolean sectorFilter) {
+        return getMergedSectorRanking(marketQuery, snapshotTime, averageMode, sectorFilter, false);
+    }
+
+    /** nxtOnly는 NXT 단독 시간대에 화면이 NXT 거래 종목만 보여 주는 것과 같은 기준이다. */
+    public List<TopSectorItem> getMergedSectorRanking(
+            MarketQuery marketQuery,
+            LocalDateTime snapshotTime,
+            AverageMode averageMode,
+            boolean sectorFilter,
+            boolean nxtOnly) {
         List<Market> markets = marketQuery.toMarkets();
         // 화면은 제외한 업종(하위 업종 포함)의 종목을 평균에서 뺀다. 순위도 같은 기준이어야 이미지와 캡션 숫자가 맞아서, 켜져 있으면 트리에서 먼저 뺀다.
         List<Map<Long, List<SectorTierBreakdown>>> breakdownsByMarket = markets.stream()
-                .map(market -> getCustomTreemapTree(market, snapshotTime))
+                .map(market -> getCustomTreemapTree(market, snapshotTime, nxtOnly))
                 .map(tree -> sectorFilter ? withoutExcludedSectors(tree) : tree)
                 .map(sectorTierAggregationService::aggregateBySector)
                 .toList();
@@ -603,10 +613,15 @@ public class TreemapQueryService {
      * snapshotTime에 데이터가 없으면 빈 트리를 반환해서 호출부가 그 마켓을 결과에서 빼도록 한다.
      */
     public List<TreemapSectorNode> getCustomTreemapTree(Market market, LocalDateTime snapshotTime) {
+        return getCustomTreemapTree(market, snapshotTime, false);
+    }
+
+    /** nxtOnly면 NXT 거래 가능 종목만 담는다 — NXT 단독 시간대에 화면이 보여 주는 종목 구성과 같다. */
+    public List<TreemapSectorNode> getCustomTreemapTree(Market market, LocalDateTime snapshotTime, boolean nxtOnly) {
         if (sectorPriceSnapshotService.notExistsSnapshot(market, snapshotTime)) {
             return List.of();
         }
-        return buildSectorTree(List.of(market), snapshotTime, customDataUserId(), false, ChangeRateMode.DAILY);
+        return buildSectorTree(List.of(market), snapshotTime, customDataUserId(), nxtOnly, ChangeRateMode.DAILY);
     }
 
     private TreemapResponse buildCustomTreemap(

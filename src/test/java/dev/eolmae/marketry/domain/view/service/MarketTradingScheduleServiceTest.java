@@ -13,6 +13,7 @@ import dev.eolmae.marketry.domain.stock.service.MarketCalendarService;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse.TimeWindow;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -39,6 +40,34 @@ class MarketTradingScheduleServiceTest {
         assertThat(response.regularMarket()).isEqualTo(window(9, 0, 15, 30));
         assertThat(response.afterMarket()).isEqualTo(window(15, 40, 20, 0));
         assertThat(response.nxtOnlyWindows()).containsExactly(window(8, 0, 8, 50), window(15, 40, 16, 0));
+    }
+
+    // 화면이 NXT 종목만 보여 주는 때와 같은 기준이어야 발송 캡션과 이미지 숫자가 맞는다 — 오전 구간은 정규장 개장(09:00)까지 이어진다.
+    @Test
+    void 프리장과_애프터_NXT_단독_구간에서만_NXT_단독이다() {
+        saveTrading(new IntegratedSessions(
+                session(time(8, 0), time(8, 50), null, time(9, 0)),
+                session(time(9, 0), time(15, 20), null, time(15, 30)),
+                session(time(15, 30), null, time(15, 40), time(20, 0))));
+
+        assertThat(service.isNxtOnly(at(7, 59))).isFalse();
+        assertThat(service.isNxtOnly(at(8, 0))).isTrue();
+        assertThat(service.isNxtOnly(at(8, 55))).isTrue();
+        assertThat(service.isNxtOnly(at(9, 0))).isFalse();
+        assertThat(service.isNxtOnly(at(12, 0))).isFalse();
+        assertThat(service.isNxtOnly(at(15, 39))).isFalse();
+        assertThat(service.isNxtOnly(at(15, 40))).isTrue();
+        assertThat(service.isNxtOnly(at(15, 59))).isTrue();
+        assertThat(service.isNxtOnly(at(16, 0))).isFalse();
+        assertThat(service.isNxtOnly(at(19, 0))).isFalse();
+    }
+
+    @Test
+    void 거래일이_아니면_NXT_단독이_아니다() {
+        when(calendarService.findByCountryAndDate(Country.KR, DATE))
+                .thenReturn(Optional.of(MarketCalendar.create(Country.KR, DATE, MarketCalendarStatus.HOLIDAY, null)));
+
+        assertThat(service.isNxtOnly(at(8, 30))).isFalse();
     }
 
     @Test
@@ -140,5 +169,9 @@ class MarketTradingScheduleServiceTest {
 
     private TimeWindow window(int startHour, int startMinute, int endHour, int endMinute) {
         return new TimeWindow(DATE.atTime(startHour, startMinute), DATE.atTime(endHour, endMinute));
+    }
+
+    private LocalDateTime at(int hour, int minute) {
+        return DATE.atTime(hour, minute);
     }
 }

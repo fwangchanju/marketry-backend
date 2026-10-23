@@ -1337,6 +1337,52 @@ class TreemapQueryServiceTest {
         assertThat(unfiltered.get(0).changeRate()).isGreaterThan(BigDecimal.valueOf(23));
     }
 
+    // NXT 단독 시간대(프리·애프터 마켓)에는 화면이 NXT 종목만 보여 준다. 발송 순위도 같은 종목으로 만들어야 이미지와 캡션 숫자가 맞는다.
+    @Test
+    void getMergedSectorRanking_NXT_단독이면_NXT_종목만으로_평균을_낸다() {
+        LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 15, 50);
+        CustomSector semiconductor = sector(1L, null, "반도체");
+        CustomSector chemistry = sector(2L, null, "화학");
+        StockInfo nxtKospi = stock("P1", Market.KOSPI);
+        ReflectionTestUtils.setField(nxtKospi, "nxtEnabled", true);
+        StockInfo nxtKosdaq = stock("P2", Market.KOSDAQ);
+        ReflectionTestUtils.setField(nxtKosdaq, "nxtEnabled", true);
+        StockInfo chemistryKospi = stock("C1", Market.KOSPI);
+        ReflectionTestUtils.setField(chemistryKospi, "nxtEnabled", true);
+        StockInfo chemistryKosdaq = stock("C2", Market.KOSDAQ);
+        ReflectionTestUtils.setField(chemistryKosdaq, "nxtEnabled", true);
+        stubSectorTree(
+                List.of(semiconductor, chemistry),
+                List.of(
+                        CustomStockSector.create(LEGACY_OWNER_ID, "P1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "P2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "P3", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "C2", 2L)));
+        stubStockCache(nxtKospi, nxtKosdaq, stock("P3", Market.KOSPI), chemistryKospi, chemistryKosdaq);
+        stubPrices(
+                Market.KOSPI,
+                snapshotTime,
+                price("P1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(4)),
+                price("P3", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(80)),
+                price("C1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.ONE));
+        stubPrices(
+                Market.KOSDAQ,
+                snapshotTime,
+                price("P2", Market.KOSDAQ, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(4)),
+                price("C2", Market.KOSDAQ, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.ONE));
+
+        List<TopSectorItem> nxtOnly =
+                service.getMergedSectorRanking(MarketQuery.ALL_STOCK, snapshotTime, AverageMode.WEIGHTED, false, true);
+        List<TopSectorItem> all =
+                service.getMergedSectorRanking(MarketQuery.ALL_STOCK, snapshotTime, AverageMode.WEIGHTED, false, false);
+
+        // NXT 종목만: 반도체 (4+4)/2=+4%. 전체 종목: (4+4+80)/3=+29.33%라 순위도 값도 달라진다.
+        assertThat(nxtOnly.get(0).sectorName()).isEqualTo("반도체");
+        assertThat(nxtOnly.get(0).changeRate()).isEqualByComparingTo(BigDecimal.valueOf(4));
+        assertThat(all.get(0).changeRate()).isGreaterThan(BigDecimal.valueOf(29));
+    }
+
     // 가중평균과 산술평균이 실제로 다른 값이 나오는 것을 보여준다 — 종목 하나짜리 픽스처는 itemCount가
     // 항상 1이라 두 평균이 우연히 같아서 이 분기를 검증하지 못한다.
     @Test
