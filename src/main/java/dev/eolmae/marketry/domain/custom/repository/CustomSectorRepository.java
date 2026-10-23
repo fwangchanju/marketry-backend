@@ -8,15 +8,13 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface CustomSectorRepository extends JpaRepository<CustomSector, Long> {
+public interface CustomSectorRepository extends JpaRepository<CustomSector, Long>, CustomSectorRepositoryCustom {
 
     List<CustomSector> findAllByUserId(Long userId);
 
     List<CustomSector> findByUserIdAndParentId(Long userId, Long parentId);
 
     Optional<CustomSector> findFirstByUserIdOrderByIdAsc(Long userId);
-
-    Optional<CustomSector> findFirstByUserIdOrderByUpdatedAtDesc(Long userId);
 
     Optional<CustomSector> findByIdAndUserId(Long id, Long userId);
 
