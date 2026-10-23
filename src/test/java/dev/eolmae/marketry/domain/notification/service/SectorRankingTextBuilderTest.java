@@ -117,7 +117,7 @@ class SectorRankingTextBuilderTest {
 
         String text = builder.buildMapCaption(topSectors);
 
-        assertThat(text).isEqualTo("[그룹 등락률]\n반도체 +1.35%\n제약 +1.20%");
+        assertThat(text).isEqualTo("[시장 요약]\n반도체 +1.35%\n제약 +1.20%");
     }
 
     @Test
@@ -126,7 +126,7 @@ class SectorRankingTextBuilderTest {
                 new TopSectorItem("필수소비재", new BigDecimal("-0.384")),
                 new TopSectorItem("신규 상장", new BigDecimal("-31.93")));
 
-        assertThat(text).isEqualTo("[그룹 등락률]\n상위: 필수소비재 -0.38%\n하위: 신규 상장 -31.93%");
+        assertThat(text).isEqualTo("[시장 요약]\n상위: 필수소비재 -0.38%\n하위: 신규 상장 -31.93%");
     }
 
     @Test
@@ -134,6 +134,6 @@ class SectorRankingTextBuilderTest {
         String text = builder.buildHomeCaption(
                 new TopSectorItem("반도체", new BigDecimal("2.1")), new TopSectorItem("화학", new BigDecimal("-1.5")));
 
-        assertThat(text).isEqualTo("[그룹 등락률]\n상위: 반도체 +2.10%\n하위: 화학 -1.50%");
+        assertThat(text).isEqualTo("[시장 요약]\n상위: 반도체 +2.10%\n하위: 화학 -1.50%");
     }
 }

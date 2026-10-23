@@ -41,7 +41,7 @@ class TelegramPropertiesBindingTest {
             assertThat(properties.sendMinute()).isEqualTo(5);
             assertThat(properties.sendIntervalMinutes()).isEqualTo(30);
             assertThat(properties.beforeMinutes()).isEqualTo(15);
-            assertThat(properties.averageMode()).isEqualTo(AverageMode.SIMPLE);
+            assertThat(properties.averageMode()).isEqualTo(AverageMode.WEIGHTED);
             assertThat(properties.sectorFilter()).isTrue();
             assertThat(properties.mapSendTimes())
                     .containsExactly(LocalTime.of(8, 15), LocalTime.of(9, 15), LocalTime.of(15, 30));

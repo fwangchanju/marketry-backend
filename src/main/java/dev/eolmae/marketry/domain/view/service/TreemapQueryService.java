@@ -427,9 +427,11 @@ public class TreemapQueryService {
     public List<TopSectorItem> getMergedSectorRanking(
             MarketQuery marketQuery, LocalDateTime snapshotTime, AverageMode averageMode, boolean sectorFilter) {
         List<Market> markets = marketQuery.toMarkets();
+        // 화면은 제외한 업종(하위 업종 포함)의 종목을 평균에서 뺀다. 순위도 같은 기준이어야 이미지와 캡션 숫자가 맞아서, 켜져 있으면 트리에서 먼저 뺀다.
         List<Map<Long, List<SectorTierBreakdown>>> breakdownsByMarket = markets.stream()
-                .map(market ->
-                        sectorTierAggregationService.aggregateBySector(getCustomTreemapTree(market, snapshotTime)))
+                .map(market -> getCustomTreemapTree(market, snapshotTime))
+                .map(tree -> sectorFilter ? withoutExcludedSectors(tree) : tree)
+                .map(sectorTierAggregationService::aggregateBySector)
                 .toList();
         // 결정 2 — 요청한 마켓 중 하나라도 합산 결과가 비면 빈 목록을 돌려준다. 한 마켓만 수집에
         // 실패해도 나머지 마켓만으로 TOP2를 뽑으면, 지도 이미지는 markets 전체 기준인데 캡션은 일부
@@ -452,11 +454,23 @@ public class TreemapQueryService {
         return mergedBySectorId.entrySet().stream()
                 .filter(entry -> sectorById.containsKey(entry.getKey()))
                 .filter(entry -> sectorById.get(entry.getKey()).getDepth() == 0)
-                .filter(entry -> isSectorIncluded(entry.getKey(), sectorFilter, sectorById))
                 .map(entry -> toTopSectorItemByChangeRate(
                         sectorById.get(entry.getKey()).getName(), entry.getValue(), excludedTierIds, averageMode))
                 .filter(Objects::nonNull)
                 .sorted(Comparator.comparing(TopSectorItem::changeRate).reversed())
+                .toList();
+    }
+
+    private List<TreemapSectorNode> withoutExcludedSectors(List<TreemapSectorNode> nodes) {
+        return nodes.stream()
+                .filter(node -> !node.isExcluded())
+                .map(node -> new TreemapSectorNode(
+                        node.sectorId(),
+                        node.sectorName(),
+                        node.isExcluded(),
+                        node.totalMarketValue(),
+                        withoutExcludedSectors(node.children()),
+                        node.items()))
                 .toList();
     }
 
