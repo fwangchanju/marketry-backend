@@ -1256,8 +1256,7 @@ class TreemapQueryServiceTest {
                 .isEmpty();
     }
 
-    // 맵 앨범 캡션(getMergedTopSectorRanking)에서도 섹터 제외 on/off로 TOP2가 달라진다 — 지시서 결정
-    // 3이 고치는 두 캡션 경로(섹터/맵) 중 나머지 하나.
+    // 맵 앨범 캡션(getMergedTopSectorRanking)에서도 섹터 제외 on/off로 TOP2가 달라진다.
     @Test
     void getMergedTopSectorRanking_섹터_제외를_켜면_isExcluded_섹터가_빠진다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);

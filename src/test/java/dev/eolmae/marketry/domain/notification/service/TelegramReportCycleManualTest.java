@@ -54,8 +54,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  *   <li>sendsSector: 마켓별 섹터 이미지 한 장 + 캡션 한 개씩. 08:10 첫 발송처럼 before가 없으면
  *       등락률 폴백 캡션
  *   <li>sendsAll: 섹터 뒤에 맵. 메시지 순서가 스케줄러가 둘 다 due일 때와 같다
- *   <li>sendsMapAllStockOnePage: /map/allstock 한 장 + 병합 랭킹 캡션. 프론트 PR #59가 배포돼 있어야
- *       그 라우트가 있다. 그 전이면 /market-map 폴백으로 코스피 지도가 찍힌다
+ *   <li>sendsMapAllStockOnePage: /map/allstock 한 장 + 병합 랭킹 캡션. 프론트에 그 라우트가 배포돼 있어야 한다
  *   <li>테스트가 도는 동안 앱 로그에 "장중 시장 데이터 수집 시작"이 찍히지 않는다
  *   <li>실제 채팅방(TELEGRAM_CHAT_ID)으로 나간다. 테스트 발송이면 env 파일의 값을 DEVELOPER_CHAT_ID로
  *       바꿔 돌린다

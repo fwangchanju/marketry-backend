@@ -19,7 +19,7 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * DevLoginController(로컬 개발 전용 로그인)는 IP 화이트리스트 인증 브릿지(PR #132에서 제거)를 대체하므로
+ * DevLoginController(로컬 개발 전용 로그인)는 IP 화이트리스트 인증 브릿지를 대체하므로
  * 운영 환경에 절대 떠서는 안 된다. 가드가 둘이다: {@code @Profile("!prod")}와
  * {@code auth.dev-login.enabled=true}(기본 application.properties에서 true로 고정, prod는
  * application-prod.properties가 false로 덮어씀). 이 둘이 실제로 독립적으로 작동하는지 빈 등록 여부로
