@@ -111,13 +111,13 @@ class SectorRankingTextBuilderTest {
     }
 
     @Test
-    void buildMapCaption_헤더와_마켓_구분_없이_업종_등락률_한_줄씩_이어붙인다() {
+    void buildMapCaption_헤더와_마켓_구분_없이_업종_등락률을_슬래시로_한_줄에_이어붙인다() {
         List<TopSectorItem> topSectors = List.of(
                 new TopSectorItem("반도체", BigDecimal.valueOf(1.35)), new TopSectorItem("제약", BigDecimal.valueOf(1.20)));
 
         String text = builder.buildMapCaption(topSectors);
 
-        assertThat(text).isEqualTo("반도체 +1.35%\n제약 +1.20%");
+        assertThat(text).isEqualTo("반도체 +1.35% / 제약 +1.20%");
     }
 
     @Test
@@ -131,7 +131,7 @@ class SectorRankingTextBuilderTest {
         String text = builder.buildCaptionFromRenderedRows(rows, 2);
 
         // 이미지에 적힌 숫자 그대로(+1.91)이고 등락률이 가장 높은 두 업종이다.
-        assertThat(text).isEqualTo("헬스케어 +1.91%\nS7 +1.71%");
+        assertThat(text).isEqualTo("헬스케어 +1.91% / S7 +1.71%");
     }
 
     @Test
@@ -141,7 +141,7 @@ class SectorRankingTextBuilderTest {
                 "{\"name\":\"필수소비재\",\"value\":\"-0.38\"}",
                 "{\"name\":\"헬스케어\",\"value\":\"-2.91\"}");
 
-        assertThat(builder.buildCaptionFromRenderedRows(rows, 2)).isEqualTo("필수소비재 -0.38%\n금융 -2.07%");
+        assertThat(builder.buildCaptionFromRenderedRows(rows, 2)).isEqualTo("필수소비재 -0.38% / 금융 -2.07%");
     }
 
     @Test

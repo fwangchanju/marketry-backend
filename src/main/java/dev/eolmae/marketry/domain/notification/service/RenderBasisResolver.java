@@ -1,32 +1,30 @@
 package dev.eolmae.marketry.domain.notification.service;
 
 import dev.eolmae.marketry.domain.notification.enums.RenderBasis;
-import dev.eolmae.marketry.domain.stock.enums.MarketCalendarStatus;
-import dev.eolmae.marketry.domain.view.dto.MarketTradingScheduleResponse;
-import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
+import dev.eolmae.marketry.domain.stock.service.CalendarDayTimes;
+import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-// 발송 시각에 맞는 등락률 기준을 고른다 — 정규장 마감부터 애프터 마켓 시작 전까지는 종가, 애프터 마켓 시작부터는 별도, 그 전에는 기준을 주지 않는다(누적).
+// 발송 시각에 맞는 등락률 기준을 고른다 — 정규장 마감(종가 구간 시작)부터 애프터 마켓 시작 전까지는 종가, 애프터 마켓 시작부터는 별도, 그 전에는 기준을 주지 않는다(누적).
+// 수집·종가 기준가를 정하는 마감 구간 계산(MarketCalendarTimeService)을 그대로 쓴다. 거래소 시간표가 없거나 실패한 날에도 설정의 기본 시각(15:30·15:40)으로 대신한다.
 @Component
 @RequiredArgsConstructor
 public class RenderBasisResolver {
 
-    private final MarketTradingScheduleService marketTradingScheduleService;
+    private final MarketCalendarTimeService marketCalendarTimeService;
 
     public Optional<RenderBasis> resolve(LocalDateTime time) {
-        MarketTradingScheduleResponse schedule = marketTradingScheduleService.getTradingSchedule(time.toLocalDate());
-        if (schedule.status() != MarketCalendarStatus.TRADING_DAY
-                || schedule.regularMarket() == null
-                || schedule.afterMarket() == null) {
+        CalendarDayTimes day = marketCalendarTimeService.resolve(time.toLocalDate());
+        if (day.holiday()) {
             return Optional.empty();
         }
-        if (time.isBefore(schedule.afterMarket().startTime()) == false) {
+        if (time.isBefore(day.closingWindowEnd()) == false) {
             return Optional.of(RenderBasis.AFTER_HOURS);
         }
-        if (time.isBefore(schedule.regularMarket().endTime()) == false) {
+        if (time.isBefore(day.closingWindowStart()) == false) {
             return Optional.of(RenderBasis.CLOSE);
         }
         return Optional.empty();
