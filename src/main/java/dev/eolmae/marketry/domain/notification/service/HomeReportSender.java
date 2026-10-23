@@ -3,6 +3,7 @@ package dev.eolmae.marketry.domain.notification.service;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.domain.notification.client.TelegramClient;
+import dev.eolmae.marketry.domain.notification.enums.RenderBasis;
 import dev.eolmae.marketry.domain.notification.enums.RenderTarget;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
@@ -15,6 +16,7 @@ import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
 import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -41,6 +43,7 @@ public class HomeReportSender {
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
     private final MarketTradingScheduleService marketTradingScheduleService;
     private final EscalationPublisher escalationPublisher;
+    private final RenderBasisResolver renderBasisResolver;
 
     public void send(LocalDateTime dataTime) {
         if (sectorPriceSnapshotService
@@ -50,8 +53,10 @@ public class HomeReportSender {
             log.warn("[홈리포트] 오늘의 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
             return;
         }
+        // 두 이미지 모두 발송 시각에 맞는 등락률 기준(종가·별도)으로 찍는다.
+        Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
         CaptureResult summary = screenshotClient.captureWithRows(
-                RenderTarget.HOME_MOBILE.path(), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
+                RenderTarget.HOME_MOBILE.path(basis), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
         if (summary.images().isEmpty()) {
             throw new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
         }
@@ -61,7 +66,7 @@ public class HomeReportSender {
             caption = buildCaption(dataTime);
         }
 
-        List<byte[]> mapImages = captureMapImages();
+        List<byte[]> mapImages = captureMapImages(basis);
         if (mapImages.isEmpty()) {
             telegramClient.sendPhoto(
                     telegramProperties.chatId(), summary.images().get(0), caption);
@@ -74,9 +79,9 @@ public class HomeReportSender {
     }
 
     // 시장 지도 캡처가 실패해도 시장 요약은 보낸다 — 실패는 개발자 채널로 알리고 이미지 한 장으로 발송한다.
-    private List<byte[]> captureMapImages() {
+    private List<byte[]> captureMapImages(Optional<RenderBasis> basis) {
         try {
-            return screenshotClient.capture(RenderTarget.MAP_MOBILE.path(), RenderTarget.MAP_MOBILE.selector());
+            return screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
         } catch (EscalateException e) {
             escalationPublisher.report(e);
             return List.of();
