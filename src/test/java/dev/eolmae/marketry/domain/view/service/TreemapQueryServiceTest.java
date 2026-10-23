@@ -1292,6 +1292,51 @@ class TreemapQueryServiceTest {
         assertThat(unfiltered).extracting(TopSectorItem::sectorName).containsExactlyInAnyOrder("반도체", "화학");
     }
 
+    // 화면은 제외한 하위 업종의 종목을 상위 업종 평균에서 뺀다. 발송 순위도 같은 기준이어야 이미지와 캡션 숫자가 맞는다.
+    @Test
+    void getMergedSectorRanking_섹터_제외를_켜면_제외한_하위_업종의_종목은_상위_업종_평균에서_빠진다() {
+        LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
+        CustomSector parent = sector(1L, null, "반도체");
+        CustomSector excludedChild = sector(3L, 1L, "소부장");
+        excludedChild.exclude();
+        CustomSector other = sector(2L, null, "화학");
+        stubSectorTree(
+                List.of(parent, excludedChild, other),
+                List.of(
+                        CustomStockSector.create(LEGACY_OWNER_ID, "P1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "P2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 3L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "B1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, "B2", 2L)));
+        stubStockCache(
+                stock("P1", Market.KOSPI),
+                stock("P2", Market.KOSDAQ),
+                stock("C1", Market.KOSPI),
+                stock("B1", Market.KOSPI),
+                stock("B2", Market.KOSDAQ));
+        stubPrices(
+                Market.KOSPI,
+                snapshotTime,
+                price("P1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.TEN),
+                price("C1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(50)),
+                price("B1", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(5)));
+        stubPrices(
+                Market.KOSDAQ,
+                snapshotTime,
+                price("P2", Market.KOSDAQ, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.TEN),
+                price("B2", Market.KOSDAQ, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(5)));
+
+        List<TopSectorItem> filtered =
+                service.getMergedSectorRanking(MarketQuery.ALL_STOCK, snapshotTime, AverageMode.WEIGHTED, true);
+        List<TopSectorItem> unfiltered =
+                service.getMergedSectorRanking(MarketQuery.ALL_STOCK, snapshotTime, AverageMode.WEIGHTED, false);
+
+        // 제외 on: 소부장(+50%)을 빼고 반도체는 (10+10)/2=+10%. 제외 off: (10+10+50)/3=+23.33%.
+        assertThat(filtered.get(0).sectorName()).isEqualTo("반도체");
+        assertThat(filtered.get(0).changeRate()).isEqualByComparingTo(BigDecimal.TEN);
+        assertThat(unfiltered.get(0).changeRate()).isGreaterThan(BigDecimal.valueOf(23));
+    }
+
     // 가중평균과 산술평균이 실제로 다른 값이 나오는 것을 보여준다 — 종목 하나짜리 픽스처는 itemCount가
     // 항상 1이라 두 평균이 우연히 같아서 이 분기를 검증하지 못한다.
     @Test
