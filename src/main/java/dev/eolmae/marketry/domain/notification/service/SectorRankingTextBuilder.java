@@ -1,11 +1,14 @@
 package dev.eolmae.marketry.domain.notification.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.eolmae.marketry.common.enums.Market;
 import dev.eolmae.marketry.common.util.MarketLabels;
 import dev.eolmae.marketry.domain.view.dto.SectorRankingSummary;
 import dev.eolmae.marketry.domain.view.dto.TopSectorItem;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -14,6 +17,8 @@ import org.springframework.stereotype.Component;
 // 끝낸 뒤 넘겨주므로, 여기는 헤더 조립과 퍼센트 포맷만 한다. 조회 의존성은 없다.
 @Component
 public class SectorRankingTextBuilder {
+
+    private static final ObjectMapper ROW_MAPPER = new ObjectMapper();
 
     /** summaries가 담고 있는 마켓 각각을 "#코스피 +x.xx%\n섹터 +x.xx%\n\n#코스닥 +x.xx%\n.." 형태로
      * 이어붙인다(헤더 옆 퍼센트는 그 마켓 지수의 등락률). 데이터 없는 마켓은 summaries에 이미 없는 상태라
@@ -58,6 +63,37 @@ public class SectorRankingTextBuilder {
     public String buildMapCaption(List<TopSectorItem> topSectors) {
         return topSectors.stream().map(this::formatTopSectorChangeRate).collect(Collectors.joining("\n"));
     }
+
+    /** 이미지에 그려진 그룹 등락률 막대의 값(렌더러가 같은 화면에서 읽은 행 JSON: {"name":"헬스케어","value":"+1.91"})으로 캡션을 만든다 —
+     * 이미지와 숫자가 어긋날 수 없다. 등락률이 가장 높은 상위 count개를 "업종 등락률" 한 줄씩 잇는다. 행이 count개보다 적거나
+     * 읽을 수 없는 값이 있으면 null이라 호출부가 서버 계산 캡션으로 넘어간다. */
+    public String buildCaptionFromRenderedRows(List<String> rows, int count) {
+        try {
+            List<RenderedRow> parsed = rows.stream().map(this::parseRow).toList();
+            if (parsed.size() < count) {
+                return null;
+            }
+            return parsed.stream()
+                    .sorted(Comparator.comparing(RenderedRow::value).reversed())
+                    .limit(count)
+                    .map(row -> row.name() + " " + row.valueLabel() + "%")
+                    .collect(Collectors.joining("\n"));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private RenderedRow parseRow(String json) {
+        try {
+            JsonNode node = ROW_MAPPER.readTree(json);
+            String label = node.get("value").asText();
+            return new RenderedRow(node.get("name").asText(), label, new BigDecimal(label));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("읽을 수 없는 행: " + json, e);
+        }
+    }
+
+    private record RenderedRow(String name, String valueLabel, BigDecimal value) {}
 
     // TopSectorItem.changeRate는 "N분 전 대비 변화"라 단위가 %가 아니라 %p다.
     private String formatTopSectorDelta(TopSectorItem top) {
