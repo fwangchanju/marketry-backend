@@ -3,6 +3,7 @@ package dev.eolmae.marketry.domain.notification.enums;
 import dev.eolmae.marketry.common.enums.Market;
 import dev.eolmae.marketry.domain.view.enums.MarketQuery;
 import java.util.Locale;
+import java.util.Optional;
 
 // 캡처할 프론트 페이지와 그 안에서 스크린샷 찍을 영역(data-captureid, 프론트와 값 합의)
 public enum RenderTarget {
@@ -26,6 +27,11 @@ public enum RenderTarget {
 
     public String path() {
         return path;
+    }
+
+    // 등락률 기준을 주소에 붙인다. 기준 지정은 프론트의 capture=mobile 판만 읽으므로 그 두 대상에만 쓴다.
+    public String path(Optional<RenderBasis> basis) {
+        return basis.map(value -> path + "&basis=" + value.queryValue()).orElse(path);
     }
 
     public String selector() {

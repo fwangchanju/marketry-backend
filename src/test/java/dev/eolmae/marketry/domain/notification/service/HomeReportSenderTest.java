@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.domain.notification.client.TelegramClient;
+import dev.eolmae.marketry.domain.notification.enums.RenderBasis;
 import dev.eolmae.marketry.domain.notification.enums.RenderTarget;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
@@ -49,6 +50,7 @@ class HomeReportSenderTest {
     private final SectorPriceSnapshotService sectorPriceSnapshotService = mock(SectorPriceSnapshotService.class);
     private final MarketTradingScheduleService marketTradingScheduleService = mock(MarketTradingScheduleService.class);
     private final EscalationPublisher escalationPublisher = mock(EscalationPublisher.class);
+    private final RenderBasisResolver renderBasisResolver = mock(RenderBasisResolver.class);
     private final TelegramProperties properties = new TelegramProperties(
             "token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true, List.of(LocalTime.of(15, 30)));
     private final HomeReportSender sender = new HomeReportSender(
@@ -59,7 +61,13 @@ class HomeReportSenderTest {
             treemapQueryService,
             sectorPriceSnapshotService,
             marketTradingScheduleService,
-            escalationPublisher);
+            escalationPublisher,
+            renderBasisResolver);
+
+    @org.junit.jupiter.api.BeforeEach
+    void givenNoBasis() {
+        when(renderBasisResolver.resolve(any())).thenReturn(Optional.empty());
+    }
 
     private void givenTodaySnapshot() {
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
@@ -67,12 +75,15 @@ class HomeReportSenderTest {
 
     private void givenSummaryCapture(List<String> rows) {
         when(screenshotClient.captureWithRows(
-                        RenderTarget.HOME_MOBILE.path(), RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
+                        RenderTarget.HOME_MOBILE.path(Optional.empty()),
+                        RenderTarget.HOME_MOBILE.selector(),
+                        ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), rows));
     }
 
     private void givenMapCapture() {
-        when(screenshotClient.capture(RenderTarget.MAP_MOBILE.path(), RenderTarget.MAP_MOBILE.selector()))
+        when(screenshotClient.capture(
+                        RenderTarget.MAP_MOBILE.path(Optional.empty()), RenderTarget.MAP_MOBILE.selector()))
                 .thenReturn(List.of(MAP_IMAGE));
     }
 
@@ -131,6 +142,24 @@ class HomeReportSenderTest {
     }
 
     // 프리·애프터 마켓에는 화면이 NXT 종목만 보여 주므로, 서버 계산 캡션도 같은 종목으로 순위를 만든다.
+    // 15:30~15:40은 종가, 15:40부터는 애프터 마켓 별도 화면으로 두 이미지를 모두 찍는다.
+    @Test
+    void 발송_시각의_등락률_기준을_두_이미지_주소에_붙인다() {
+        givenTodaySnapshot();
+        when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
+        when(screenshotClient.captureWithRows(
+                        "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
+        when(screenshotClient.capture(
+                        "/map/allstock?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
+                .thenReturn(List.of(MAP_IMAGE));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.send(DATA_TIME);
+
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
+    }
+
     @Test
     void 서버_계산_캡션은_NXT_단독_시간대면_NXT_종목만으로_순위를_만든다() {
         givenTodaySnapshot();
@@ -172,7 +201,8 @@ class HomeReportSenderTest {
         givenTodaySnapshot();
         givenSummaryCapture(ROWS);
         EscalateException failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
-        when(screenshotClient.capture(RenderTarget.MAP_MOBILE.path(), RenderTarget.MAP_MOBILE.selector()))
+        when(screenshotClient.capture(
+                        RenderTarget.MAP_MOBILE.path(Optional.empty()), RenderTarget.MAP_MOBILE.selector()))
                 .thenThrow(failure);
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
@@ -200,5 +230,14 @@ class HomeReportSenderTest {
         assertThat(RenderTarget.HOME_MOBILE.selector()).isEqualTo("[data-captureid='summary-capture']");
         assertThat(RenderTarget.MAP_MOBILE.path()).isEqualTo("/map/allstock?capture=mobile");
         assertThat(RenderTarget.MAP_MOBILE.selector()).isEqualTo("[data-captureid='map-mobile-capture']");
+    }
+
+    @Test
+    void 등락률_기준이_없으면_주소는_그대로이고_있으면_기준을_붙인다() {
+        assertThat(RenderTarget.HOME_MOBILE.path(Optional.empty())).isEqualTo("/home?capture=mobile");
+        assertThat(RenderTarget.HOME_MOBILE.path(Optional.of(RenderBasis.CLOSE)))
+                .isEqualTo("/home?capture=mobile&basis=close");
+        assertThat(RenderTarget.MAP_MOBILE.path(Optional.of(RenderBasis.AFTER_HOURS)))
+                .isEqualTo("/map/allstock?capture=mobile&basis=afterHours");
     }
 }
