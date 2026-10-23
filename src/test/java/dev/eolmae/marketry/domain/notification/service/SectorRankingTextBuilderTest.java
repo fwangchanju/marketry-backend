@@ -111,29 +111,12 @@ class SectorRankingTextBuilderTest {
     }
 
     @Test
-    void buildMapCaption_마켓_구분_없이_두_줄로_이어붙인다() {
+    void buildMapCaption_헤더와_마켓_구분_없이_업종_등락률_한_줄씩_이어붙인다() {
         List<TopSectorItem> topSectors = List.of(
                 new TopSectorItem("반도체", BigDecimal.valueOf(1.35)), new TopSectorItem("제약", BigDecimal.valueOf(1.20)));
 
         String text = builder.buildMapCaption(topSectors);
 
-        assertThat(text).isEqualTo("[시장 요약]\n반도체 +1.35%\n제약 +1.20%");
-    }
-
-    @Test
-    void 홈_캡션은_상위와_하위_그룹을_한_줄씩_콜론과_함께_보여준다() {
-        String text = builder.buildHomeCaption(
-                new TopSectorItem("필수소비재", new BigDecimal("-0.384")),
-                new TopSectorItem("신규 상장", new BigDecimal("-31.93")));
-
-        assertThat(text).isEqualTo("[시장 요약]\n상위: 필수소비재 -0.38%\n하위: 신규 상장 -31.93%");
-    }
-
-    @Test
-    void 홈_캡션은_오르는_그룹에_부호를_붙인다() {
-        String text = builder.buildHomeCaption(
-                new TopSectorItem("반도체", new BigDecimal("2.1")), new TopSectorItem("화학", new BigDecimal("-1.5")));
-
-        assertThat(text).isEqualTo("[시장 요약]\n상위: 반도체 +2.10%\n하위: 화학 -1.50%");
+        assertThat(text).isEqualTo("반도체 +1.35%\n제약 +1.20%");
     }
 }

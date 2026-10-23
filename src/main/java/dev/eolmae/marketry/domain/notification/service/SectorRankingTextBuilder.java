@@ -15,8 +15,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class SectorRankingTextBuilder {
 
-    private static final String MAP_CAPTION_HEADER = "[시장 요약]";
-
     /** summaries가 담고 있는 마켓 각각을 "#코스피 +x.xx%\n섹터 +x.xx%\n\n#코스닥 +x.xx%\n.." 형태로
      * 이어붙인다(헤더 옆 퍼센트는 그 마켓 지수의 등락률). 데이터 없는 마켓은 summaries에 이미 없는 상태라
      * 자동으로 텍스트에서도 빠진다. 헤더("Custom Sector" 등)는 안 붙이므로 호출부가 자기 맥락에 맞는
@@ -55,18 +53,10 @@ public class SectorRankingTextBuilder {
         return header + "\n" + body;
     }
 
-    /** 맵 발송(코스피+코스닥 앨범) 캡션 — 두 마켓을 합친 전체 기준 TOP2를 "[시장 요약]" 헤더 아래 두 줄로
-     * 보여준다. 마켓 구분 줄은 안 붙인다(두 마켓을 합친 값이다). 단위는
-     * 등락률(now) 그대로라 %다(%p 아님) — buildSectorCaption의 변화율과 다르다. */
+    /** 홈 발송·맵 발송 캡션 — 두 마켓을 합친 전체 기준 상위 업종을 "업종 등락률" 한 줄씩만 보여준다. 헤더와 마켓 구분 줄은 안 붙인다.
+     * 단위는 등락률(now) 그대로라 %다(%p 아님) — buildSectorCaption의 변화율과 다르다. */
     public String buildMapCaption(List<TopSectorItem> topSectors) {
-        String body = topSectors.stream().map(this::formatTopSectorChangeRate).collect(Collectors.joining("\n"));
-        return MAP_CAPTION_HEADER + "\n" + body;
-    }
-
-    /** 홈 발송 캡션 — 두 마켓을 합친 그룹 중 등락률이 가장 높은 그룹(상위)과 가장 낮은 그룹(하위)을 한 줄씩 보여준다. 단위는 %다. */
-    public String buildHomeCaption(TopSectorItem top, TopSectorItem bottom) {
-        return MAP_CAPTION_HEADER + "\n상위: " + formatTopSectorChangeRate(top) + "\n하위: "
-                + formatTopSectorChangeRate(bottom);
+        return topSectors.stream().map(this::formatTopSectorChangeRate).collect(Collectors.joining("\n"));
     }
 
     // TopSectorItem.changeRate는 "N분 전 대비 변화"라 단위가 %가 아니라 %p다.

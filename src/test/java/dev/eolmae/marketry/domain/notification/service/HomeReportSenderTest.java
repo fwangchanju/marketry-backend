@@ -71,7 +71,7 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 홈_3대4_판을_찍고_상위_하위_그룹_캡션과_함께_한_장으로_보낸다() {
+    void 홈_3대4_판을_찍고_상위_업종_두_개_캡션과_함께_한_장으로_보낸다() {
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.of(DATA_TIME));
         when(screenshotClient.capture(RenderTarget.HOME_MOBILE.path(), RenderTarget.HOME_MOBILE.selector()))
                 .thenReturn(List.of(IMAGE));
@@ -81,11 +81,11 @@ class HomeReportSenderTest {
         when(treemapQueryService.getMergedSectorRanking(
                         eq(MarketQuery.ALL_STOCK), eq(DATA_TIME), eq(AverageMode.SIMPLE), eq(true), eq(false)))
                 .thenReturn(List.of(top, middle, bottom));
-        when(sectorRankingTextBuilder.buildHomeCaption(top, bottom)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildMapCaption(List.of(top, middle))).thenReturn("캡션");
 
         sender.send(DATA_TIME);
 
-        // 랭킹의 맨 위가 상위, 맨 아래가 하위다.
+        // 랭킹 맨 위 두 업종이 캡션에 들어간다.
         verify(telegramClient).sendPhoto("chat", IMAGE, "캡션");
     }
 
@@ -100,7 +100,7 @@ class HomeReportSenderTest {
         when(treemapQueryService.getMergedSectorRanking(
                         eq(MarketQuery.ALL_STOCK), eq(DATA_TIME), eq(AverageMode.SIMPLE), eq(true), eq(true)))
                 .thenReturn(List.of(top, bottom));
-        when(sectorRankingTextBuilder.buildHomeCaption(top, bottom)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildMapCaption(List.of(top, bottom))).thenReturn("캡션");
 
         sender.send(DATA_TIME);
 
