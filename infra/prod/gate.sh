@@ -1,6 +1,6 @@
 #!/bin/bash
 # 배포 게이트. GitHub Actions가 ssh로 들어오면 deploy 계정의 authorized_keys 강제 명령(command=)이 이 스크립트를 실행한다.
-# 레포 밖(~/Optional/bin/marketry-gate)에 설치해서 쓴다. 레포의 배포 절차가 바뀌어도 배포 직전 DB 덤프는 남게 하려는 구조다.
+# 레포 밖(~/Optional/bin/marketry-gate)에 설치해서 쓴다. 레포의 배포 절차가 바뀌어도 앱 배포 직전 DB 덤프는 남게 하려는 구조다. nginx와 renderer 배포는 DB를 바꾸지 않아 덤프를 건너뛴다.
 # 이 파일은 설치본의 원본이다. 고치면 다시 설치해야 반영된다.
 #
 # 입력은 SSH_ORIGINAL_COMMAND 하나뿐이다: deploy <target> <tag>
@@ -463,7 +463,10 @@ main() {
   log "배포 요청: target=$TARGET tag=$TAG"
 
   acquire_lock
-  predeploy_dump
+  # nginx와 renderer 배포는 DB를 바꾸지 않는다. 덤프를 건너뛰어야 프론트 발행으로 nginx 배포가 잦아도 앱 배포 직전 덤프가 보관 개수(KEEP_DUMPS)에서 밀려나지 않는다.
+  case "$TARGET" in
+    application | all) predeploy_dump ;;
+  esac
   local cleanup_ready=false
   if prepare_image_cleanup; then
     cleanup_ready=true
