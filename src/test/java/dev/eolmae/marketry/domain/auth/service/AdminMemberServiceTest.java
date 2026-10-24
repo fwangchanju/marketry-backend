@@ -19,10 +19,12 @@ import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminVisitorDailyResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminVisitorSourceResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.enums.VisitorSource;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
@@ -351,5 +353,28 @@ class AdminMemberServiceTest {
         LocalDate today = LocalDate.of(2026, 10, 21);
         assertThatThrownBy(() -> service.getVisitors(today, 0)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> service.getVisitors(today, 181)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void 유입_경로는_네_경로를_모두_돌려주고_방문이_없는_경로는_0이다() {
+        LocalDate today = LocalDate.of(2026, 10, 24);
+        when(visitorRepository.countVisitorsBySource(today.minusDays(29), today))
+                .thenReturn(List.of(
+                        new AdminVisitorSourceResponse(VisitorSource.NAVER, 3),
+                        new AdminVisitorSourceResponse(VisitorSource.DIRECT, 5)));
+
+        assertThat(service.getVisitorSources(today, 30))
+                .containsExactly(
+                        new AdminVisitorSourceResponse(VisitorSource.NAVER, 3),
+                        new AdminVisitorSourceResponse(VisitorSource.GOOGLE, 0),
+                        new AdminVisitorSourceResponse(VisitorSource.DIRECT, 5),
+                        new AdminVisitorSourceResponse(VisitorSource.OTHER, 0));
+    }
+
+    @Test
+    void 유입_경로_조회_기간이_범위를_벗어나면_거부한다() {
+        LocalDate today = LocalDate.of(2026, 10, 24);
+        assertThatThrownBy(() -> service.getVisitorSources(today, 0)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> service.getVisitorSources(today, 181)).isInstanceOf(ResponseStatusException.class);
     }
 }

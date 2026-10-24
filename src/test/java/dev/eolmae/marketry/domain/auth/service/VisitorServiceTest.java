@@ -3,12 +3,14 @@ package dev.eolmae.marketry.domain.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import dev.eolmae.marketry.domain.auth.enums.VisitorSource;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.repository.VisitorDailyRepository;
 import java.time.LocalDate;
@@ -42,7 +44,24 @@ class VisitorServiceTest {
         service.record(request("1.2.3.4", BROWSER));
         service.record(request("1.2.3.4", BROWSER));
 
-        verify(repository, times(1)).recordVisit(any(), anyString());
+        verify(repository, times(1)).recordVisit(any(), anyString(), any());
+    }
+
+    @Test
+    void 처음_들어온_곳과_꼬리표로_출처를_정해_기록한다() {
+        MockHttpServletRequest fromNaver = request("1.2.3.4", BROWSER);
+        fromNaver.addHeader("X-Visit-Referrer", "https://search.naver.com/search.naver?query=marketry");
+        MockHttpServletRequest tagged = request("5.6.7.8", BROWSER);
+        tagged.addHeader("X-Visit-Source", "Google");
+        MockHttpServletRequest direct = request("9.9.9.9", BROWSER);
+
+        service.record(fromNaver);
+        service.record(tagged);
+        service.record(direct);
+
+        verify(repository).recordVisit(any(), anyString(), eq(VisitorSource.NAVER));
+        verify(repository).recordVisit(any(), anyString(), eq(VisitorSource.GOOGLE));
+        verify(repository).recordVisit(any(), anyString(), eq(VisitorSource.DIRECT));
     }
 
     @Test
@@ -51,7 +70,7 @@ class VisitorServiceTest {
         service.record(request("5.6.7.8", BROWSER));
         service.record(request("1.2.3.4", BROWSER + " Edg/1"));
 
-        verify(repository, times(3)).recordVisit(any(), anyString());
+        verify(repository, times(3)).recordVisit(any(), anyString(), any());
     }
 
     @Test
@@ -60,7 +79,7 @@ class VisitorServiceTest {
         service.record(request("1.2.3.4", "curl/8.0"));
         service.record(request("1.2.3.4", null));
 
-        verify(repository, never()).recordVisit(any(), anyString());
+        verify(repository, never()).recordVisit(any(), anyString(), any());
     }
 
     @Test
@@ -76,11 +95,11 @@ class VisitorServiceTest {
         doThrow(new IllegalStateException("db down"))
                 .doNothing()
                 .when(repository)
-                .recordVisit(any(), anyString());
+                .recordVisit(any(), anyString(), any());
 
         service.record(request("1.2.3.4", BROWSER));
         service.record(request("1.2.3.4", BROWSER));
 
-        verify(repository, times(2)).recordVisit(any(), anyString());
+        verify(repository, times(2)).recordVisit(any(), anyString(), any());
     }
 }
