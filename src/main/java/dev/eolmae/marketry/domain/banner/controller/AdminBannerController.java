@@ -40,9 +40,12 @@ public class AdminBannerController {
             @RequestParam(required = false) String linkUrl,
             @RequestParam String startsAt,
             @RequestParam(required = false) String endsAt,
-            @RequestParam(required = false) MultipartFile file) throws IOException {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
-                service.create(type, title, text, linkUrl, startsAt, endsAt, file == null ? null : file.getBytes()));
+            @RequestParam(required = false) MultipartFile file)
+            throws IOException {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(service.create(
+                        type, title, text, linkUrl, startsAt, endsAt, file == null ? null : file.getBytes()));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -54,9 +57,12 @@ public class AdminBannerController {
             @RequestParam(required = false) String linkUrl,
             @RequestParam String startsAt,
             @RequestParam(required = false) String endsAt,
-            @RequestParam(required = false) MultipartFile file) throws IOException {
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(
-                service.update(id, type, title, text, linkUrl, startsAt, endsAt, file == null ? null : file.getBytes()));
+            @RequestParam(required = false) MultipartFile file)
+            throws IOException {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(service.update(
+                        id, type, title, text, linkUrl, startsAt, endsAt, file == null ? null : file.getBytes()));
     }
 
     @PostMapping("/{id}/approve")

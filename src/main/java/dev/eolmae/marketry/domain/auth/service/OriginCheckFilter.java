@@ -68,15 +68,16 @@ public class OriginCheckFilter extends OncePerRequestFilter {
         if (frontendUri.getHost() == null) {
             return;
         }
-        String frontendHost = frontendUri.getHost().toLowerCase(Locale.ROOT).replace("[", "").replace("]", "");
+        String frontendHost =
+                frontendUri.getHost().toLowerCase(Locale.ROOT).replace("[", "").replace("]", "");
         if (!LOOPBACK_HOSTS.contains(frontendHost)) {
             return;
         }
         for (String host : LOOPBACK_HOSTS) {
             try {
-                origins.add(normalizeOrigin(new URI(
-                                frontendUri.getScheme(), null, host, frontendUri.getPort(), null, null, null)
-                        .toString()));
+                origins.add(normalizeOrigin(
+                        new URI(frontendUri.getScheme(), null, host, frontendUri.getPort(), null, null, null)
+                                .toString()));
             } catch (Exception ignored) {
                 // 잘못된 별칭은 허용 목록에 넣지 않는다.
             }

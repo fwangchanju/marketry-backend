@@ -28,21 +28,24 @@ public class BannerCampaignService {
     @Transactional(readOnly = true)
     public List<BannerCampaignResponse> list() {
         LocalDateTime now = now();
-        return repository.findAllByOrderByStartsAtDesc().stream().map(item -> toResponse(item, now)).toList();
+        return repository.findAllByOrderByStartsAtDesc().stream()
+                .map(item -> toResponse(item, now))
+                .toList();
     }
 
     @Transactional
     public BannerCampaignResponse create(
-            String type,
-            String title,
-            String text,
-            String linkUrl,
-            String startsAt,
-            String endsAt,
-            byte[] imageBytes) {
+            String type, String title, String text, String linkUrl, String startsAt, String endsAt, byte[] imageBytes) {
         DraftValues values = validate(type, title, text, linkUrl, startsAt, endsAt, imageBytes, null);
         BannerCampaign campaign = BannerCampaign.draft(
-                values.type(), values.title(), values.text(), values.linkUrl(), values.image(), values.imageContentType(), values.startsAt(), values.endsAt());
+                values.type(),
+                values.title(),
+                values.text(),
+                values.linkUrl(),
+                values.image(),
+                values.imageContentType(),
+                values.startsAt(),
+                values.endsAt());
         return toResponse(repository.save(campaign), now());
     }
 
@@ -62,7 +65,14 @@ public class BannerCampaignService {
         }
         DraftValues values = validate(type, title, text, linkUrl, startsAt, endsAt, imageBytes, campaign);
         campaign.update(
-                values.type(), values.title(), values.text(), values.linkUrl(), values.image(), values.imageContentType(), values.startsAt(), values.endsAt());
+                values.type(),
+                values.title(),
+                values.text(),
+                values.linkUrl(),
+                values.image(),
+                values.imageContentType(),
+                values.startsAt(),
+                values.endsAt());
         return toResponse(repository.save(campaign), now());
     }
 
@@ -73,7 +83,8 @@ public class BannerCampaignService {
             return toResponse(campaign, now());
         }
         LocalDateTime now = now();
-        if (campaign.getStartsAt() == null || (campaign.getEndsAt() != null && !campaign.getEndsAt().isAfter(campaign.getStartsAt()))) {
+        if (campaign.getStartsAt() == null
+                || (campaign.getEndsAt() != null && !campaign.getEndsAt().isAfter(campaign.getStartsAt()))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시 시작·종료 시각을 확인해 주세요.");
         }
         List<BannerCampaign> approved = repository.findApprovedForUpdate();
@@ -108,7 +119,8 @@ public class BannerCampaignService {
     @Transactional(readOnly = true)
     public ActiveBannerResponse active() {
         LocalDateTime now = now();
-        return repository.findCurrent(now)
+        return repository
+                .findCurrent(now)
                 .map(campaign -> toActiveResponse(campaign, campaign.getEndsAt()))
                 .orElseGet(() -> repository
                         .findFirstByApprovedAtIsNotNullAndStartsAtAfterOrderByStartsAtAsc(now)
@@ -123,7 +135,8 @@ public class BannerCampaignService {
 
     @Transactional(readOnly = true)
     public ImagePayload publicImage(long id) {
-        BannerCampaign current = repository.findCurrent(now())
+        BannerCampaign current = repository
+                .findCurrent(now())
                 .filter(campaign -> campaign.getId().equals(id))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return image(current);
@@ -177,7 +190,8 @@ public class BannerCampaignService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "광고 이미지를 올려 주세요.");
             }
         }
-        return new DraftValues(type, title, emptyToNull(text), emptyToNull(linkUrl), startsAt, endsAt, image, contentType);
+        return new DraftValues(
+                type, title, emptyToNull(text), emptyToNull(linkUrl), startsAt, endsAt, image, contentType);
     }
 
     private void validateLink(String linkUrl) {
@@ -185,7 +199,8 @@ public class BannerCampaignService {
         try {
             URI uri = URI.create(linkUrl);
             if (uri.isAbsolute()) {
-                if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme())) || uri.getHost() == null) {
+                if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                        || uri.getHost() == null) {
                     throw new IllegalArgumentException();
                 }
             } else if (!linkUrl.startsWith("/") || linkUrl.startsWith("//")) {
@@ -205,8 +220,10 @@ public class BannerCampaignService {
     }
 
     private boolean overlaps(BannerCampaign first, BannerCampaign second) {
-        boolean firstBeforeSecondEnds = second.getEndsAt() == null || first.getStartsAt().isBefore(second.getEndsAt());
-        boolean secondBeforeFirstEnds = first.getEndsAt() == null || second.getStartsAt().isBefore(first.getEndsAt());
+        boolean firstBeforeSecondEnds =
+                second.getEndsAt() == null || first.getStartsAt().isBefore(second.getEndsAt());
+        boolean secondBeforeFirstEnds =
+                first.getEndsAt() == null || second.getStartsAt().isBefore(first.getEndsAt());
         return firstBeforeSecondEnds && secondBeforeFirstEnds;
     }
 
