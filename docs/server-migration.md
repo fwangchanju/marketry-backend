@@ -417,7 +417,7 @@ DB만 OrbStack 컨테이너로 띄우고 백엔드와 프론트는 손으로 띄
 - [x] `main` 대상의 `Migration guard` 전용 ruleset에 필수 체크를 등록하고 그 규칙의 bypass 비움(소유자가 웹에서).
       기존 `protect-main`의 리뷰 필수·`Maintain` 우회 예외는 유지하고 마이그레이션 검사만 별도 규칙으로 강제한다
 - [x] 맥미니 `marketry-network` 서브넷 고정 생성 스크립트(`infra/prod/setup-network.sh`, `172.30.0.0/24`)
-- [x] 맥미니용 compose(`infra/prod/compose.yml`, `nginx.conf`, `env.template`): cloudflared, 호스트 포트 없음, 렌더러 같은 네트워크·메모리 1GB,
+- [x] 맥미니용 compose(`infra/prod/compose.yml`, `nginx.conf`, `infra/env.template`): cloudflared, 호스트 포트 없음, 렌더러 같은 네트워크·메모리 1GB,
       nginx 별칭 `marketry.co.kr`로 렌더러 내부 접근. 이미지 이름은 이관 뒤 정리 때 바꾼다
 - [ ] 배포 워크플로: Tailscale 액션(`tag:ci`, 임시 노드), 대상 호스트를 맥미니로, SSH는 동작 이름과 태그만 전달
 - [x] 맥미니 게이트의 로컬 이미지 정리 구현과 모조 회귀 검사. 실행 중 이미지와 원복용 이미지 보호. 병합·재설치는 별도 확인한다
