@@ -42,6 +42,8 @@ public class AuthConfiguration {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**", "/actuator/health")
                         .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/metrics/client-events")
+                        .permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**")
                         .permitAll()
                         .requestMatchers("/api/admin/**")

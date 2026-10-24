@@ -52,6 +52,9 @@ public class UserAccount {
     // 마지막으로 접속한 시각 — 로그인·세션 갱신·세션 확인에서 기록한다. 기록이 생기기 전의 회원은 비어 있다.
     private LocalDateTime lastAccessAt;
 
+    @Column(name = "first_custom_classification_at")
+    private LocalDateTime firstCustomClassificationAt;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
