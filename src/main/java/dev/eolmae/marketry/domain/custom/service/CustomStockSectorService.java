@@ -59,6 +59,9 @@ public class CustomStockSectorService {
                 ON CONFLICT (user_id, stock_code)
                 DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
                 """, userId, stockCode, sectorId);
+        jdbcTemplate.update(
+                "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
+                userId);
     }
 
     public void unassign(String stockCode) {
@@ -91,6 +94,9 @@ public class CustomStockSectorService {
                 statement.setString(2, stockCode);
                 statement.setLong(3, sectorId);
             });
+            jdbcTemplate.update(
+                    "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
+                    userId);
         }
         return new BulkAssignResponse(new ArrayList<>(remaining), sectorId);
     }

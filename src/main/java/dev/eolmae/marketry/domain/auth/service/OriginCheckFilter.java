@@ -19,6 +19,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class OriginCheckFilter extends OncePerRequestFilter {
 
+    private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "::1");
+
     private final AuthProperties authProperties;
 
     @Override
@@ -50,7 +52,35 @@ public class OriginCheckFilter extends OncePerRequestFilter {
         Set<String> origins = new HashSet<>();
         origins.add(normalizeOrigin(requestOrigin));
         origins.add(normalizeOrigin(authProperties.getFrontendUrl()));
+        addLoopbackFrontendOrigins(origins);
         return origins;
+    }
+
+    // 로컬 화면은 localhost와 127.0.0.1 두 주소로 열릴 수 있다. 설정된 프론트엔드 주소가 루프백일 때만
+    // 같은 포트의 다른 루프백 별칭도 허용한다. 공개 도메인 설정에는 별칭을 추가하지 않는다.
+    private void addLoopbackFrontendOrigins(Set<String> origins) {
+        URI frontendUri;
+        try {
+            frontendUri = URI.create(authProperties.getFrontendUrl());
+        } catch (Exception e) {
+            return;
+        }
+        if (frontendUri.getHost() == null) {
+            return;
+        }
+        String frontendHost = frontendUri.getHost().toLowerCase(Locale.ROOT).replace("[", "").replace("]", "");
+        if (!LOOPBACK_HOSTS.contains(frontendHost)) {
+            return;
+        }
+        for (String host : LOOPBACK_HOSTS) {
+            try {
+                origins.add(normalizeOrigin(new URI(
+                                frontendUri.getScheme(), null, host, frontendUri.getPort(), null, null, null)
+                        .toString()));
+            } catch (Exception ignored) {
+                // 잘못된 별칭은 허용 목록에 넣지 않는다.
+            }
+        }
     }
 
     private String normalizeOrigin(String value) {
