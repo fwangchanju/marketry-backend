@@ -1,5 +1,6 @@
 package dev.eolmae.marketry.domain.auth.service;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import dev.eolmae.marketry.common.enums.Zone;
 import dev.eolmae.marketry.common.event.UserSignedUpEvent;
 import dev.eolmae.marketry.common.exception.ErrorCode;
@@ -36,6 +37,7 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.JsonNode;
 
 @Service
 @RequiredArgsConstructor
@@ -76,11 +78,137 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "확인된 Google 계정 정보가 필요합니다.");
         }
 
+        return loginWithProviderIdentity(issuer, subject, email);
+    }
+
+    @Transactional
+    public IssuedTokens loginWithSocialProvider(String provider, String code, String state, String redirectUri) {
+        String tokenUri;
+        String clientId;
+        String clientSecret;
+        String profileUri;
+        String issuer;
+        if ("naver".equals(provider)) {
+            tokenUri = "https://nid.naver.com/oauth2.0/token";
+            clientId = authProperties.getNaver().getClientId();
+            clientSecret = authProperties.getNaver().getClientSecret();
+            profileUri = "https://openapi.naver.com/v1/nid/me";
+            issuer = "https://nid.naver.com";
+        } else if ("kakao".equals(provider)) {
+            tokenUri = "https://kauth.kakao.com/oauth/token";
+            clientId = authProperties.getKakao().getClientId();
+            clientSecret = authProperties.getKakao().getClientSecret();
+            profileUri = "https://kapi.kakao.com/v2/user/me";
+            issuer = "https://kauth.kakao.com";
+        } else {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Social login provider is invalid.");
+        }
+        if (clientId.isBlank()
+                || ("naver".equals(provider) && clientSecret.isBlank())
+                || code == null
+                || code.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Social login could not be completed.");
+        }
+
+        String accessToken;
+        String subject;
+        String email;
+        try {
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("grant_type", "authorization_code");
+            body.add("client_id", clientId);
+            if (!clientSecret.isBlank()) {
+                body.add("client_secret", clientSecret);
+            }
+            if ("kakao".equals(provider)) {
+                body.add("redirect_uri", redirectUri);
+            }
+            body.add("code", code);
+            if ("naver".equals(provider)) {
+                body.add("state", state);
+            }
+            var tokenResponse = restClient
+                    .post()
+                    .uri(tokenUri)
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(body)
+                    .retrieve()
+                    .body(SocialTokenResponse.class);
+            accessToken = tokenResponse == null ? null : tokenResponse.accessToken();
+            if (accessToken == null || accessToken.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Social login could not be completed.");
+            }
+            var profile = restClient
+                    .get()
+                    .uri(profileUri)
+                    .headers(headers -> headers.setBearerAuth(accessToken))
+                    .retrieve()
+                    .body(JsonNode.class);
+            if ("naver".equals(provider)
+                    && !"00".equals(profile.path("resultcode").asString())) {
+                throw new IllegalArgumentException("Invalid profile response");
+            }
+            subject = socialSubject(profile, provider);
+            email = socialEmail(profile, provider);
+            if (subject == null || subject.isBlank()) {
+                throw new IllegalArgumentException("Missing provider identity");
+            }
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Social login could not be completed.");
+        }
+        return loginWithProviderIdentity(issuer, subject, email);
+    }
+
+    private String socialSubject(JsonNode profile, String provider) {
+        if (profile == null) {
+            return null;
+        }
+        JsonNode identity = "naver".equals(provider) ? profile.path("response").path("id") : profile.path("id");
+        if (identity.isMissingNode() || identity.isNull()) {
+            return null;
+        }
+        if ("naver".equals(provider) && !identity.isString()) {
+            return null;
+        }
+        if ("kakao".equals(provider)
+                && (!identity.isIntegralNumber() || !identity.canConvertToLong() || identity.asLong() <= 0)) {
+            return null;
+        }
+        return identity.isValueNode() ? identity.asString() : null;
+    }
+
+    private String socialEmail(JsonNode profile, String provider) {
+        if (profile == null) {
+            return null;
+        }
+        JsonNode email = "naver".equals(provider)
+                ? profile.path("response").path("email")
+                : profile.path("kakao_account").path("email");
+        if (email.isMissingNode()
+                || email.isNull()
+                || !email.isString()
+                || email.asString().isBlank()) {
+            return null;
+        }
+        if ("kakao".equals(provider)
+                && (!profile.path("kakao_account").path("is_email_valid").asBoolean(false)
+                        || !profile.path("kakao_account")
+                                .path("is_email_verified")
+                                .asBoolean(false))) {
+            return null;
+        }
+        return email.asString();
+    }
+
+    private record SocialTokenResponse(
+            @JsonProperty("access_token") String accessToken) {}
+
+    // 동시 가입에서 이번 요청이 실제로 삽입한 행만 판별한다.
+    // ON CONFLICT DO NOTHING RETURNING은 Spring Data 파생 메서드와 QueryDSL로 표현할 수 없어 SQL을 사용한다.
+    private IssuedTokens loginWithProviderIdentity(String issuer, String subject, String email) {
         UserAccount user =
                 userAccountRepository.findByIssuerAndSub(issuer, subject).orElse(null);
         if (user == null) {
-            // ON CONFLICT DO NOTHING + RETURNING — 동시 로그인 레이스에서 실제로 삽입된 행만 받아
-            // 신규 가입 여부를 판정한다. JPQL/QueryDSL에 없는 문법이라 JdbcTemplate으로 직접 쓴다.
             List<Long> insertedIds =
                     jdbcTemplate.query("""
                     INSERT INTO users (issuer, sub, email, role, created_at, updated_at)
@@ -90,18 +218,15 @@ public class AuthService {
                     """, (resultSet, rowNumber) -> resultSet.getLong(1), issuer, subject, email);
             if (!insertedIds.isEmpty()) {
                 Long newUserId = insertedIds.getFirst();
-                log.info("신규 가입 users INSERT 완료: userId={}", newUserId);
                 eventPublisher.publishEvent(new UserSignedUpEvent(newUserId));
-                log.info("신규 가입 템플릿 복제 완료: userId={}", newUserId);
                 user = userAccountRepository.findById(newUserId).orElseThrow();
             } else {
                 user = userAccountRepository.findByIssuerAndSub(issuer, subject).orElseThrow();
-                user.updateEmail(email);
             }
-        } else {
+        }
+        if (email != null && !email.isBlank()) {
             user.updateEmail(email);
         }
-
         return createTokens(user);
     }
 

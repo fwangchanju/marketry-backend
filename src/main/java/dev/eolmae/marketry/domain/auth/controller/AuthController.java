@@ -11,6 +11,7 @@ import dev.eolmae.marketry.domain.auth.service.VisitorService;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -29,6 +30,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
+import org.springframework.web.util.UriUtils;
 
 @Controller
 @RequestMapping("/api/auth")
@@ -41,6 +43,8 @@ public class AuthController {
     private static final String REFRESH_COOKIE = "mm_refresh";
     private static final String CAPTURE_TOKEN_HEADER = "X-Capture-Token";
     private static final String CALLBACK_PATH = "/api/auth/google/callback";
+    private static final String NAVER_CALLBACK_PATH = "/api/auth/naver/callback";
+    private static final String KAKAO_CALLBACK_PATH = "/api/auth/kakao/callback";
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AuthService authService;
@@ -109,6 +113,152 @@ public class AuthController {
         authCookies.setSessionCookies(response, tokens);
         return new RedirectView(authProperties.getFrontendUrl() + returnTo);
     }
+
+    @GetMapping("/social/providers")
+    @ResponseBody
+    public SocialProviders socialProviders(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store");
+        return new SocialProviders(
+                !authProperties.getGoogle().getClientId().isBlank()
+                        && !authProperties.getGoogle().getClientSecret().isBlank(),
+                !authProperties.getNaver().getClientId().isBlank()
+                        && !authProperties.getNaver().getClientSecret().isBlank(),
+                !authProperties.getKakao().getClientId().isBlank());
+    }
+
+    @GetMapping("/naver")
+    public RedirectView beginNaverLogin(@RequestParam(required = false) String returnTo, HttpServletResponse response) {
+        return beginSocialLogin("naver", returnTo, response);
+    }
+
+    @GetMapping("/kakao")
+    public RedirectView beginKakaoLogin(@RequestParam(required = false) String returnTo, HttpServletResponse response) {
+        return beginSocialLogin("kakao", returnTo, response);
+    }
+
+    @GetMapping("/naver/callback")
+    public RedirectView completeNaverLogin(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        return completeSocialLogin("naver", code, state, error, request, response);
+    }
+
+    @GetMapping("/kakao/callback")
+    public RedirectView completeKakaoLogin(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String error,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        return completeSocialLogin("kakao", code, state, error, request, response);
+    }
+
+    private RedirectView beginSocialLogin(String provider, String returnTo, HttpServletResponse response) {
+        if (!isSocialProviderAvailable(provider)) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Social login provider is unavailable.");
+        }
+        String state = randomUrlToken(32);
+        String callbackUri = socialCallbackUri(provider);
+        String authorizationEndpoint = "naver".equals(provider)
+                ? "https://nid.naver.com/oauth2.0/authorize"
+                : "https://kauth.kakao.com/oauth/authorize";
+        String clientId = "naver".equals(provider)
+                ? authProperties.getNaver().getClientId()
+                : authProperties.getKakao().getClientId();
+        String authorizationUrl = authorizationEndpoint + "?response_type=code&client_id="
+                + UriUtils.encodeQueryParam(clientId, StandardCharsets.UTF_8) + "&redirect_uri="
+                + UriUtils.encodeQueryParam(callbackUri, StandardCharsets.UTF_8) + "&state="
+                + UriUtils.encodeQueryParam(state, StandardCharsets.UTF_8);
+        String cookiePath = "/api/auth/" + provider;
+        authCookies.add(response, "mm_" + provider + "_state", state, cookiePath, Duration.ofMinutes(10));
+        authCookies.add(
+                response,
+                "mm_" + provider + "_return",
+                Base64.getUrlEncoder()
+                        .withoutPadding()
+                        .encodeToString(safeReturnTo(returnTo).getBytes(StandardCharsets.UTF_8)),
+                cookiePath,
+                Duration.ofMinutes(10));
+        return new RedirectView(authorizationUrl);
+    }
+
+    private RedirectView completeSocialLogin(
+            String provider,
+            String code,
+            String state,
+            String error,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        String cookiePath = "/api/auth/" + provider;
+        String stateCookie = "mm_" + provider + "_state";
+        String returnCookie = "mm_" + provider + "_return";
+        String returnTo = decodedReturnTo(cookie(request, returnCookie));
+        authCookies.expire(response, stateCookie, cookiePath);
+        authCookies.expire(response, returnCookie, cookiePath);
+        String result = isCancellation(error) ? "cancelled" : "oauth_failed";
+        String expectedState = cookie(request, stateCookie);
+        if (error == null
+                && code != null
+                && !code.isBlank()
+                && state != null
+                && expectedState != null
+                && MessageDigest.isEqual(
+                        expectedState.getBytes(StandardCharsets.UTF_8), state.getBytes(StandardCharsets.UTF_8))) {
+            try {
+                IssuedTokens tokens =
+                        authService.loginWithSocialProvider(provider, code, state, socialCallbackUri(provider));
+                authCookies.setSessionCookies(response, tokens);
+                return new RedirectView(authProperties.getFrontendUrl() + returnTo);
+            } catch (ResponseStatusException e) {
+                // Provider response details can contain authorization codes or tokens; keep the redirect generic.
+            }
+        }
+        String redirectUri = UriComponentsBuilder.fromUriString(returnTo)
+                .replaceQueryParam("loginError", result)
+                .encode()
+                .build()
+                .toUriString();
+        return new RedirectView(authProperties.getFrontendUrl() + redirectUri);
+    }
+
+    private boolean isCancellation(String error) {
+        return "access_denied".equals(error) || "user_cancelled".equals(error) || "cancelled".equals(error);
+    }
+
+    private boolean isSocialProviderAvailable(String provider) {
+        return switch (provider) {
+            case "naver" ->
+                !authProperties.getNaver().getClientId().isBlank()
+                        && !authProperties.getNaver().getClientSecret().isBlank();
+            case "kakao" -> !authProperties.getKakao().getClientId().isBlank();
+            default -> false;
+        };
+    }
+
+    private String socialCallbackUri(String provider) {
+        String frontendUrl = authProperties.getFrontendUrl();
+        if (frontendUrl != null && isCanonicalProductionUrl(frontendUrl)) {
+            return "https://marketry.co.kr" + ("naver".equals(provider) ? NAVER_CALLBACK_PATH : KAKAO_CALLBACK_PATH);
+        }
+        String path = "naver".equals(provider) ? NAVER_CALLBACK_PATH : KAKAO_CALLBACK_PATH;
+        return ServletUriComponentsBuilder.fromCurrentContextPath().path(path).toUriString();
+    }
+
+    private boolean isCanonicalProductionUrl(String value) {
+        try {
+            URI uri = URI.create(value);
+            return "https".equalsIgnoreCase(uri.getScheme())
+                    && "marketry.co.kr".equalsIgnoreCase(uri.getHost())
+                    && (uri.getPort() == -1 || uri.getPort() == 443);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public record SocialProviders(boolean google, boolean naver, boolean kakao) {}
 
     @GetMapping("/session")
     @ResponseBody
