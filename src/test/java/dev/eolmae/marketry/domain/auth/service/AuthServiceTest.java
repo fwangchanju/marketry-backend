@@ -243,6 +243,7 @@ class AuthServiceTest {
         AuthSessionResponse session = authService.session(null);
 
         assertThat(session.authenticated()).isFalse();
+        assertThat(session.issuer()).isNull();
         verify(userAccountRepository, never()).findById(any());
     }
 
@@ -251,12 +252,14 @@ class AuthServiceTest {
         AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(42L, Role.USER);
         UserAccount user = userAccount(42L);
         when(userAccountRepository.findById(42L)).thenReturn(Optional.of(user));
+        when(user.getIssuer()).thenReturn("https://nid.naver.com");
         when(userProfileService.getProfile(42L)).thenReturn(ProfileResponse.empty());
 
         AuthSessionResponse session = authService.session(principal);
 
         assertThat(session.nickname()).isNull();
         assertThat(session.profileImageVersion()).isNull();
+        assertThat(session.issuer()).isEqualTo("https://nid.naver.com");
     }
 
     private UserRefreshToken usableTokenOf(UserAccount user) {

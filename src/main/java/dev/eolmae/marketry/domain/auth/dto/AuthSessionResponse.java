@@ -10,9 +10,10 @@ public record AuthSessionResponse(
         String nickname,
         Long profileImageVersion,
         Long nicknameChangeableAt,
-        boolean special) {
+        boolean special,
+        String issuer) {
 
     public static AuthSessionResponse anonymous() {
-        return new AuthSessionResponse(false, null, null, null, null, null, null, false);
+        return new AuthSessionResponse(false, null, null, null, null, null, null, false, null);
     }
 }
