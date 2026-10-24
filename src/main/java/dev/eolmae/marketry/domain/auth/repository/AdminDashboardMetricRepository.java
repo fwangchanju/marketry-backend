@@ -31,44 +31,68 @@ public class AdminDashboardMetricRepository {
         LocalDate cohortEnd = today.minusDays(8);
         LocalDate cohortStart = cohortEnd.minusDays(days - 1L);
         LocalDate revisitStart = cohortStart.isBefore(ACCESS_TRACKING_START) ? ACCESS_TRACKING_START : cohortStart;
-        long classificationEligible = jdbcTemplate.queryForObject("""
+        long classificationEligible = jdbcTemplate.queryForObject(
+                """
                 SELECT COUNT(*) FROM users
                 WHERE (issuer IS NULL OR issuer NOT IN ('local-test', 'marketry-system'))
                   AND created_at >= ? AND created_at < ?
-                """, Long.class, cohortStart.atStartOfDay(), cohortEnd.plusDays(1).atStartOfDay());
-        long revisitEligible = jdbcTemplate.queryForObject("""
+                """,
+                Long.class,
+                cohortStart.atStartOfDay(),
+                cohortEnd.plusDays(1).atStartOfDay());
+        long revisitEligible = jdbcTemplate.queryForObject(
+                """
                 SELECT COUNT(*) FROM users
                 WHERE (issuer IS NULL OR issuer NOT IN ('local-test', 'marketry-system'))
                   AND created_at >= ? AND created_at < ?
-                """, Long.class, revisitStart.atStartOfDay(), cohortEnd.plusDays(1).atStartOfDay());
-        long classified = jdbcTemplate.queryForObject("""
+                """,
+                Long.class,
+                revisitStart.atStartOfDay(),
+                cohortEnd.plusDays(1).atStartOfDay());
+        long classified = jdbcTemplate.queryForObject(
+                """
                 SELECT COUNT(*) FROM users
                 WHERE (issuer IS NULL OR issuer NOT IN ('local-test', 'marketry-system'))
                   AND created_at >= ? AND created_at < ?
                   AND first_custom_classification_at IS NOT NULL
                   AND first_custom_classification_at <= created_at + INTERVAL '7 days'
-                """, Long.class, cohortStart.atStartOfDay(), cohortEnd.plusDays(1).atStartOfDay());
-        long returning = jdbcTemplate.queryForObject("""
+                """,
+                Long.class,
+                cohortStart.atStartOfDay(),
+                cohortEnd.plusDays(1).atStartOfDay());
+        long returning = jdbcTemplate.queryForObject(
+                """
                 SELECT COUNT(DISTINCT u.id)
                 FROM users u JOIN user_access_daily a ON a.user_id = u.id
                 WHERE (u.issuer IS NULL OR u.issuer NOT IN ('local-test', 'marketry-system'))
                   AND u.created_at >= ? AND u.created_at < ?
                   AND a.access_date > CAST(u.created_at AS DATE)
                   AND a.access_date <= CAST(u.created_at AS DATE) + 7
-                """, Long.class, revisitStart.atStartOfDay(), cohortEnd.plusDays(1).atStartOfDay());
-        var pages = jdbcTemplate.query("""
+                """,
+                Long.class,
+                revisitStart.atStartOfDay(),
+                cohortEnd.plusDays(1).atStartOfDay());
+        var pages = jdbcTemplate.query(
+                """
                 SELECT page,
                   COALESCE(SUM(event_count) FILTER (WHERE metric_type = 'PAGE_LOAD'), 0) AS page_loads,
                   COALESCE(SUM(total_duration_ms) FILTER (WHERE metric_type = 'PAGE_LOAD'), 0) AS load_ms,
                   COALESCE(SUM(event_count) FILTER (WHERE metric_type = 'CLIENT_ERROR'), 0) AS client_errors
                 FROM admin_client_metrics_daily WHERE metric_date >= ? AND metric_date <= ?
                 GROUP BY page ORDER BY page
-                """, (rs, rowNum) -> {
-            long loads = rs.getLong("page_loads");
-            return new AdminPageMetricResponse(
-                    rs.getString("page"), loads, loads == 0 ? 0 : rs.getLong("load_ms") / loads, rs.getLong("client_errors"));
-        }, today.minusDays(days - 1L), today);
-        Long[] captureTotals = jdbcTemplate.queryForObject("""
+                """,
+                (rs, rowNum) -> {
+                    long loads = rs.getLong("page_loads");
+                    return new AdminPageMetricResponse(
+                            rs.getString("page"),
+                            loads,
+                            loads == 0 ? 0 : rs.getLong("load_ms") / loads,
+                            rs.getLong("client_errors"));
+                },
+                today.minusDays(days - 1L),
+                today);
+        Long[] captureTotals = jdbcTemplate.queryForObject(
+                """
                 SELECT COALESCE(SUM(event_count), 0), COALESCE(SUM(total_duration_ms), 0)
                 FROM admin_client_metrics_daily WHERE metric_type = 'MAP_MOBILE_CAPTURE' AND metric_date >= ? AND metric_date <= ?
                 """, (rs, rowNum) -> new Long[] {rs.getLong(1), rs.getLong(2)}, today.minusDays(days - 1L), today);

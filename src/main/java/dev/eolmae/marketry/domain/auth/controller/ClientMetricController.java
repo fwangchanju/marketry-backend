@@ -24,7 +24,9 @@ public class ClientMetricController {
 
     @PostMapping
     public ResponseEntity<Void> record(@RequestBody ClientMetricEventRequest event) {
-        if (event == null || event.page() == null || event.type() == null
+        if (event == null
+                || event.page() == null
+                || event.type() == null
                 || !Arrays.asList(PAGES).contains(event.page())
                 || !TYPES.contains(event.type())
                 || ((event.type().equals("PAGE_LOAD") || event.type().equals("MAP_MOBILE_CAPTURE"))

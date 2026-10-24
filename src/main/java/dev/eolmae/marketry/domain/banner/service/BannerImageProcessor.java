@@ -41,7 +41,8 @@ public class BannerImageProcessor {
                 int width = reader.getWidth(0);
                 int height = reader.getHeight(0);
                 if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "배너 이미지 크기는 가로 4096px, 세로 1024px 이하여야 합니다.");
+                    throw new ResponseStatusException(
+                            HttpStatus.BAD_REQUEST, "배너 이미지 크기는 가로 4096px, 세로 1024px 이하여야 합니다.");
                 }
                 BufferedImage decoded = reader.read(0);
                 if (decoded == null) {
