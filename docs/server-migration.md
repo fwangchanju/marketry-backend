@@ -288,7 +288,9 @@ Let's Encrypt는 쓰지 않는다. 맥미니가 바깥으로 연결을 여는 �
 
 애플리케이션은 `kiwoomRestClient` 빈에만 프록시를 건다(`MARKETRY_PROXY_HOST`, `MARKETRY_PROXY_PORT`).
 값이 비면 지금처럼 직접 연결하므로 이관 전에 배포해도 영향이 없다. 토큰 발급과 API 호출이 모두 이 빈을
-쓴다. 키움 API 인증 환경변수 `KIWOOM_APP_KEY_B`, `KIWOOM_SECRET_B`는 이름을 유지한다.
+쓴다. 키움 API 인증 환경변수는 `KIWOOM_APP_KEY`, `KIWOOM_APP_SECRET`을 쓴다. 이관 때는 `_B` 이름을 유지했고 키 교체와 함께 바꿨다.
+
+토스(`openapi.tossinvest.com:443`)도 허용 IP로만 호출된다. 그래서 `tossRestClient` 빈이 같은 프록시 설정을 쓰고, 서버 2의 tinyproxy는 이 주소도 통과시켜야 한다. 토스 호출은 처음에는 프록시 없이 맥미니에서 직접 나갔고 이 변경으로 바꿨다.
 
 서버 1이 아니라 서버 2를 프록시로 쓰는 건 이관 중 문제가 생기면 서버 1을 그대로 다시 올리기 위해서다.
 오라클 유휴 회수는 수년간 겪지 않아 따로 대비하지 않는다. 회수되면 종량제로 바꾸거나 다른 곳의 최소
@@ -415,7 +417,7 @@ DB만 OrbStack 컨테이너로 띄우고 백엔드와 프론트는 손으로 띄
 - [x] `main` 대상의 `Migration guard` 전용 ruleset에 필수 체크를 등록하고 그 규칙의 bypass 비움(소유자가 웹에서).
       기존 `protect-main`의 리뷰 필수·`Maintain` 우회 예외는 유지하고 마이그레이션 검사만 별도 규칙으로 강제한다
 - [x] 맥미니 `marketry-network` 서브넷 고정 생성 스크립트(`infra/prod/setup-network.sh`, `172.30.0.0/24`)
-- [x] 맥미니용 compose(`infra/prod/compose.yml`, `nginx.conf`, `env.template`): cloudflared, 호스트 포트 없음, 렌더러 같은 네트워크·메모리 1GB,
+- [x] 맥미니용 compose(`infra/prod/compose.yml`, `nginx.conf`, `infra/env.template`): cloudflared, 호스트 포트 없음, 렌더러 같은 네트워크·메모리 1GB,
       nginx 별칭 `marketry.co.kr`로 렌더러 내부 접근. 이미지 이름은 이관 뒤 정리 때 바꾼다
 - [ ] 배포 워크플로: Tailscale 액션(`tag:ci`, 임시 노드), 대상 호스트를 맥미니로, SSH는 동작 이름과 태그만 전달
 - [x] 맥미니 게이트의 로컬 이미지 정리 구현과 모조 회귀 검사. 실행 중 이미지와 원복용 이미지 보호. 병합·재설치는 별도 확인한다

@@ -23,7 +23,7 @@ import org.springframework.test.context.TestPropertySource;
  *   KRX 데이터마켓 직접 수집으로 대체 가능한지 판단
  *
  * 실행 조건:
- *   - KIWOOM_APP_KEY, KIWOOM_SECRET 환경변수 필요
+ *   - KIWOOM_APP_KEY, KIWOOM_APP_SECRET 환경변수 필요
  *   - 로컬 DB 기동 필요 (Spring context 초기화용)
  *
  * 실행 명령: ./gradlew manualTest --tests "*.KiwoomApiVerificationTest" -i

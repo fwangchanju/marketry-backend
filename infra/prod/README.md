@@ -12,7 +12,7 @@
    ./setup-network.sh
    ```
 
-2. env 파일을 만든다. `env.template`의 키를 `~/Projects/marketry/env/marketry.env`로 복사해 값을 채운다.
+2. env 파일을 만든다. `infra/env.template`의 키를 `~/Projects/marketry/env/marketry.env`로 복사해 값을 채운다.
    `env` 폴더 권한은 `700`, 파일 권한은 `600`으로 둔다. `deploy` 홈의 경로이며 소스 레포 밖이다.
    `R2_*`는 비워 두면 외부 업로드만 건너뛴다.
 

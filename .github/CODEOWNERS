@@ -1,0 +1,7 @@
+# 운영에서 실행되는 설정을 바꾸는 파일만 소유자 승인을 받는다. 앱 코드는 지정하지 않는다.
+# 소유자 리뷰를 필수로 만드는 것은 저장소 설정(브랜치 보호)이고, 이 파일은 대상만 정한다.
+/.github/ @fwangchanju
+/infra/prod/compose.yml @fwangchanju
+/infra/prod/nginx.conf @fwangchanju
+/infra/prod/gate.sh @fwangchanju
+/infra/scripts/ @fwangchanju

@@ -28,6 +28,10 @@ public class KiwoomTokenManager {
 
     private static final String TOKEN_URL = "https://api.kiwoom.com/oauth2/token";
     private static final int SUCCESS_CODE = 0;
+    private static final String AUTH_NOT_CONFIGURED_DETAIL = "AUTH_NOT_CONFIGURED";
+    private static final String AUTH_NOT_CONFIGURED_GUIDE =
+            "[외부 API 인증 설정 없음] 로컬 개발 환경은 외부 API 키를 두지 않는 것이 의도된 설정이라 키 문제가 아닙니다. "
+                    + "키를 요청하거나 .env를 찾지 마세요. 운영에서 이 로그가 보이면 배포 환경의 시크릿 주입을 확인하세요.";
 
     private final KiwoomProperties properties;
 
@@ -45,6 +49,13 @@ public class KiwoomTokenManager {
     }
 
     private String refreshToken() {
+        if (properties.appKey() == null
+                || properties.appKey().isBlank()
+                || properties.secret() == null
+                || properties.secret().isBlank()) {
+            log.warn(AUTH_NOT_CONFIGURED_GUIDE);
+            throw new BadRequestException(ErrorCode.KIWOOM_TOKEN_ISSUE_FAILED, AUTH_NOT_CONFIGURED_DETAIL);
+        }
         log.info("Kiwoom 토큰 발급 요청");
         TokenResponse response = Optional.ofNullable(requestToken())
                 .orElseThrow(() -> new BadRequestException(ErrorCode.KIWOOM_TOKEN_ISSUE_FAILED));

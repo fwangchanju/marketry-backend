@@ -9,7 +9,7 @@ Compose 프로젝트명은 `marketry-local`이다. DB는 전용 named volume에 
 
 ```sh
 cd marketry-backend/infra/local
-cp .env.example .env  # 최초 1회만
+cp ../env.template .env  # 최초 1회만. 로컬 DB 비밀번호와 포트만 채우고 나머지는 비워 둔다
 # 상위 폴더의 local/start-db.command 더블클릭
 # 상위 폴더의 start-backend.command 더블클릭
 # 상위 폴더의 start-frontend.command 더블클릭

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -40,7 +41,7 @@ public class TossStockListClient {
     private final long detailIntervalMillis;
 
     @Autowired
-    public TossStockListClient(TossTokenManager tokens, RestClient restClient) {
+    public TossStockListClient(TossTokenManager tokens, @Qualifier("tossRestClient") RestClient restClient) {
         this(tokens, restClient, DEFAULT_LIST_INTERVAL_MILLIS, DEFAULT_DETAIL_INTERVAL_MILLIS);
     }
 

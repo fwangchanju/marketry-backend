@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.web.client.RestClient;
 
 class ApplicationConfigTest {
 
@@ -36,5 +37,27 @@ class ApplicationConfigTest {
             assertThat(address.getHostString()).isEqualTo("proxy.example.com");
             assertThat(address.getPort()).isEqualTo(8888);
         });
+    }
+
+    @Test
+    @DisplayName("프록시 host가 있어도 토스 RestClient가 정상 생성된다")
+    void host가_있으면_프록시를_거치는_토스_RestClient가_생성된다() {
+        ApplicationConfig config = new ApplicationConfig();
+        KiwoomProperties properties = new KiwoomProperties("key", "secret", "proxy.example.com", 8888);
+
+        RestClient result = config.tossRestClient(properties);
+
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    @DisplayName("프록시 host가 비어 있어도 토스 RestClient가 직접 연결용으로 정상 생성된다")
+    void host가_비어_있으면_직접_연결하는_토스_RestClient가_생성된다() {
+        ApplicationConfig config = new ApplicationConfig();
+        KiwoomProperties properties = new KiwoomProperties("key", "secret", "", 8888);
+
+        RestClient result = config.tossRestClient(properties);
+
+        assertThat(result).isNotNull();
     }
 }

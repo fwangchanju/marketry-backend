@@ -37,7 +37,7 @@ import org.junit.jupiter.api.Test;
 @Tag("manual")
 public class DailyClosingPriceApiManualTest {
     private static final Set<String> CREDENTIAL_KEYS =
-            Set.of("KIWOOM_APP_KEY_B", "KIWOOM_SECRET_B", "TOSS_CLIENT_ID", "TOSS_CLIENT_SECRET");
+            Set.of("KIWOOM_APP_KEY", "KIWOOM_APP_SECRET", "TOSS_CLIENT_ID", "TOSS_CLIENT_SECRET");
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP =
             HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).build();
@@ -112,8 +112,8 @@ public class DailyClosingPriceApiManualTest {
         }
         var payload = Map.of(
                 "grant_type", "client_credentials",
-                "appkey", credential("KIWOOM_APP_KEY_B"),
-                "secretkey", credential("KIWOOM_SECRET_B"));
+                "appkey", credential("KIWOOM_APP_KEY"),
+                "secretkey", credential("KIWOOM_APP_SECRET"));
         var response = request(
                 "KIWOOM AUTH",
                 HttpRequest.newBuilder(URI.create("https://api.kiwoom.com/oauth2/token"))
