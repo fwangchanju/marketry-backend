@@ -12,7 +12,7 @@ import java.util.Set;
 public final class KiwoomProxyCheck {
 
     private static final Set<String> CONNECTION_KEYS =
-            Set.of("KIWOOM_APP_KEY_B", "KIWOOM_SECRET_B", "MARKETRY_PROXY_HOST", "MARKETRY_PROXY_PORT");
+            Set.of("KIWOOM_APP_KEY", "KIWOOM_APP_SECRET", "MARKETRY_PROXY_HOST", "MARKETRY_PROXY_PORT");
 
     private KiwoomProxyCheck() {}
 

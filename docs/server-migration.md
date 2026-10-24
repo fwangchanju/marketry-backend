@@ -288,7 +288,7 @@ Let's Encrypt는 쓰지 않는다. 맥미니가 바깥으로 연결을 여는 �
 
 애플리케이션은 `kiwoomRestClient` 빈에만 프록시를 건다(`MARKETRY_PROXY_HOST`, `MARKETRY_PROXY_PORT`).
 값이 비면 지금처럼 직접 연결하므로 이관 전에 배포해도 영향이 없다. 토큰 발급과 API 호출이 모두 이 빈을
-쓴다. 키움 API 인증 환경변수 `KIWOOM_APP_KEY_B`, `KIWOOM_SECRET_B`는 이름을 유지한다.
+쓴다. 키움 API 인증 환경변수는 `KIWOOM_APP_KEY`, `KIWOOM_APP_SECRET`을 쓴다. 이관 때는 `_B` 이름을 유지했고 키 교체와 함께 바꿨다.
 
 서버 1이 아니라 서버 2를 프록시로 쓰는 건 이관 중 문제가 생기면 서버 1을 그대로 다시 올리기 위해서다.
 오라클 유휴 회수는 수년간 겪지 않아 따로 대비하지 않는다. 회수되면 종량제로 바꾸거나 다른 곳의 최소

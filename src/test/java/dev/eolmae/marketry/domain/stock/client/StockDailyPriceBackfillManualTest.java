@@ -20,7 +20,7 @@ import org.springframework.context.annotation.Import;
 
 /**
  * Spring 앱의 클라이언트와 서비스를 주입받아 종목·거래소마다 ka11081 첫 페이지(최대600거래일)만 저장한다.
- * <p>로컬 DB는127.0.0.1:15432. 앱과 동일하게 POSTGRES_PASSWORD, KIWOOM_APP_KEY_B, KIWOOM_SECRET_B를 주입한다.
+ * <p>로컬 DB는127.0.0.1:15432. 앱과 동일하게 POSTGRES_PASSWORD, KIWOOM_APP_KEY, KIWOOM_APP_SECRET를 주입한다.
  * 스케줄은 비활성화하며 테스트 전체를 트랜잭션으로 감싸지 않아 페이지별 성공분은 커밋된다.
  * <p>DAILY_PRICE_SYMBOLS=ALL(기본) 또는005930,000660. KRX 전체+현재 nxtEnabled 종목만 NXT도 요청한다.
  * DAILY_PRICE_BASE_DATE=yyyy-MM-dd(기본 오늘). 미확정 오늘 행은 제외하고 과거 NXT는 응답에 있는 날짜만 저장한다.

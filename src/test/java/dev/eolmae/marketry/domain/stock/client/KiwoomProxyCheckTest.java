@@ -19,8 +19,8 @@ class KiwoomProxyCheckTest {
         Path fixture = directory.resolve("connection-fixture.txt");
         Files.writeString(fixture, """
                 # 실제 환경 파일이 아닌 검사 전용 가짜 값
-                KIWOOM_APP_KEY_B='test-key'
-                KIWOOM_SECRET_B="test-secret"
+                KIWOOM_APP_KEY='test-key'
+                KIWOOM_APP_SECRET="test-secret"
                 MARKETRY_PROXY_HOST=proxy.example.invalid
                 MARKETRY_PROXY_PORT=8888
                 TELEGRAM_BOT_TOKEN=unused-test-value
@@ -31,8 +31,8 @@ class KiwoomProxyCheckTest {
 
         assertThat(values)
                 .hasSize(4)
-                .containsEntry("KIWOOM_APP_KEY_B", "test-key")
-                .containsEntry("KIWOOM_SECRET_B", "test-secret")
+                .containsEntry("KIWOOM_APP_KEY", "test-key")
+                .containsEntry("KIWOOM_APP_SECRET", "test-secret")
                 .containsEntry("MARKETRY_PROXY_HOST", "proxy.example.invalid")
                 .containsEntry("MARKETRY_PROXY_PORT", "8888")
                 .doesNotContainKeys("TELEGRAM_BOT_TOKEN", "MARKETRY_KIWOOM_TOKEN_TEST");
@@ -42,9 +42,9 @@ class KiwoomProxyCheckTest {
     void 값에_등호가_포함돼도_보존하고_파일을_셸로_실행하지_않는다() throws IOException {
         Path fixture = directory.resolve("literal-fixture.txt");
         String literal = "test=literal$(not-a-command)";
-        Files.writeString(fixture, "KIWOOM_SECRET_B='" + literal + "'\n");
+        Files.writeString(fixture, "KIWOOM_APP_SECRET='" + literal + "'\n");
 
-        assertThat(KiwoomProxyCheck.connectionValues(fixture)).containsEntry("KIWOOM_SECRET_B", literal);
+        assertThat(KiwoomProxyCheck.connectionValues(fixture)).containsEntry("KIWOOM_APP_SECRET", literal);
     }
 
     @Test

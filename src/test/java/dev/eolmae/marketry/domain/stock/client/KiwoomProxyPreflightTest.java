@@ -80,7 +80,7 @@ class KiwoomProxyPreflightTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"KIWOOM_APP_KEY_B", "KIWOOM_SECRET_B"})
+    @ValueSource(strings = {"KIWOOM_APP_KEY", "KIWOOM_APP_SECRET"})
     void 인증_값이_비면_요청_전에_실패한다(String name) {
         Map<String, String> environment = environment();
         environment.put(name, " ");
@@ -111,7 +111,7 @@ class KiwoomProxyPreflightTest {
         return new HashMap<>(Map.of(
                 "MARKETRY_KIWOOM_TOKEN_TEST", "1",
                 "MARKETRY_PROXY_HOST", "proxy.example.invalid",
-                "KIWOOM_APP_KEY_B", "test-key",
-                "KIWOOM_SECRET_B", "test-secret"));
+                "KIWOOM_APP_KEY", "test-key",
+                "KIWOOM_APP_SECRET", "test-secret"));
     }
 }

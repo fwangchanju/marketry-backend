@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 /**
  * 이관 전 실제 프록시 인증과 읽기 전용 지수 조회를 확인한다. Spring 컨텍스트와 DB는 사용하지 않는다.
  *
- * 실행 조건: KIWOOM_APP_KEY_B, KIWOOM_SECRET_B, MARKETRY_PROXY_HOST를 프로세스에 주입한다.
+ * 실행 조건: KIWOOM_APP_KEY, KIWOOM_APP_SECRET, MARKETRY_PROXY_HOST를 프로세스에 주입한다.
  * MARKETRY_PROXY_PORT는 생략하면 8888이다. 기존 운영 토큰에 미치는 영향을 확인한 뒤
  * MARKETRY_KIWOOM_TOKEN_TEST=1로 실제 토큰 발급을 허용한다.
  * 실행 명령: ./gradlew kiwoomProxyTest

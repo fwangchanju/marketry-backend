@@ -101,7 +101,7 @@ final class KiwoomProxyPreflight {
             throw new AssertionError("MARKETRY_PROXY_PORT는 1~65535 사이의 정수여야 합니다.");
         }
         return new KiwoomProperties(
-                required(environment, "KIWOOM_APP_KEY_B"), required(environment, "KIWOOM_SECRET_B"), host, port);
+                required(environment, "KIWOOM_APP_KEY"), required(environment, "KIWOOM_APP_SECRET"), host, port);
     }
 
     private static String required(Map<String, String> environment, String name) {
