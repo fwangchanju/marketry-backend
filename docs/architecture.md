@@ -16,7 +16,6 @@
 | `domain/notification` | 데이터를 밖으로 내보낸다. 텔레그램 발송, 장애 에스컬레이션 |
 | `domain/renderer` | 화면을 이미지로 만든다. 렌더러 서버 호출 |
 | `domain/auth` | 누구인가. Google 로그인, JWT·캡처 토큰, 계정, 가입 초기화와 신규 업종 전파 |
-| `domain/krx` | KRX 크롤링. 비활성(`krx.enabled=false`), 유지만 함 |
 
 앱 전역 인프라는 도메인 밖에 둔다.
 

@@ -48,7 +48,7 @@ public enum RenderTarget {
         return toSegment(query.name());
     }
 
-    // MarketQuery.ALL_STOCK처럼 상수명에 "_"가 있어도 프론트 라우트(/map/allstock, PR #59)엔 없으므로 제거한다.
+    // MarketQuery.ALL_STOCK처럼 상수명에 "_"가 있어도 프론트 라우트(/map/allstock)엔 없으므로 제거한다.
     private static String toSegment(String enumName) {
         return enumName.toLowerCase(Locale.ROOT).replace("_", "");
     }

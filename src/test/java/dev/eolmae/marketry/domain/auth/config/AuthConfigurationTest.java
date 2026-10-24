@@ -132,6 +132,19 @@ class AuthConfigurationTest {
     }
 
     @Test
+    void 텔레그램_설정은_관리자만_허용한다() throws Exception {
+        assertOnlyAdminAllowed("GET", "/api/admin/telegram-settings");
+        assertOnlyAdminAllowed("PUT", "/api/admin/telegram-settings");
+    }
+
+    @Test
+    void MARKETRY_올리기와_되돌리기는_관리자만_허용한다() throws Exception {
+        assertOnlyAdminAllowed("GET", "/api/admin/marketry/publications");
+        assertOnlyAdminAllowed("POST", "/api/admin/marketry/publications");
+        assertOnlyAdminAllowed("POST", "/api/admin/marketry/publications/1/restore");
+    }
+
+    @Test
     void 약칭_수정은_관리자만_허용한다() throws Exception {
         try (AnnotationConfigApplicationContext context =
                 new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
@@ -161,6 +174,27 @@ class AuthConfigurationTest {
                     .issueAccessToken(new AuthenticatedUserPrincipal(1L, Role.USER));
 
             assertThat(statusOfWithToken(filterChainProxy, "PUT", "/api/custom/stock-sectors/005930", userToken))
+                    .isEqualTo(200);
+        }
+    }
+
+    // 비로그인은 401, 일반 회원은 403, 관리자만 통과(여기서는 뒤 필터가 없어 200)해야 한다.
+    private void assertOnlyAdminAllowed(String method, String path) throws Exception {
+        try (AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
+            FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
+            AppJwtService appJwtService = context.getBean(AppJwtService.class);
+            String userToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(1L, Role.USER));
+            String adminToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(2L, Role.ADMIN));
+
+            assertThat(statusOfWithToken(filterChainProxy, method, path, null))
+                    .as("%s %s 비로그인", method, path)
+                    .isEqualTo(401);
+            assertThat(statusOfWithToken(filterChainProxy, method, path, userToken))
+                    .as("%s %s 일반 회원", method, path)
+                    .isEqualTo(403);
+            assertThat(statusOfWithToken(filterChainProxy, method, path, adminToken))
+                    .as("%s %s 관리자", method, path)
                     .isEqualTo(200);
         }
     }

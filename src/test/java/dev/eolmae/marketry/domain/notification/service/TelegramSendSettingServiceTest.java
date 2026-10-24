@@ -16,20 +16,15 @@ import dev.eolmae.marketry.domain.notification.entity.TelegramSendSetting;
 import dev.eolmae.marketry.domain.notification.properties.TelegramProperties;
 import dev.eolmae.marketry.domain.notification.repository.TelegramSendSettingRepository;
 import dev.eolmae.marketry.domain.view.enums.AverageMode;
-import java.time.LocalTime;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 class TelegramSendSettingServiceTest {
 
-    private static final List<LocalTime> DEFAULT_MAP_TIMES =
-            List.of(LocalTime.of(8, 15), LocalTime.of(9, 15), LocalTime.of(15, 30));
-
     private final TelegramSendSettingRepository repository = mock(TelegramSendSettingRepository.class);
-    private final TelegramProperties properties = new TelegramProperties(
-            "token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true, DEFAULT_MAP_TIMES);
+    private final TelegramProperties properties =
+            new TelegramProperties("token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true);
     private final TelegramSendSettingService service = new TelegramSendSettingService(repository, properties);
 
     TelegramSendSettingServiceTest() {
@@ -49,7 +44,7 @@ class TelegramSendSettingServiceTest {
 
     @Test
     void 저장된_설정이_있으면_그_값을_쓴다() {
-        TelegramSendSetting setting = TelegramSendSetting.create(DEFAULT_MAP_TIMES);
+        TelegramSendSetting setting = TelegramSendSetting.create();
         setting.update(true, 15, 60);
         when(repository.findById(TelegramSendSetting.SINGLETON_ID)).thenReturn(Optional.of(setting));
 

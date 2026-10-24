@@ -6,9 +6,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.List;
-import java.util.stream.Collectors;
 import lombok.Getter;
 
 /** 텔레그램 발송 설정 — 행 하나만 쓴다({@link #SINGLETON_ID}). 행이 없으면 서버 설정값이 기본이다. */
@@ -17,7 +14,6 @@ import lombok.Getter;
 @Table(name = "telegram_send_setting")
 public class TelegramSendSetting {
     public static final Long SINGLETON_ID = 1L;
-    private static final String TIME_SEPARATOR = ",";
 
     @Id
     private Long id;
@@ -31,7 +27,7 @@ public class TelegramSendSetting {
     @Column(nullable = false)
     private int sectorSendIntervalMinutes;
 
-    // 지도를 따로 보내던 때의 칸이다. NOT NULL이고 마이그레이션 가드가 DROP을 막아 칸을 남겼다 — 처음 만들 때 서버 설정값만 채우고 더는 쓰지 않는다.
+    // 지도를 따로 보내던 때의 칸이다. NOT NULL이고 마이그레이션 가드가 DROP을 막아 칸을 남겼다 — 처음 만들 때 빈 값만 채우고 더는 쓰지 않는다.
     @Column(nullable = false, length = 200)
     private String mapSendTimes;
 
@@ -40,11 +36,10 @@ public class TelegramSendSetting {
 
     protected TelegramSendSetting() {}
 
-    public static TelegramSendSetting create(List<LocalTime> legacyMapSendTimes) {
+    public static TelegramSendSetting create() {
         TelegramSendSetting setting = new TelegramSendSetting();
         setting.id = SINGLETON_ID;
-        setting.mapSendTimes =
-                legacyMapSendTimes.stream().map(LocalTime::toString).collect(Collectors.joining(TIME_SEPARATOR));
+        setting.mapSendTimes = "";
         return setting;
     }
 

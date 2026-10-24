@@ -30,7 +30,6 @@ import dev.eolmae.marketry.domain.view.service.MarketTradingScheduleService;
 import dev.eolmae.marketry.domain.view.service.TreemapQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -51,8 +50,8 @@ class HomeReportSenderTest {
     private final MarketTradingScheduleService marketTradingScheduleService = mock(MarketTradingScheduleService.class);
     private final EscalationPublisher escalationPublisher = mock(EscalationPublisher.class);
     private final RenderBasisResolver renderBasisResolver = mock(RenderBasisResolver.class);
-    private final TelegramProperties properties = new TelegramProperties(
-            "token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true, List.of(LocalTime.of(15, 30)));
+    private final TelegramProperties properties =
+            new TelegramProperties("token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true);
     private final HomeReportSender sender = new HomeReportSender(
             screenshotClient,
             telegramClient,
