@@ -5,6 +5,8 @@ import static dev.eolmae.marketry.domain.auth.entity.QVisitorDaily.visitorDaily;
 import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.auth.dto.AdminDailyAccessResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminVisitorSourceResponse;
+import dev.eolmae.marketry.domain.auth.enums.VisitorSource;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -17,12 +19,23 @@ public class VisitorDailyRepositoryImpl implements VisitorDailyRepositoryCustom 
     private final JdbcTemplate jdbcTemplate;
 
     @Override
-    public void recordVisit(LocalDate visitDate, String visitorKey) {
+    public void recordVisit(LocalDate visitDate, String visitorKey, VisitorSource source) {
         jdbcTemplate.update("""
-                INSERT INTO visitor_daily (visit_date, visitor_key)
-                VALUES (?, ?)
+                INSERT INTO visitor_daily (visit_date, visitor_key, source)
+                VALUES (?, ?, ?)
                 ON CONFLICT (visit_date, visitor_key) DO NOTHING
-                """, visitDate, visitorKey);
+                """, visitDate, visitorKey, source.name());
+    }
+
+    @Override
+    public List<AdminVisitorSourceResponse> countVisitorsBySource(LocalDate from, LocalDate to) {
+        return queryFactory
+                .select(Projections.constructor(
+                        AdminVisitorSourceResponse.class, visitorDaily.source, visitorDaily.id.visitorKey.count()))
+                .from(visitorDaily)
+                .where(visitorDaily.id.visitDate.between(from, to), visitorDaily.source.isNotNull())
+                .groupBy(visitorDaily.source)
+                .fetch();
     }
 
     @Override

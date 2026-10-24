@@ -1,7 +1,10 @@
 package dev.eolmae.marketry.domain.auth.entity;
 
+import dev.eolmae.marketry.domain.auth.enums.VisitorSource;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
@@ -16,6 +19,10 @@ public class VisitorDaily {
 
     @EmbeddedId
     private VisitorDailyId id;
+
+    /** 들어온 곳. 출처를 기록하기 전의 행은 비어 있다. */
+    @Enumerated(EnumType.STRING)
+    private VisitorSource source;
 
     protected VisitorDaily() {}
 }

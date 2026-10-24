@@ -10,10 +10,12 @@ import dev.eolmae.marketry.domain.auth.dto.AdminMemberSpecialResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminMemberSummaryResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminSignupDailyResponse;
 import dev.eolmae.marketry.domain.auth.dto.AdminVisitorDailyResponse;
+import dev.eolmae.marketry.domain.auth.dto.AdminVisitorSourceResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserProfile;
 import dev.eolmae.marketry.domain.auth.enums.MemberGrade;
 import dev.eolmae.marketry.domain.auth.enums.Role;
+import dev.eolmae.marketry.domain.auth.enums.VisitorSource;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserProfileRepository;
@@ -222,6 +224,25 @@ public class AdminMemberService {
                     Double rate = visitors == 0 ? null : joined * 100.0 / visitors;
                     return new AdminVisitorDailyResponse(date, visitors, joined, rate);
                 })
+                .toList();
+    }
+
+    /**
+     * 최근 N일(오늘 포함)의 비회원 방문을 유입 경로별로 센다. 네 경로가 모두 나오고 방문이 없는 경로는 0이다.
+     * 출처를 기록하기 시작한 날부터만 세어진다.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminVisitorSourceResponse> getVisitorSources(LocalDate today, int days) {
+        if (days < 1 || days > MAX_SIGNUP_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회 기간이 올바르지 않습니다.");
+        }
+        List<AdminVisitorSourceResponse> counted =
+                visitorDailyRepository.countVisitorsBySource(today.minusDays(days - 1L), today);
+        return Arrays.stream(VisitorSource.values())
+                .map(source -> counted.stream()
+                        .filter(row -> row.source() == source)
+                        .findFirst()
+                        .orElse(new AdminVisitorSourceResponse(source, 0L)))
                 .toList();
     }
 

@@ -1,6 +1,7 @@
 package dev.eolmae.marketry.domain.auth.service;
 
 import dev.eolmae.marketry.common.enums.Zone;
+import dev.eolmae.marketry.domain.auth.enums.VisitorSource;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.repository.VisitorDailyRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +28,9 @@ public class VisitorService {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final String KEY_PURPOSE = "visitor:";
+    // 화면이 세션을 물을 때 처음 들어온 곳(document.referrer)과 주소의 utm_source를 실어 보낸다. 서버가 받는 Referer는 우리 사이트 자신이라 쓸 수 없다.
+    private static final String REFERRER_HEADER = "X-Visit-Referrer";
+    private static final String UTM_SOURCE_HEADER = "X-Visit-Source";
     private static final Pattern BOT_PATTERN = Pattern.compile(
             "bot|crawl|spider|slurp|preview|monitor|uptime|curl|wget|python|java/|headless|facebookexternalhit",
             Pattern.CASE_INSENSITIVE);
@@ -52,7 +56,10 @@ public class VisitorService {
             return;
         }
         try {
-            visitorDailyRepository.recordVisit(today, key);
+            visitorDailyRepository.recordVisit(
+                    today,
+                    key,
+                    VisitorSource.from(request.getHeader(REFERRER_HEADER), request.getHeader(UTM_SOURCE_HEADER)));
         } catch (RuntimeException e) {
             recordedToday.remove(key);
         }
