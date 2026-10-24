@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -35,7 +36,7 @@ public class TossTokenManager {
     private Instant expiresAt = Instant.MIN;
 
     @Autowired
-    public TossTokenManager(TossProperties properties, RestClient restClient) {
+    public TossTokenManager(TossProperties properties, @Qualifier("tossRestClient") RestClient restClient) {
         this(properties, restClient, Clock.systemUTC());
     }
 

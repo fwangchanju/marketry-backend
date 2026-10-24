@@ -50,24 +50,16 @@ public class ApplicationConfig {
                 .build();
     }
 
-    // 키움 호출만 고정 IP 프록시를 거친다. 값이 없으면 직접 연결한다.
+    // 키움과 토스 호출만 고정 IP 프록시를 거친다. 값이 없으면 직접 연결한다.
     @Bean
     public RestClient kiwoomRestClient(KiwoomProperties kiwoomProperties) {
-        Optional<InetSocketAddress> proxyAddress = kiwoomProxyAddress(kiwoomProperties);
-        if (proxyAddress.isEmpty()) {
-            return RestClient.builder()
-                    .requestFactory(requestFactory(Duration.ofSeconds(10)))
-                    .build();
-        }
-        InetSocketAddress address = proxyAddress.get();
-        log.info("키움 호출 프록시 사용: {}:{}", address.getHostString(), address.getPort());
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(CONNECT_TIMEOUT)
-                .proxy(ProxySelector.of(address))
-                .build();
-        return RestClient.builder()
-                .requestFactory(requestFactory(httpClient, Duration.ofSeconds(10)))
-                .build();
+        return proxyRestClient("키움", kiwoomProperties);
+    }
+
+    // 토스도 허용 IP로만 호출되므로 키움과 같은 프록시 설정(kiwoom.proxy-host/port)을 쓴다.
+    @Bean
+    public RestClient tossRestClient(KiwoomProperties kiwoomProperties) {
+        return proxyRestClient("토스", kiwoomProperties);
     }
 
     @Bean
@@ -92,6 +84,24 @@ public class ApplicationConfig {
             return Optional.empty();
         }
         return Optional.of(InetSocketAddress.createUnresolved(host.strip(), properties.proxyPort()));
+    }
+
+    private RestClient proxyRestClient(String serviceName, KiwoomProperties kiwoomProperties) {
+        Optional<InetSocketAddress> proxyAddress = kiwoomProxyAddress(kiwoomProperties);
+        if (proxyAddress.isEmpty()) {
+            return RestClient.builder()
+                    .requestFactory(requestFactory(Duration.ofSeconds(10)))
+                    .build();
+        }
+        InetSocketAddress address = proxyAddress.get();
+        log.info("{} 호출 프록시 사용: {}:{}", serviceName, address.getHostString(), address.getPort());
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(CONNECT_TIMEOUT)
+                .proxy(ProxySelector.of(address))
+                .build();
+        return RestClient.builder()
+                .requestFactory(requestFactory(httpClient, Duration.ofSeconds(10)))
+                .build();
     }
 
     private ClientHttpRequestFactory requestFactory(Duration readTimeout) {

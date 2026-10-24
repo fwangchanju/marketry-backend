@@ -7,6 +7,7 @@ import dev.eolmae.marketry.domain.stock.properties.TossProperties;
 import java.time.Clock;
 import java.time.LocalDate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
@@ -20,7 +21,7 @@ public class TossMarketCalendarClient {
     private final RestClient restClient;
 
     @Autowired
-    public TossMarketCalendarClient(TossTokenManager tokens, RestClient restClient) {
+    public TossMarketCalendarClient(TossTokenManager tokens, @Qualifier("tossRestClient") RestClient restClient) {
         this.tokens = tokens;
         this.restClient = restClient;
     }
