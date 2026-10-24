@@ -1,6 +1,7 @@
 package dev.eolmae.marketry.domain.auth.controller;
 
 import dev.eolmae.marketry.domain.auth.dto.AuthSessionResponse;
+import dev.eolmae.marketry.domain.auth.exception.EmailRequiredException;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.service.AppJwtService;
 import dev.eolmae.marketry.domain.auth.service.AuthService;
@@ -212,6 +213,8 @@ public class AuthController {
                         authService.loginWithSocialProvider(provider, code, state, socialCallbackUri(provider));
                 authCookies.setSessionCookies(response, tokens);
                 return new RedirectView(authProperties.getFrontendUrl() + returnTo);
+            } catch (EmailRequiredException e) {
+                result = "email_required";
             } catch (ResponseStatusException e) {
                 // Provider response details can contain authorization codes or tokens; keep the redirect generic.
             }
