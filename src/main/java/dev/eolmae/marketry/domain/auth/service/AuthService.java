@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.auth.dto.AuthSessionResponse;
 import dev.eolmae.marketry.domain.auth.dto.ProfileResponse;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
 import dev.eolmae.marketry.domain.auth.entity.UserRefreshToken;
+import dev.eolmae.marketry.domain.auth.exception.EmailRequiredException;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
@@ -74,7 +75,10 @@ public class AuthService {
         String issuer = googleUser.getIssuer().toString();
         String subject = googleUser.getSubject();
         String email = googleUser.getClaimAsString("email");
-        if (subject == null || email == null || !Boolean.TRUE.equals(googleUser.getClaim("email_verified"))) {
+        if (subject == null
+                || email == null
+                || email.isBlank()
+                || !Boolean.TRUE.equals(googleUser.getClaim("email_verified"))) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "확인된 Google 계정 정보가 필요합니다.");
         }
 
@@ -156,6 +160,9 @@ public class AuthService {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Social login could not be completed.");
         }
+        if (email == null || email.isBlank()) {
+            throw new EmailRequiredException();
+        }
         return loginWithProviderIdentity(issuer, subject, email);
     }
 
@@ -224,9 +231,7 @@ public class AuthService {
                 user = userAccountRepository.findByIssuerAndSub(issuer, subject).orElseThrow();
             }
         }
-        if (email != null && !email.isBlank()) {
-            user.updateEmail(email);
-        }
+        user.updateEmail(email);
         return createTokens(user);
     }
 
@@ -331,7 +336,8 @@ public class AuthService {
                 profile.nickname(),
                 profile.imageVersion(),
                 profile.nicknameChangeableAt(),
-                user.isSpecial());
+                user.isSpecial(),
+                user.getIssuer());
     }
 
     // 마지막 접속 시각과 일별 접속 기록을 같은 간격(회원당 5분에 한 번)으로 남긴다.

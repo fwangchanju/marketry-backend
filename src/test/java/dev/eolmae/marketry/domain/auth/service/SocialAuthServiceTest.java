@@ -14,8 +14,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
-import dev.eolmae.marketry.common.event.UserSignedUpEvent;
 import dev.eolmae.marketry.domain.auth.entity.UserAccount;
+import dev.eolmae.marketry.domain.auth.exception.EmailRequiredException;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.repository.UserAccessDailyRepository;
 import dev.eolmae.marketry.domain.auth.repository.UserAccountRepository;
@@ -89,7 +89,7 @@ class SocialAuthServiceTest {
                     assertThat(request.getHeaders().getFirst("Authorization")).isEqualTo("Bearer provider-token");
                 })
                 .andRespond(withSuccess(
-                        "{\"resultcode\":\"00\",\"message\":\"success\",\"response\":{\"id\":\"naver-subject\",\"name\":\"member\"}}",
+                        "{\"resultcode\":\"00\",\"message\":\"success\",\"response\":{\"id\":\"naver-subject\",\"name\":\"member\",\"email\":\"member@example.com\"}}",
                         MediaType.APPLICATION_JSON));
 
         AuthService.IssuedTokens tokens = authService.loginWithSocialProvider(
@@ -103,7 +103,7 @@ class SocialAuthServiceTest {
 
     @Test
     @DisplayName("카카오 재로그인은 카카오 회원만 조회하고 확인된 이메일을 갱신한다")
-    void kakaoLoginReusesOnlyKakaoIdentityAndAcceptsVerifiedEmail() {
+    void kakaoLoginReusesOnlyKakaoIdentityAndUpdatesVerifiedEmail() {
         properties.getKakao().setClientId("client-id");
         properties.getKakao().setClientSecret("client-secret");
         UserAccount user = UserAccount.create("https://kauth.kakao.com", "12345", "same@example.com");
@@ -200,24 +200,14 @@ class SocialAuthServiceTest {
                 "{\"email\":\"unverified@example.com\",\"is_email_valid\":true,\"is_email_verified\":false}",
                 "{\"email\":\"unverified@example.com\",\"is_email_valid\":false,\"is_email_verified\":true}"
             })
-    void 카카오_신규가입은_이메일이_없거나_확인되지_않아도_허용한다(String account) {
+    void 카카오_신규가입은_이메일이_없거나_확인되지_않으면_거절한다(String account) {
         expectProfile("kakao", "{\"id\":12345,\"kakao_account\":" + account + "}");
-        UserAccount user = existingUser("https://kauth.kakao.com", "12345", null);
-        when(accountRepository.findByIssuerAndSub("https://kauth.kakao.com", "12345"))
-                .thenReturn(Optional.empty());
-        when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(), any(), any()))
-                .thenReturn(List.of(7L));
-        when(accountRepository.findById(7L)).thenReturn(Optional.of(user));
 
-        assertThat(login("kakao").accessToken()).isEqualTo("access-token");
-        verify(jdbcTemplate)
-                .query(
-                        anyString(),
-                        ArgumentMatchers.<RowMapper<Long>>any(),
-                        org.mockito.ArgumentMatchers.eq("https://kauth.kakao.com"),
-                        org.mockito.ArgumentMatchers.eq("12345"),
-                        org.mockito.ArgumentMatchers.isNull());
-        verify(eventPublisher).publishEvent(new UserSignedUpEvent(7L));
+        assertThatThrownBy(() -> login("kakao")).isInstanceOf(EmailRequiredException.class);
+        verify(accountRepository, never()).findByIssuerAndSub(anyString(), anyString());
+        verify(jdbcTemplate, never()).query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verify(jwtService, never()).issueAccessToken(any());
         server.verify();
     }
 
@@ -234,8 +224,48 @@ class SocialAuthServiceTest {
     }
 
     @Test
-    void 동시_가입에서_이미_만들어진_회원은_가입초기화를_반복하지_않는다() {
+    void 네이버_기존_회원은_이메일이_없으면_로그인할_수_없다() {
         expectProfile("naver", "{\"resultcode\":\"00\",\"response\":{\"id\":\"subject\"}}");
+        existingUser("https://nid.naver.com", "subject", "old@example.com");
+
+        assertThatThrownBy(() -> login("naver")).isInstanceOf(EmailRequiredException.class);
+        verify(accountRepository, never()).findByIssuerAndSub(anyString(), anyString());
+        verify(jdbcTemplate, never()).query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verify(jwtService, never()).issueAccessToken(any());
+        server.verify();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " "})
+    void 네이버_이메일이_빈문자열이면_로그인할_수_없다(String email) {
+        expectProfile("naver", "{\"resultcode\":\"00\",\"response\":{\"id\":\"subject\",\"email\":\"" + email + "\"}}");
+
+        assertThatThrownBy(() -> login("naver")).isInstanceOf(EmailRequiredException.class);
+        verify(accountRepository, never()).findByIssuerAndSub(anyString(), anyString());
+        verify(jdbcTemplate, never()).query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verify(jwtService, never()).issueAccessToken(any());
+        server.verify();
+    }
+
+    @Test
+    void 네이버_신규_회원은_이메일이_없으면_계정을_만들지_않는다() {
+        expectProfile("naver", "{\"resultcode\":\"00\",\"response\":{\"id\":\"new-subject\"}}");
+
+        assertThatThrownBy(() -> login("naver")).isInstanceOf(EmailRequiredException.class);
+        verify(accountRepository, never()).findByIssuerAndSub(anyString(), anyString());
+        verify(jdbcTemplate, never()).query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+        verify(jwtService, never()).issueAccessToken(any());
+        server.verify();
+    }
+
+    @Test
+    void 동시_가입에서_이미_만들어진_회원은_가입초기화를_반복하지_않는다() {
+        expectProfile(
+                "naver",
+                "{\"resultcode\":\"00\",\"response\":{\"id\":\"subject\",\"email\":\"existing@example.com\"}}");
         UserAccount user = existingUser("https://nid.naver.com", "subject", null);
         when(accountRepository.findByIssuerAndSub("https://nid.naver.com", "subject"))
                 .thenReturn(Optional.empty())
@@ -249,8 +279,9 @@ class SocialAuthServiceTest {
     }
 
     @Test
-    void 가입초기화_실패는_인증실패로_감추거나_세션을_발급하지_않는다() {
-        expectProfile("naver", "{\"resultcode\":\"00\",\"response\":{\"id\":\"subject\"}}");
+    void 가입초기화_실패는_세션을_발급하지_않는다() {
+        expectProfile(
+                "naver", "{\"resultcode\":\"00\",\"response\":{\"id\":\"subject\",\"email\":\"new@example.com\"}}");
         when(jdbcTemplate.query(anyString(), ArgumentMatchers.<RowMapper<Long>>any(), any(), any(), any()))
                 .thenReturn(List.of(7L));
         RuntimeException failure = new RuntimeException("signup initialization failed");

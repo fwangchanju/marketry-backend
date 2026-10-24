@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import dev.eolmae.marketry.domain.auth.exception.EmailRequiredException;
 import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.service.AppJwtService;
 import dev.eolmae.marketry.domain.auth.service.AuthService;
@@ -113,6 +114,26 @@ class SocialAuthControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(header().string("Location", "http://localhost:5173/"))
                 .andExpect(header().stringValues("Set-Cookie", hasItem(containsString("mm_access=access"))));
+        verify(authService)
+                .loginWithSocialProvider("naver", "code", "state", "http://localhost/api/auth/naver/callback");
+    }
+
+    @Test
+    @DisplayName("이메일이 없는 계정은 안전한 복귀 경로에 이메일 필요 오류를 표시한다")
+    void 이메일이_없으면_안전한_복귀_경로에_전용_오류를_표시한다() throws Exception {
+        String returnCookie = Base64.getUrlEncoder()
+                .withoutPadding()
+                .encodeToString("/account?tab=login#social".getBytes(StandardCharsets.UTF_8));
+        when(authService.loginWithSocialProvider(any(), any(), any(), any())).thenThrow(new EmailRequiredException());
+
+        mockMvc.perform(get("/api/auth/naver/callback")
+                        .param("code", "code")
+                        .param("state", "state")
+                        .cookie(new Cookie("mm_naver_return", returnCookie), new Cookie("mm_naver_state", "state")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string(
+                                "Location",
+                                "http://localhost:5173/account?tab=login&loginError=email_required#social"));
         verify(authService)
                 .loginWithSocialProvider("naver", "code", "state", "http://localhost/api/auth/naver/callback");
     }
