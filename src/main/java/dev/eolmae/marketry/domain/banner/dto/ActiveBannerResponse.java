@@ -12,8 +12,10 @@ public record ActiveBannerResponse(
         String linkUrl,
         String imageUrl,
         String imageContentType,
-        LocalDateTime nextRefreshAt) {
+        LocalDateTime nextRefreshAt,
+        int textScalePercent,
+        boolean textBold) {
     public static ActiveBannerResponse empty() {
-        return new ActiveBannerResponse(false, null, null, null, null, null, null, null, null);
+        return new ActiveBannerResponse(false, null, null, null, null, null, null, null, null, 100, false);
     }
 }
