@@ -49,10 +49,7 @@ public class AdminMemberService {
     private static final int MAX_SPECIAL_CHANGE = 100;
     private static final String NO_PROVIDER_FILTER = "NONE";
     private static final Set<String> MEMBER_ISSUER_FILTERS = Set.of(
-            "https://nid.naver.com",
-            "https://kauth.kakao.com",
-            "https://accounts.google.com",
-            NO_PROVIDER_FILTER);
+            "https://nid.naver.com", "https://kauth.kakao.com", "https://accounts.google.com", NO_PROVIDER_FILTER);
     private static final String[] ACCESS_FREQUENCY_LABELS = {"0일", "1~2일", "3~6일", "7~14일", "15일 이상"};
     private static final Set<String> SORT_KEYS =
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
@@ -67,7 +64,8 @@ public class AdminMemberService {
     }
 
     @Transactional(readOnly = true)
-    public AdminMemberPageResponse findMembers(String query, String role, String issuer, String sort, String order, int page) {
+    public AdminMemberPageResponse findMembers(
+            String query, String role, String issuer, String sort, String order, int page) {
         String keyword = query.trim();
         boolean ascending = "asc".equals(order);
         if (keyword.length() > 100 || page < 0 || !SORT_KEYS.contains(sort) || !(ascending || "desc".equals(order))) {

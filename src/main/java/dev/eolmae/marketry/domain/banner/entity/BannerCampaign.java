@@ -75,7 +75,8 @@ public class BannerCampaign {
             LocalDateTime endsAt) {
         BannerCampaign campaign = new BannerCampaign();
         campaign.createdAt = LocalDateTime.now(Zone.KST.zoneId());
-        campaign.update(type, title, text, textScalePercent, textBold, linkUrl, image, imageContentType, startsAt, endsAt);
+        campaign.update(
+                type, title, text, textScalePercent, textBold, linkUrl, image, imageContentType, startsAt, endsAt);
         return campaign;
     }
 

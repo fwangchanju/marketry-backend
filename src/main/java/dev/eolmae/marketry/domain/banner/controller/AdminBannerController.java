@@ -47,7 +47,15 @@ public class AdminBannerController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(service.create(
-                        type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, file == null ? null : file.getBytes()));
+                        type,
+                        title,
+                        text,
+                        linkUrl,
+                        startsAt,
+                        endsAt,
+                        textScalePercent,
+                        textBold,
+                        file == null ? null : file.getBytes()));
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -66,7 +74,16 @@ public class AdminBannerController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(service.update(
-                        id, type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, file == null ? null : file.getBytes()));
+                        id,
+                        type,
+                        title,
+                        text,
+                        linkUrl,
+                        startsAt,
+                        endsAt,
+                        textScalePercent,
+                        textBold,
+                        file == null ? null : file.getBytes()));
     }
 
     @PostMapping("/{id}/approve")

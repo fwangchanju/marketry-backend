@@ -29,8 +29,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
     private static final String NO_PROVIDER_FILTER = "NONE";
-    private static final Set<String> OAUTH_ISSUERS = Set.of(
-            "https://nid.naver.com", "https://kauth.kakao.com", "https://accounts.google.com");
+    private static final Set<String> OAUTH_ISSUERS =
+            Set.of("https://nid.naver.com", "https://kauth.kakao.com", "https://accounts.google.com");
     private final JPAQueryFactory queryFactory;
 
     @Override
@@ -41,7 +41,13 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
 
     @Override
     public AdminMemberPageResponse findMembers(
-            String query, Set<MemberGrade> grades, Set<String> issuers, String sort, boolean ascending, int page, int size) {
+            String query,
+            Set<MemberGrade> grades,
+            Set<String> issuers,
+            String sort,
+            boolean ascending,
+            int page,
+            int size) {
         var predicate = new BooleanBuilder(managedMember());
         if (!query.isEmpty()) {
             predicate.and(

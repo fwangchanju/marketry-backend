@@ -35,8 +35,17 @@ public class BannerCampaignService {
 
     @Transactional
     public BannerCampaignResponse create(
-            String type, String title, String text, String linkUrl, String startsAt, String endsAt, int textScalePercent, boolean textBold, byte[] imageBytes) {
-        DraftValues values = validate(type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, null);
+            String type,
+            String title,
+            String text,
+            String linkUrl,
+            String startsAt,
+            String endsAt,
+            int textScalePercent,
+            boolean textBold,
+            byte[] imageBytes) {
+        DraftValues values =
+                validate(type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, null);
         BannerCampaign campaign = BannerCampaign.draft(
                 values.type(),
                 values.title(),
@@ -67,7 +76,8 @@ public class BannerCampaignService {
         if (campaign.getApprovedAt() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "승인된 배너는 수정할 수 없습니다. 새 배너로 등록해 주세요.");
         }
-        DraftValues values = validate(type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, campaign);
+        DraftValues values = validate(
+                type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, campaign);
         campaign.update(
                 values.type(),
                 values.title(),
@@ -202,7 +212,16 @@ public class BannerCampaignService {
             }
         }
         return new DraftValues(
-                type, title, emptyToNull(text), textScalePercent, textBold, emptyToNull(linkUrl), startsAt, endsAt, image, contentType);
+                type,
+                title,
+                emptyToNull(text),
+                textScalePercent,
+                textBold,
+                emptyToNull(linkUrl),
+                startsAt,
+                endsAt,
+                image,
+                contentType);
     }
 
     private void validateLink(String linkUrl) {
