@@ -3,11 +3,17 @@ package dev.eolmae.marketry.domain.banner.service;
 import dev.eolmae.marketry.common.enums.Zone;
 import dev.eolmae.marketry.domain.banner.dto.ActiveBannerResponse;
 import dev.eolmae.marketry.domain.banner.dto.BannerCampaignResponse;
+import dev.eolmae.marketry.domain.banner.dto.BannerRotationSettingRequest;
+import dev.eolmae.marketry.domain.banner.dto.BannerRotationSettingResponse;
 import dev.eolmae.marketry.domain.banner.entity.BannerCampaign;
+import dev.eolmae.marketry.domain.banner.entity.BannerRotationSetting;
 import dev.eolmae.marketry.domain.banner.enums.BannerType;
 import dev.eolmae.marketry.domain.banner.repository.BannerCampaignRepository;
+import dev.eolmae.marketry.domain.banner.repository.BannerRotationSettingRepository;
 import java.net.URI;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,8 +27,11 @@ public class BannerCampaignService {
 
     private static final int MAX_TITLE_LENGTH = 100;
     private static final int MAX_NOTICE_LENGTH = 200;
+    private static final int DEFAULT_ROTATION_INTERVAL_SECONDS = 10;
+    private static final List<Integer> ROTATION_INTERVAL_OPTIONS = List.of(5, 10, 15, 30, 60);
 
     private final BannerCampaignRepository repository;
+    private final BannerRotationSettingRepository rotationSettingRepository;
     private final BannerImageProcessor imageProcessor;
 
     @Transactional(readOnly = true)
@@ -73,9 +82,6 @@ public class BannerCampaignService {
             boolean textBold,
             byte[] imageBytes) {
         BannerCampaign campaign = find(id);
-        if (campaign.getApprovedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "승인된 배너는 수정할 수 없습니다. 새 배너로 등록해 주세요.");
-        }
         DraftValues values = validate(
                 type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, campaign);
         campaign.update(
@@ -103,22 +109,6 @@ public class BannerCampaignService {
                 || (campaign.getEndsAt() != null && !campaign.getEndsAt().isAfter(campaign.getStartsAt()))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "게시 시작·종료 시각을 확인해 주세요.");
         }
-        List<BannerCampaign> approved = repository.findApprovedForUpdate();
-        for (BannerCampaign existing : approved) {
-            if (!overlaps(campaign, existing)) continue;
-            boolean existingRunsBeforeNew = existing.getStartsAt().isBefore(campaign.getStartsAt())
-                    && (existing.getEndsAt() == null || existing.getEndsAt().isAfter(campaign.getStartsAt()));
-            if (!existingRunsBeforeNew) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "다른 배너의 게시 시간과 겹칩니다. 시작·종료 시각을 조정해 주세요.");
-            }
-        }
-        for (BannerCampaign existing : approved) {
-            if (overlaps(campaign, existing)
-                    && existing.getStartsAt().isBefore(campaign.getStartsAt())
-                    && (existing.getEndsAt() == null || existing.getEndsAt().isAfter(campaign.getStartsAt()))) {
-                existing.replaceEndAt(campaign.getStartsAt());
-            }
-        }
         campaign.approve();
         return toResponse(repository.save(campaign), now);
     }
@@ -135,13 +125,64 @@ public class BannerCampaignService {
     @Transactional(readOnly = true)
     public ActiveBannerResponse active() {
         LocalDateTime now = now();
-        return repository
-                .findCurrent(now)
-                .map(campaign -> toActiveResponse(campaign, campaign.getEndsAt()))
-                .orElseGet(() -> repository
-                        .findFirstByApprovedAtIsNotNullAndStartsAtAfterOrderByStartsAtAsc(now)
-                        .map(campaign -> emptyWithRefreshAt(campaign.getStartsAt()))
-                        .orElseGet(ActiveBannerResponse::empty));
+        List<BannerCampaign> activeCampaigns = repository.findActive(now);
+        int intervalSeconds = rotationIntervalSeconds();
+        if (activeCampaigns.isEmpty()) {
+            LocalDateTime nextStart = repository
+                    .findFirstByApprovedAtIsNotNullAndStartsAtAfterOrderByStartsAtAsc(now)
+                    .map(BannerCampaign::getStartsAt)
+                    .orElse(now.plusSeconds(intervalSeconds));
+            return emptyWithRefreshAt(nextStart);
+        }
+
+        long intervalMillis = intervalSeconds * 1_000L;
+        long nowMillis = now.atZone(Zone.KST.zoneId()).toInstant().toEpochMilli();
+        long rotationSlot = Math.floorDiv(nowMillis, intervalMillis);
+        int currentIndex = rotationIndex(nowMillis, intervalSeconds, activeCampaigns.size());
+        BannerCampaign selected = activeCampaigns.get(currentIndex);
+
+        LocalDateTime nextTransition = null;
+        if (activeCampaigns.size() > 1) {
+            long nextBoundaryMillis = (rotationSlot + 1) * intervalMillis;
+            nextTransition = LocalDateTime.ofInstant(Instant.ofEpochMilli(nextBoundaryMillis), Zone.KST.zoneId());
+        }
+        LocalDateTime earliestEnd = activeCampaigns.stream()
+                .map(BannerCampaign::getEndsAt)
+                .filter(value -> value != null)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+        nextTransition = earlier(nextTransition, earliestEnd);
+        LocalDateTime nextStart = repository
+                .findFirstByApprovedAtIsNotNullAndStartsAtAfterOrderByStartsAtAsc(now)
+                .map(BannerCampaign::getStartsAt)
+                .orElse(null);
+        nextTransition = earlier(nextTransition, nextStart);
+        if (nextTransition == null) nextTransition = now.plusSeconds(intervalSeconds);
+        return toActiveResponse(selected, nextTransition);
+    }
+
+    @Transactional(readOnly = true)
+    public BannerRotationSettingResponse rotationSetting() {
+        BannerRotationSetting setting = rotationSettingRepository
+                .findById(BannerRotationSetting.SINGLETON_ID)
+                .orElse(null);
+        return new BannerRotationSettingResponse(
+                setting == null ? DEFAULT_ROTATION_INTERVAL_SECONDS : setting.getIntervalSeconds(),
+                setting != null,
+                setting == null ? null : setting.getUpdatedAt());
+    }
+
+    @Transactional
+    public BannerRotationSettingResponse updateRotationSetting(BannerRotationSettingRequest request) {
+        int intervalSeconds = request.intervalSeconds();
+        if (!ROTATION_INTERVAL_OPTIONS.contains(intervalSeconds)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "배너 전환 간격을 다시 선택해 주세요.");
+        }
+        BannerRotationSetting setting = rotationSettingRepository
+                .findById(BannerRotationSetting.SINGLETON_ID)
+                .orElseGet(BannerRotationSetting::create);
+        setting.update(intervalSeconds);
+        return toRotationSettingResponse(rotationSettingRepository.save(setting));
     }
 
     @Transactional(readOnly = true)
@@ -151,9 +192,9 @@ public class BannerCampaignService {
 
     @Transactional(readOnly = true)
     public ImagePayload publicImage(long id) {
-        BannerCampaign current = repository
-                .findCurrent(now())
+        BannerCampaign current = repository.findActive(now()).stream()
                 .filter(campaign -> campaign.getId().equals(id))
+                .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         return image(current);
     }
@@ -249,14 +290,6 @@ public class BannerCampaignService {
         }
     }
 
-    private boolean overlaps(BannerCampaign first, BannerCampaign second) {
-        boolean firstBeforeSecondEnds =
-                second.getEndsAt() == null || first.getStartsAt().isBefore(second.getEndsAt());
-        boolean secondBeforeFirstEnds =
-                first.getEndsAt() == null || second.getStartsAt().isBefore(first.getEndsAt());
-        return firstBeforeSecondEnds && secondBeforeFirstEnds;
-    }
-
     private BannerCampaign find(long id) {
         return repository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
@@ -285,6 +318,27 @@ public class BannerCampaignService {
 
     private ActiveBannerResponse emptyWithRefreshAt(LocalDateTime nextRefreshAt) {
         return new ActiveBannerResponse(false, null, null, null, null, null, null, null, nextRefreshAt, 100, false);
+    }
+
+    private int rotationIntervalSeconds() {
+        return rotationSettingRepository
+                .findById(BannerRotationSetting.SINGLETON_ID)
+                .map(BannerRotationSetting::getIntervalSeconds)
+                .orElse(DEFAULT_ROTATION_INTERVAL_SECONDS);
+    }
+
+    static int rotationIndex(long epochMillis, int intervalSeconds, int campaignCount) {
+        return (int) Math.floorMod(Math.floorDiv(epochMillis, intervalSeconds * 1_000L), campaignCount);
+    }
+
+    private BannerRotationSettingResponse toRotationSettingResponse(BannerRotationSetting setting) {
+        return new BannerRotationSettingResponse(setting.getIntervalSeconds(), true, setting.getUpdatedAt());
+    }
+
+    private LocalDateTime earlier(LocalDateTime first, LocalDateTime second) {
+        if (first == null) return second;
+        if (second == null) return first;
+        return first.isBefore(second) ? first : second;
     }
 
     private BannerCampaignResponse toResponse(BannerCampaign campaign, LocalDateTime now) {

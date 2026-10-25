@@ -1,6 +1,8 @@
 package dev.eolmae.marketry.domain.banner.controller;
 
 import dev.eolmae.marketry.domain.banner.dto.BannerCampaignResponse;
+import dev.eolmae.marketry.domain.banner.dto.BannerRotationSettingRequest;
+import dev.eolmae.marketry.domain.banner.dto.BannerRotationSettingResponse;
 import dev.eolmae.marketry.domain.banner.service.BannerCampaignService;
 import dev.eolmae.marketry.domain.banner.service.BannerCampaignService.ImagePayload;
 import java.io.IOException;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,6 +33,17 @@ public class AdminBannerController {
     @GetMapping
     public ResponseEntity<List<BannerCampaignResponse>> list() {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.list());
+    }
+
+    @GetMapping("/rotation-setting")
+    public ResponseEntity<BannerRotationSettingResponse> rotationSetting() {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.rotationSetting());
+    }
+
+    @PutMapping("/rotation-setting")
+    public ResponseEntity<BannerRotationSettingResponse> updateRotationSetting(
+            @RequestBody BannerRotationSettingRequest request) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.updateRotationSetting(request));
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
