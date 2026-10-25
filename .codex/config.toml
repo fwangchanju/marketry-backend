@@ -1,14 +1,5 @@
-# Loaded for this repository only when Codex trusts the project.
+# Local permission defaults come from /etc/codex/requirements.toml.
+# The shared marketry profile applies from the workspace, frontend, and backend.
+# Workspace/cache write paths and environment-file denial belong to that profile.
 approval_policy = "on-request"
-default_permissions = "market-monitor"
-
-[permissions.market-monitor]
-description = "Edit the workspace while denying reads of environment files"
-extends = ":workspace"
-
-[permissions.market-monitor.filesystem]
-glob_scan_max_depth = 6
-
-[permissions.market-monitor.filesystem.":workspace_roots"]
-"**/*.env" = "deny"
-"**/*.env.*" = "deny"
+default_permissions = "marketry"
