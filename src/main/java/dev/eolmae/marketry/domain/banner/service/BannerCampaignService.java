@@ -35,12 +35,23 @@ public class BannerCampaignService {
 
     @Transactional
     public BannerCampaignResponse create(
-            String type, String title, String text, String linkUrl, String startsAt, String endsAt, byte[] imageBytes) {
-        DraftValues values = validate(type, title, text, linkUrl, startsAt, endsAt, imageBytes, null);
+            String type,
+            String title,
+            String text,
+            String linkUrl,
+            String startsAt,
+            String endsAt,
+            int textScalePercent,
+            boolean textBold,
+            byte[] imageBytes) {
+        DraftValues values =
+                validate(type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, null);
         BannerCampaign campaign = BannerCampaign.draft(
                 values.type(),
                 values.title(),
                 values.text(),
+                values.textScalePercent(),
+                values.textBold(),
                 values.linkUrl(),
                 values.image(),
                 values.imageContentType(),
@@ -58,16 +69,21 @@ public class BannerCampaignService {
             String linkUrl,
             String startsAt,
             String endsAt,
+            int textScalePercent,
+            boolean textBold,
             byte[] imageBytes) {
         BannerCampaign campaign = find(id);
         if (campaign.getApprovedAt() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "승인된 배너는 수정할 수 없습니다. 새 배너로 등록해 주세요.");
         }
-        DraftValues values = validate(type, title, text, linkUrl, startsAt, endsAt, imageBytes, campaign);
+        DraftValues values = validate(
+                type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, campaign);
         campaign.update(
                 values.type(),
                 values.title(),
                 values.text(),
+                values.textScalePercent(),
+                values.textBold(),
                 values.linkUrl(),
                 values.image(),
                 values.imageContentType(),
@@ -149,6 +165,8 @@ public class BannerCampaignService {
             String rawLinkUrl,
             String rawStartsAt,
             String rawEndsAt,
+            int textScalePercent,
+            boolean textBold,
             byte[] imageBytes,
             BannerCampaign existing) {
         BannerType type;
@@ -168,6 +186,9 @@ public class BannerCampaignService {
         }
         if (type == BannerType.AD && text.length() > MAX_NOTICE_LENGTH) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "배너 설명은 200자 이하로 입력해 주세요.");
+        }
+        if (textScalePercent != 80 && textScalePercent != 100 && textScalePercent != 120) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "글자 크기를 다시 선택해 주세요.");
         }
         validateLink(linkUrl);
         LocalDateTime startsAt = parseDate(rawStartsAt, "게시 시작 시각");
@@ -191,7 +212,16 @@ public class BannerCampaignService {
             }
         }
         return new DraftValues(
-                type, title, emptyToNull(text), emptyToNull(linkUrl), startsAt, endsAt, image, contentType);
+                type,
+                title,
+                emptyToNull(text),
+                textScalePercent,
+                textBold,
+                emptyToNull(linkUrl),
+                startsAt,
+                endsAt,
+                image,
+                contentType);
     }
 
     private void validateLink(String linkUrl) {
@@ -248,11 +278,13 @@ public class BannerCampaignService {
                 campaign.getLinkUrl(),
                 campaign.getImage() == null ? null : "/api/banners/" + campaign.getId() + "/image",
                 campaign.getImageContentType(),
-                nextRefreshAt);
+                nextRefreshAt,
+                campaign.getTextScalePercent(),
+                campaign.isTextBold());
     }
 
     private ActiveBannerResponse emptyWithRefreshAt(LocalDateTime nextRefreshAt) {
-        return new ActiveBannerResponse(false, null, null, null, null, null, null, null, nextRefreshAt);
+        return new ActiveBannerResponse(false, null, null, null, null, null, null, null, nextRefreshAt, 100, false);
     }
 
     private BannerCampaignResponse toResponse(BannerCampaign campaign, LocalDateTime now) {
@@ -272,7 +304,9 @@ public class BannerCampaignService {
                 status,
                 campaign.getUpdatedAt(),
                 campaign.getImage() != null,
-                campaign.getImageContentType());
+                campaign.getImageContentType(),
+                campaign.getTextScalePercent(),
+                campaign.isTextBold());
     }
 
     private LocalDateTime now() {
@@ -291,6 +325,8 @@ public class BannerCampaignService {
             BannerType type,
             String title,
             String text,
+            int textScalePercent,
+            boolean textBold,
             String linkUrl,
             LocalDateTime startsAt,
             LocalDateTime endsAt,

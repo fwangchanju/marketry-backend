@@ -28,11 +28,26 @@ import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
+    private static final String NO_PROVIDER_FILTER = "NONE";
+    private static final Set<String> OAUTH_ISSUERS =
+            Set.of("https://nid.naver.com", "https://kauth.kakao.com", "https://accounts.google.com");
     private final JPAQueryFactory queryFactory;
 
     @Override
     public AdminMemberPageResponse findMembers(
             String query, Set<MemberGrade> grades, String sort, boolean ascending, int page, int size) {
+        return findMembers(query, grades, Set.of(), sort, ascending, page, size);
+    }
+
+    @Override
+    public AdminMemberPageResponse findMembers(
+            String query,
+            Set<MemberGrade> grades,
+            Set<String> issuers,
+            String sort,
+            boolean ascending,
+            int page,
+            int size) {
         var predicate = new BooleanBuilder(managedMember());
         if (!query.isEmpty()) {
             predicate.and(
@@ -42,6 +57,16 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
             var gradePredicate = new BooleanBuilder();
             grades.forEach(grade -> gradePredicate.or(gradeCondition(grade)));
             predicate.and(gradePredicate);
+        }
+        if (!issuers.isEmpty()) {
+            var issuerPredicate = new BooleanBuilder();
+            if (issuers.contains(NO_PROVIDER_FILTER)) {
+                issuerPredicate.or(userAccount.issuer.isNull().or(userAccount.issuer.notIn(OAUTH_ISSUERS)));
+            }
+            issuers.stream()
+                    .filter(issuer -> !NO_PROVIDER_FILTER.equals(issuer))
+                    .forEach(issuer -> issuerPredicate.or(userAccount.issuer.eq(issuer)));
+            predicate.and(issuerPredicate);
         }
         Long total = queryFactory
                 .select(userAccount.count())

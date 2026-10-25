@@ -47,6 +47,9 @@ public class AdminMemberService {
     private static final int ACCESS_DAYS_WINDOW = 30;
     private static final int MAX_SIGNUP_DAYS = 180;
     private static final int MAX_SPECIAL_CHANGE = 100;
+    private static final String NO_PROVIDER_FILTER = "NONE";
+    private static final Set<String> MEMBER_ISSUER_FILTERS = Set.of(
+            "https://nid.naver.com", "https://kauth.kakao.com", "https://accounts.google.com", NO_PROVIDER_FILTER);
     private static final String[] ACCESS_FREQUENCY_LABELS = {"0일", "1~2일", "3~6일", "7~14일", "15일 이상"};
     private static final Set<String> SORT_KEYS =
             Set.of("id", "issuer", "email", "nickname", "role", "createdAt", "lastAccessAt");
@@ -57,14 +60,22 @@ public class AdminMemberService {
 
     @Transactional(readOnly = true)
     public AdminMemberPageResponse findMembers(String query, String role, String sort, String order, int page) {
+        return findMembers(query, role, "", sort, order, page);
+    }
+
+    @Transactional(readOnly = true)
+    public AdminMemberPageResponse findMembers(
+            String query, String role, String issuer, String sort, String order, int page) {
         String keyword = query.trim();
         boolean ascending = "asc".equals(order);
         if (keyword.length() > 100 || page < 0 || !SORT_KEYS.contains(sort) || !(ascending || "desc".equals(order))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 조회 조건이 올바르지 않습니다.");
         }
         Set<MemberGrade> grades = parseGrades(role);
-        AdminMemberPageResponse result =
-                userAccountRepository.findMembers(keyword, grades, sort, ascending, page, PAGE_SIZE);
+        Set<String> issuers = parseIssuers(issuer);
+        AdminMemberPageResponse result = issuers.isEmpty()
+                ? userAccountRepository.findMembers(keyword, grades, sort, ascending, page, PAGE_SIZE)
+                : userAccountRepository.findMembers(keyword, grades, issuers, sort, ascending, page, PAGE_SIZE);
         return withAccessDays(result, LocalDate.now(Zone.KST.zoneId()));
     }
 
@@ -148,6 +159,21 @@ public class AdminMemberService {
             }
         }
         return grades.size() == MemberGrade.values().length ? Set.of() : grades;
+    }
+
+    // 연동 필터는 실제 OAuth 발급자 주소와 미연동(NONE)을 쉼표로 여러 개 받는다. 넷 모두면 필터를 적용하지 않는다.
+    private Set<String> parseIssuers(String issuer) {
+        if (issuer.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> issuers = new HashSet<>();
+        for (String token : Arrays.asList(issuer.split(",", -1))) {
+            if (!MEMBER_ISSUER_FILTERS.contains(token)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "회원 연동 조건이 올바르지 않습니다.");
+            }
+            issuers.add(token);
+        }
+        return issuers.size() == MEMBER_ISSUER_FILTERS.size() ? Set.of() : issuers;
     }
 
     /** 지금 시각을 받아 최근 가입·최근 접속 기준(각각 7일 전)을 정한다. */

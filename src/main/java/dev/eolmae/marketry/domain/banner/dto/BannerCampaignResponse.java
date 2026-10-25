@@ -14,4 +14,6 @@ public record BannerCampaignResponse(
         String status,
         LocalDateTime updatedAt,
         boolean hasImage,
-        String imageContentType) {}
+        String imageContentType,
+        int textScalePercent,
+        boolean textBold) {}

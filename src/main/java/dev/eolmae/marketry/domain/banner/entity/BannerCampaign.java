@@ -32,6 +32,12 @@ public class BannerCampaign {
     @Column(columnDefinition = "text")
     private String text;
 
+    @Column(nullable = false)
+    private int textScalePercent;
+
+    @Column(nullable = false)
+    private boolean textBold;
+
     @Column(length = 1000)
     private String linkUrl;
 
@@ -60,6 +66,8 @@ public class BannerCampaign {
             BannerType type,
             String title,
             String text,
+            int textScalePercent,
+            boolean textBold,
             String linkUrl,
             byte[] image,
             String imageContentType,
@@ -67,7 +75,8 @@ public class BannerCampaign {
             LocalDateTime endsAt) {
         BannerCampaign campaign = new BannerCampaign();
         campaign.createdAt = LocalDateTime.now(Zone.KST.zoneId());
-        campaign.update(type, title, text, linkUrl, image, imageContentType, startsAt, endsAt);
+        campaign.update(
+                type, title, text, textScalePercent, textBold, linkUrl, image, imageContentType, startsAt, endsAt);
         return campaign;
     }
 
@@ -75,6 +84,8 @@ public class BannerCampaign {
             BannerType type,
             String title,
             String text,
+            int textScalePercent,
+            boolean textBold,
             String linkUrl,
             byte[] image,
             String imageContentType,
@@ -83,6 +94,8 @@ public class BannerCampaign {
         this.type = type;
         this.title = title;
         this.text = text;
+        this.textScalePercent = textScalePercent;
+        this.textBold = textBold;
         this.linkUrl = linkUrl;
         this.image = image;
         this.imageContentType = imageContentType;

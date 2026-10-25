@@ -77,6 +77,7 @@ dependencies {
 }
 
 tasks.named('test') {
+	systemProperty 'java.awt.headless', 'true'
 	// 실제 외부 API 호출/텔레그램 발송이 필요한 매뉴얼 테스트는 CI/일반 test에서 제외한다 — manualTest로 따로 돌린다.
 	useJUnitPlatform {
 		excludeTags 'manual'
