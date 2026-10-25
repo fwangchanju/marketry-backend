@@ -34,12 +34,13 @@ public class AdminMemberController {
     public ResponseEntity<AdminMemberPageResponse> list(
             @RequestParam(defaultValue = "") String query,
             @RequestParam(defaultValue = "") String role,
+            @RequestParam(defaultValue = "") String issuer,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "0") int page) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(adminMemberService.findMembers(query, role, sort, order, page));
+                .body(adminMemberService.findMembers(query, role, issuer, sort, order, page));
     }
 
     @GetMapping("/summary")
