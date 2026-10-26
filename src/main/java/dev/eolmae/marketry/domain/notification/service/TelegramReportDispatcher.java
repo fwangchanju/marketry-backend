@@ -13,7 +13,11 @@ public class TelegramReportDispatcher {
 
     private final HomeReportSender homeReportSender;
 
-    public void sendHome(LocalDateTime dataTime) {
-        homeReportSender.send(dataTime);
+    public boolean sendHome(LocalDateTime dataTime) {
+        return homeReportSender.send(dataTime);
+    }
+
+    public boolean sendLatestHome(LocalDateTime requestedAt) {
+        return homeReportSender.sendLatest(requestedAt);
     }
 }

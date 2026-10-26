@@ -90,7 +90,7 @@ class HomeReportSenderTest {
     void 오늘의_공통_스냅샷이_없으면_찍지도_보내지도_않는다() {
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.empty());
 
-        sender.send(DATA_TIME);
+        assertThat(sender.send(DATA_TIME)).isFalse();
 
         verify(screenshotClient, never()).captureWithRows(any(), any(), any());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
@@ -101,9 +101,39 @@ class HomeReportSenderTest {
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList()))
                 .thenReturn(Optional.of(DATA_TIME.minusDays(1)));
 
-        sender.send(DATA_TIME);
+        assertThat(sender.send(DATA_TIME)).isFalse();
 
         verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+    }
+
+    @Test
+    void 일회성_발송은_오늘_최신_공통_스냅샷으로_홈리포트를_보낸다() {
+        givenTodaySnapshot();
+        when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
+        when(screenshotClient.captureWithRows(
+                        "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
+        when(screenshotClient.capture(
+                        "/map/allstock?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
+                .thenReturn(List.of(MAP_IMAGE));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        assertThat(sender.sendLatest(DATA_TIME.plusMinutes(15))).isTrue();
+
+        verify(screenshotClient)
+                .captureWithRows(
+                        "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR);
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션\n#애프터");
+    }
+
+    @Test
+    void 일회성_발송은_오늘_공통_스냅샷이_없으면_보내지_않는다() {
+        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.empty());
+
+        assertThat(sender.sendLatest(DATA_TIME)).isFalse();
+
+        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
     // 이미지에 그려진 그룹 등락률 값으로 캡션을 만들어야 이미지와 숫자가 어긋나지 않는다.
@@ -114,7 +144,7 @@ class HomeReportSenderTest {
         givenMapCapture();
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("헬스케어 +1.91% / S7 +1.71%");
 
-        sender.send(DATA_TIME);
+        assertThat(sender.send(DATA_TIME)).isTrue();
 
         verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91% / S7 +1.71%");
         verify(treemapQueryService, never()).getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean());
