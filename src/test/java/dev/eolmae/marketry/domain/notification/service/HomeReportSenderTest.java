@@ -107,9 +107,11 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 일회성_발송은_오늘_최신_공통_스냅샷으로_홈리포트를_보낸다() {
-        givenTodaySnapshot();
-        when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
+    void 일회성_발송은_최근_공통_스냅샷이_오늘이_아니어도_홈리포트를_보낸다() {
+        LocalDateTime latestSnapshot = DATA_TIME.minusDays(1);
+        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList()))
+                .thenReturn(Optional.of(latestSnapshot));
+        when(renderBasisResolver.resolve(latestSnapshot)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
         when(screenshotClient.captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
@@ -118,7 +120,7 @@ class HomeReportSenderTest {
                 .thenReturn(List.of(MAP_IMAGE));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
-        assertThat(sender.sendLatest(DATA_TIME.plusMinutes(15))).isTrue();
+        assertThat(sender.sendLatest()).isTrue();
 
         verify(screenshotClient)
                 .captureWithRows(
@@ -127,10 +129,10 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 일회성_발송은_오늘_공통_스냅샷이_없으면_보내지_않는다() {
+    void 일회성_발송은_공통_스냅샷이_없으면_보내지_않는다() {
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.empty());
 
-        assertThat(sender.sendLatest(DATA_TIME)).isFalse();
+        assertThat(sender.sendLatest()).isFalse();
 
         verify(screenshotClient, never()).captureWithRows(any(), any(), any());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());

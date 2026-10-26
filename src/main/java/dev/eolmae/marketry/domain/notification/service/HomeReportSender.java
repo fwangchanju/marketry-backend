@@ -47,10 +47,9 @@ public class HomeReportSender {
     private final EscalationPublisher escalationPublisher;
     private final RenderBasisResolver renderBasisResolver;
 
-    public boolean sendLatest(LocalDateTime requestedAt) {
+    public boolean sendLatest() {
         return sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .filter(time -> time.toLocalDate().equals(requestedAt.toLocalDate()))
                 .map(this::send)
                 .orElse(false);
     }
@@ -60,7 +59,7 @@ public class HomeReportSender {
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
                 .filter(time -> time.toLocalDate().equals(dataTime.toLocalDate()))
                 .isEmpty()) {
-            log.warn("[홈리포트] 오늘의 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
+            log.warn("[홈리포트] 기준 날짜의 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
             return false;
         }
         // 두 이미지 모두 발송 시각에 맞는 등락률 기준(종가·별도)으로 찍는다.
