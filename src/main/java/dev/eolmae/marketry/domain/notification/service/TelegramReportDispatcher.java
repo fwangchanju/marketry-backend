@@ -17,7 +17,7 @@ public class TelegramReportDispatcher {
         return homeReportSender.send(dataTime);
     }
 
-    public boolean sendLatestHome(LocalDateTime requestedAt) {
-        return homeReportSender.sendLatest(requestedAt);
+    public boolean sendLatestHome() {
+        return homeReportSender.sendLatest();
     }
 }
