@@ -28,7 +28,6 @@ public class BannerCampaignService {
     private static final int MAX_TITLE_LENGTH = 100;
     private static final int MAX_NOTICE_LENGTH = 200;
     private static final int DEFAULT_ROTATION_INTERVAL_SECONDS = 10;
-    private static final List<Integer> ROTATION_INTERVAL_OPTIONS = List.of(5, 10, 15, 30, 60);
 
     private final BannerCampaignRepository repository;
     private final BannerRotationSettingRepository rotationSettingRepository;
@@ -82,6 +81,11 @@ public class BannerCampaignService {
             boolean textBold,
             byte[] imageBytes) {
         BannerCampaign campaign = find(id);
+        if (campaign.getApprovedAt() != null
+                && campaign.getEndsAt() != null
+                && !campaign.getEndsAt().isAfter(now())) {
+            campaign.cancelApproval();
+        }
         DraftValues values = validate(
                 type, title, text, linkUrl, startsAt, endsAt, textScalePercent, textBold, imageBytes, campaign);
         campaign.update(
@@ -114,12 +118,41 @@ public class BannerCampaignService {
     }
 
     @Transactional
-    public void deleteDraft(long id) {
+    public BannerCampaignResponse cancelScheduled(long id) {
         BannerCampaign campaign = find(id);
-        if (campaign.getApprovedAt() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "승인된 배너는 삭제할 수 없습니다.");
+        LocalDateTime now = now();
+        if (campaign.getApprovedAt() == null
+                || !campaign.getStartsAt().isAfter(now)
+                || (campaign.getEndsAt() != null && !campaign.getEndsAt().isAfter(now))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "예약된 배너만 예약을 취소할 수 있습니다.");
+        }
+        campaign.cancelApproval();
+        return toResponse(repository.save(campaign), now);
+    }
+
+    @Transactional
+    public void deleteCampaign(long id) {
+        BannerCampaign campaign = find(id);
+        LocalDateTime now = now();
+        if (campaign.getApprovedAt() == null
+                || campaign.getEndsAt() == null
+                || campaign.getEndsAt().isAfter(now)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "종료된 배너만 삭제할 수 있습니다.");
         }
         repository.delete(campaign);
+    }
+
+    @Transactional
+    public BannerCampaignResponse endCampaign(long id) {
+        BannerCampaign campaign = find(id);
+        LocalDateTime now = now();
+        if (campaign.getApprovedAt() == null
+                || campaign.getStartsAt().isAfter(now)
+                || (campaign.getEndsAt() != null && !campaign.getEndsAt().isAfter(now))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "게재 중인 배너만 종료할 수 있습니다.");
+        }
+        campaign.replaceEndAt(now);
+        return toResponse(repository.save(campaign), now);
     }
 
     @Transactional(readOnly = true)
@@ -175,7 +208,7 @@ public class BannerCampaignService {
     @Transactional
     public BannerRotationSettingResponse updateRotationSetting(BannerRotationSettingRequest request) {
         int intervalSeconds = request.intervalSeconds();
-        if (!ROTATION_INTERVAL_OPTIONS.contains(intervalSeconds)) {
+        if (intervalSeconds < 5 || intervalSeconds > 60 || intervalSeconds % 5 != 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "배너 전환 간격을 다시 선택해 주세요.");
         }
         BannerRotationSetting setting = rotationSettingRepository

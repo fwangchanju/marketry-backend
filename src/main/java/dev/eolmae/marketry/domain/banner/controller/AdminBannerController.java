@@ -105,9 +105,19 @@ public class AdminBannerController {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.approve(id));
     }
 
+    @PostMapping("/{id}/cancel-schedule")
+    public ResponseEntity<BannerCampaignResponse> cancelScheduled(@PathVariable long id) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.cancelScheduled(id));
+    }
+
+    @PostMapping("/{id}/end")
+    public ResponseEntity<BannerCampaignResponse> end(@PathVariable long id) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.endCampaign(id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable long id) {
-        service.deleteDraft(id);
+        service.deleteCampaign(id);
         return ResponseEntity.noContent().build();
     }
 
