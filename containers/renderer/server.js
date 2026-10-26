@@ -123,7 +123,9 @@ async function handleCapture(path, selector, token, rowSelector) {
       await registerCaptureTokenRoute(page, token)
     }
 
-    await page.goto(BASE_URL + path, { waitUntil: 'networkidle', timeout: 30000 })
+    // 앱은 API 요청 등으로 네트워크가 계속 사용될 수 있다. 페이지 이동은 DOM 준비까지만 기다리고,
+    // 실제 데이터 준비는 아래 캡처 대상의 data-capture-ready 표식으로 확인한다.
+    await page.goto(BASE_URL + path, { waitUntil: 'domcontentloaded', timeout: 30000 })
     // 프론트가 데이터 로딩을 마치고 캡처 대상 엘리먼트에 data-capture-ready="true"를 붙이면 그때 캡처한다
     // (고정 딜레이로 "다 그려졌겠지" 추측하던 방식 대체).
     await page.waitForSelector(`${selector}[data-capture-ready="true"]`, { timeout: CAPTURE_READY_TIMEOUT_MS })

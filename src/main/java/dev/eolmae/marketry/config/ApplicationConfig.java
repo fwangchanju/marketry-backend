@@ -69,8 +69,7 @@ public class ApplicationConfig {
                 .build();
     }
 
-    // page.goto 30초 + waitForSelector 15초(containers/renderer/server.js)를 감안한 값 — 짧게 걸면
-    // 일일 리포트 스크린샷이 항상 실패한다.
+    // page.goto 최대 30초 + 캡처 대상 준비 대기 20초(containers/renderer/server.js)를 감안한 값.
     @Bean
     public RestClient rendererRestClient() {
         return RestClient.builder()
