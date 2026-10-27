@@ -29,4 +29,9 @@ public class RenderBasisResolver {
         }
         return Optional.empty();
     }
+
+    public boolean isFinalClosingSnapshot(LocalDateTime time, int collectionIntervalMinutes) {
+        CalendarDayTimes day = marketCalendarTimeService.resolve(time.toLocalDate());
+        return day.holiday() == false && time.equals(day.closingWindowEnd().minusMinutes(collectionIntervalMinutes));
+    }
 }

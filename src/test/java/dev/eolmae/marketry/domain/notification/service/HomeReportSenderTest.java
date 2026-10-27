@@ -125,7 +125,7 @@ class HomeReportSenderTest {
         verify(screenshotClient)
                 .captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR);
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션\n#애프터");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
     }
 
     @Test
@@ -188,13 +188,14 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션\n#애프터");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
     }
 
     @Test
     void 종가로_보내는_메시지는_캡션_아래_줄에_종가_태그를_붙인다() {
         givenTodaySnapshot();
         when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.CLOSE));
+        when(renderBasisResolver.isFinalClosingSnapshot(DATA_TIME, 0)).thenReturn(true);
         when(screenshotClient.captureWithRows(
                         "/home?capture=mobile&basis=close", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
@@ -209,7 +210,7 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 별도로_보내는_메시지에는_애프터_태그를_붙인다() {
+    void 별도_등락률_메시지에는_태그를_붙이지_않는다() {
         givenTodaySnapshot();
         when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
         when(screenshotClient.captureWithRows(
@@ -222,7 +223,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션\n#애프터");
+        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
     }
 
     @Test
