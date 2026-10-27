@@ -30,6 +30,11 @@ public class CustomSectorController {
         return customSectorService.getSectors();
     }
 
+    @DeleteMapping
+    public void reset() {
+        customSectorService.reset();
+    }
+
     @PostMapping
     public SectorItem create(@RequestBody @Valid CreateSectorRequest request) {
         if (request.parentId() == null) {

@@ -41,6 +41,12 @@ public class CustomSectorService {
                 .toList();
     }
 
+    public void reset() {
+        Long userId = CurrentUser.requireId();
+        customStockSectorRepository.deleteAllByIdUserId(userId);
+        customSectorRepository.deleteAllOfUser(userId);
+    }
+
     public SectorItem createParent(String name) {
         Long userId = CurrentUser.requireId();
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
