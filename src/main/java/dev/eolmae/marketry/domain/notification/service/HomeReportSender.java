@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -33,7 +34,6 @@ public class HomeReportSender {
     private static final MarketQuery HOME_MARKETS = MarketQuery.ALL_STOCK;
     private static final int CAPTION_SECTOR_COUNT = 2;
     private static final String CLOSE_TAG = "#종가";
-    private static final String AFTER_HOURS_TAG = "#애프터";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
     private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
 
@@ -46,6 +46,9 @@ public class HomeReportSender {
     private final MarketTradingScheduleService marketTradingScheduleService;
     private final EscalationPublisher escalationPublisher;
     private final RenderBasisResolver renderBasisResolver;
+
+    @Value("${collect.interval-minutes}")
+    private int collectionIntervalMinutes;
 
     public boolean sendLatest() {
         return sectorPriceSnapshotService
@@ -78,7 +81,7 @@ public class HomeReportSender {
             log.warn("[홈리포트] 이미지에서 그룹 등락률 값을 읽지 못해 서버 계산 캡션으로 발송 | context : {}", dataTime);
             caption = buildCaption(dataTime);
         }
-        caption = withBasisTag(caption, basis);
+        caption = withBasisTag(caption, basis, dataTime);
 
         List<byte[]> mapImages = captureMapImages(basis);
         if (mapImages.isEmpty()) {
@@ -93,13 +96,13 @@ public class HomeReportSender {
         return true;
     }
 
-    // 등락률 기준이 종가·별도인 메시지(정규장 마감 이후)에는 캡션 아래 줄에 "#종가"·"#애프터"를 붙여 다른 시각의 메시지와 구분한다. 캡션이 비어도 태그는 남긴다.
-    private String withBasisTag(String caption, Optional<RenderBasis> basis) {
-        if (basis.isEmpty()) {
+    // 15:30~15:40 종가 구간의 마지막 스냅샷에만 종가 태그를 붙인다.
+    private String withBasisTag(String caption, Optional<RenderBasis> basis, LocalDateTime dataTime) {
+        if (basis.orElse(null) != RenderBasis.CLOSE
+                || renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes) == false) {
             return caption;
         }
-        String tag = basis.get() == RenderBasis.CLOSE ? CLOSE_TAG : AFTER_HOURS_TAG;
-        return caption == null || caption.isBlank() ? tag : caption + "\n" + tag;
+        return caption == null || caption.isBlank() ? CLOSE_TAG : caption + "\n" + CLOSE_TAG;
     }
 
     // 시장 지도 캡처가 실패해도 시장 요약은 보낸다 — 실패는 개발자 채널로 알리고 이미지 한 장으로 발송한다.
