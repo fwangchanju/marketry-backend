@@ -50,7 +50,7 @@ public class HomeReportSender {
     public boolean sendLatest() {
         return sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .map(this::send)
+                .map(this::sendReport)
                 .orElse(false);
     }
 
@@ -62,6 +62,10 @@ public class HomeReportSender {
             log.warn("[홈리포트] 기준 날짜의 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
             return false;
         }
+        return sendReport(dataTime);
+    }
+
+    private boolean sendReport(LocalDateTime dataTime) {
         // 두 이미지 모두 발송 시각에 맞는 등락률 기준(종가·별도)으로 찍는다.
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
         CaptureResult summary = screenshotClient.captureWithRows(
