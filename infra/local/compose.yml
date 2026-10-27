@@ -1,6 +1,31 @@
 name: marketry-local
 
 services:
+  nginx:
+    image: nginx:alpine
+    profiles: [nginx]
+    ports:
+      - "127.0.0.1:${LOCAL_NGINX_PORT:-18080}:80"
+    volumes:
+      - type: bind
+        source: ${LOCAL_FRONTEND_DIST:-../../../marketry-frontend/dist}
+        target: /usr/share/nginx/html
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ../prod/nginx.conf
+        target: /tmp/marketry-prod-nginx.conf
+        read_only: true
+        bind:
+          create_host_path: false
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        grep -q 'http://marketry-application:8081' /tmp/marketry-prod-nginx.conf &&
+        sed 's|http://marketry-application:8081|http://host.docker.internal:${LOCAL_API_PORT:-18081}|g' /tmp/marketry-prod-nginx.conf > /etc/nginx/conf.d/default.conf &&
+        exec nginx -g 'daemon off;'
+
   db:
     image: postgres:17-alpine
     restart: unless-stopped
