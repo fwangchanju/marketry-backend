@@ -19,8 +19,8 @@ import org.springframework.stereotype.Component;
 public class SectorRankingTextBuilder {
 
     private static final ObjectMapper ROW_MAPPER = new ObjectMapper();
-    // 상위 업종들은 줄바꿈 없이 한 줄에 슬래시로 잇는다("헬스케어 +1.91% / S7 +1.71%").
-    private static final String CAPTION_SEPARATOR = " / ";
+    // 텔레그램 캡션은 상위 업종을 한 줄에 하나씩 표시한다.
+    private static final String CAPTION_LINE_SEPARATOR = "\n";
 
     /** summaries가 담고 있는 마켓 각각을 "#코스피 +x.xx%\n섹터 +x.xx%\n\n#코스닥 +x.xx%\n.." 형태로
      * 이어붙인다(헤더 옆 퍼센트는 그 마켓 지수의 등락률). 데이터 없는 마켓은 summaries에 이미 없는 상태라
@@ -35,14 +35,16 @@ public class SectorRankingTextBuilder {
                 .collect(Collectors.joining("\n\n"));
     }
 
-    /** 홈 발송 캡션 — 두 마켓을 합친 전체 기준 상위 업종을 "업종 등락률" 한 줄씩만 보여준다. 헤더와 마켓 구분 줄은 안 붙인다.
+    /** 홈 발송 캡션 — 두 마켓을 합친 전체 기준 상위 업종을 "업종 등락률" 한 줄씩 보여준다. 헤더와 마켓 구분 줄은 안 붙인다.
      * 단위는 등락률(now) 그대로라 %다(변화율 %p가 아님). */
     public String buildMapCaption(List<TopSectorItem> topSectors) {
-        return topSectors.stream().map(this::formatTopSectorChangeRate).collect(Collectors.joining(CAPTION_SEPARATOR));
+        return topSectors.stream()
+                .map(this::formatTopSectorChangeRate)
+                .collect(Collectors.joining(CAPTION_LINE_SEPARATOR));
     }
 
     /** 이미지에 그려진 그룹 등락률 막대의 값(렌더러가 같은 화면에서 읽은 행 JSON: {"name":"헬스케어","value":"+1.91"})으로 캡션을 만든다 —
-     * 이미지와 숫자가 어긋날 수 없다. 등락률이 가장 높은 상위 count개를 "업종 등락률"을 " / "로 이은 한 줄로 만든다. 행이 count개보다 적거나
+     * 이미지와 숫자가 어긋날 수 없다. 등락률이 가장 높은 상위 count개를 "업종 등락률" 한 줄씩으로 만든다. 행이 count개보다 적거나
      * 읽을 수 없는 값이 있으면 null이라 호출부가 서버 계산 캡션으로 넘어간다. */
     public String buildCaptionFromRenderedRows(List<String> rows, int count) {
         try {
@@ -54,7 +56,7 @@ public class SectorRankingTextBuilder {
                     .sorted(Comparator.comparing(RenderedRow::value).reversed())
                     .limit(count)
                     .map(row -> row.name() + " " + row.valueLabel() + "%")
-                    .collect(Collectors.joining(CAPTION_SEPARATOR));
+                    .collect(Collectors.joining(CAPTION_LINE_SEPARATOR));
         } catch (Exception e) {
             return null;
         }
