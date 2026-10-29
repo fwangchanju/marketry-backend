@@ -96,11 +96,11 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void handleUnexpectedException_같은_예외가_5분_내에_반복되면_두번째부터는_알림을_억제한다() throws Exception {
+    void handleUnexpectedException_같은_예외도_중앙_알림_횟수_제한에_전달한다() throws Exception {
         handler.handleUnexpectedException(new IllegalStateException("반복"));
         handler.handleUnexpectedException(new IllegalStateException("반복"));
 
-        verify(escalationPublisher, times(1)).report(Mockito.any());
+        verify(escalationPublisher, times(2)).report(Mockito.any());
     }
 
     @Test

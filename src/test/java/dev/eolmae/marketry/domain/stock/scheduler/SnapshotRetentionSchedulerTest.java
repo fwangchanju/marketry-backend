@@ -24,6 +24,6 @@ class SnapshotRetentionSchedulerTest {
         new SnapshotRetentionScheduler(service, publisher).cleanupSnapshots(today);
         verify(service).cleanupSnapshotsForDate(first);
         verify(service).cleanupSnapshotsForDate(second);
-        verify(publisher).report(org.mockito.ArgumentMatchers.any());
+        verify(publisher).report(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());
     }
 }

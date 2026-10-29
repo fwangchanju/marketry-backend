@@ -1,7 +1,5 @@
 package dev.eolmae.marketry.handler;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.BusinessException;
 import dev.eolmae.marketry.common.exception.ConflictException;
@@ -9,9 +7,6 @@ import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
-import java.time.Duration;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,18 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class GlobalExceptionHandler {
 
     private static final String ERROR_CODE_PROPERTY = "errorCode";
-    private static final Duration SUPPRESSION_WINDOW = Duration.ofMinutes(5);
-    private static final long SUPPRESSION_MAX_SIZE = 1000;
-
     private final EscalationPublisher escalationPublisher;
-
-    // 같은 예외 클래스+메시지가 짧은 시간에 폭주해도(봇 스캔, 클라이언트 버그 등) 텔레그램은 5분에 1건만
-    // 받는다. 억제된 횟수는 로그로만 남긴다. expireAfterWrite가 "5분에 1회" 창을 그대로 구현하고,
-    // maximumSize가 예외 메시지에 요청값이 섞여 키가 매번 달라지는 경우에도 무한히 커지지 않게 막는다.
-    private final Cache<String, AtomicInteger> suppressionByKey = Caffeine.newBuilder()
-            .expireAfterWrite(SUPPRESSION_WINDOW)
-            .maximumSize(SUPPRESSION_MAX_SIZE)
-            .build();
 
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusinessException(BusinessException e) {
@@ -91,7 +75,7 @@ public class GlobalExceptionHandler {
             throw e;
         }
 
-        reportOrSuppress(e);
+        escalationPublisher.report(EscalateException.wrap(ErrorCode.INTERNAL_ERROR, e));
         return toProblemDetail(
                 HttpStatus.INTERNAL_SERVER_ERROR, ErrorCode.INTERNAL_ERROR, ErrorCode.INTERNAL_ERROR.getMessage());
     }
@@ -107,23 +91,6 @@ public class GlobalExceptionHandler {
                 || e instanceof HttpMessageNotWritableException
                 || e instanceof AsyncRequestNotUsableException
                 || e instanceof TypeMismatchException;
-    }
-
-    private void reportOrSuppress(Exception e) {
-        String key = e.getClass().getName() + "|" + e.getMessage();
-        AtomicBoolean firstOccurrence = new AtomicBoolean(false);
-
-        AtomicInteger suppressedCount = suppressionByKey.get(key, k -> {
-            firstOccurrence.set(true);
-            return new AtomicInteger(0);
-        });
-
-        if (firstOccurrence.get()) {
-            escalationPublisher.report(EscalateException.wrap(ErrorCode.INTERNAL_ERROR, e));
-        } else {
-            // 알림은 억제하되 기록은 남긴다 — throwable을 붙여야 ThrowableFilter를 통과해 exception.log에도 남는다.
-            log.warn("[예상 못한 예외 알림 억제] | key : {} | 억제 누적 : {}건", key, suppressedCount.incrementAndGet(), e);
-        }
     }
 
     private ProblemDetail toProblemDetail(HttpStatus status, ErrorCode errorCode, String detail) {

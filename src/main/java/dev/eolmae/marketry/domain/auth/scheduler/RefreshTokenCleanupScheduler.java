@@ -24,8 +24,9 @@ public class RefreshTokenCleanupScheduler {
     public void cleanupRefreshTokens() {
         try {
             authService.cleanupRefreshTokens();
+            escalationPublisher.resolve("갱신 토큰 정리");
         } catch (Exception e) {
-            escalationPublisher.report(EscalateException.wrap(ErrorCode.REFRESH_TOKEN_CLEANUP_FAILED, e));
+            escalationPublisher.report("갱신 토큰 정리", EscalateException.wrap(ErrorCode.REFRESH_TOKEN_CLEANUP_FAILED, e));
         }
     }
 }

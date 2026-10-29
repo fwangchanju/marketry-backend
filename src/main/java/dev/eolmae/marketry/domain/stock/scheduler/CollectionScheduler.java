@@ -122,13 +122,15 @@ public class CollectionScheduler {
         boolean success = true;
         try {
             task.run();
+            escalationPublisher.resolve(collectorName);
         } catch (Exception e) {
             if ("시장스냅샷".equals(collectorName)) {
                 lastCollectionFailureCode = e instanceof BusinessException businessException
                         ? businessException.getErrorCode().name()
                         : e.getClass().getSimpleName();
             }
-            escalationPublisher.report(EscalateException.wrap(ErrorCode.COLLECTOR_EXECUTION_FAILED, e, collectorName));
+            escalationPublisher.report(
+                    collectorName, EscalateException.wrap(ErrorCode.COLLECTOR_EXECUTION_FAILED, e, collectorName));
             success = false;
         } finally {
             LocalDateTime finishedAt = LocalDateTime.now(Zone.KST.zoneId());

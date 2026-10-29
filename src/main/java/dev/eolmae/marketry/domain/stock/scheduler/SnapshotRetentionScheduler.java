@@ -44,8 +44,10 @@ public class SnapshotRetentionScheduler {
     private void run(String taskName, Runnable task) {
         try {
             task.run();
+            escalationPublisher.resolve(taskName);
         } catch (Exception e) {
-            escalationPublisher.report(EscalateException.wrap(ErrorCode.SNAPSHOT_RETENTION_FAILED, e, taskName));
+            escalationPublisher.report(
+                    taskName, EscalateException.wrap(ErrorCode.SNAPSHOT_RETENTION_FAILED, e, taskName));
         }
     }
 }
