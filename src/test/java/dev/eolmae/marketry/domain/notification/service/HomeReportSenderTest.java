@@ -272,7 +272,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(escalationPublisher).report(failure);
+        verify(escalationPublisher).report("홈리포트 모바일 지도 캡처", failure);
         verify(telegramClient).sendPhoto("chat", SUMMARY_IMAGE, "캡션");
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }

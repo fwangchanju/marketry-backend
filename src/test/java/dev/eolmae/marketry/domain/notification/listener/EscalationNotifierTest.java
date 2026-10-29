@@ -46,4 +46,12 @@ class EscalationNotifierTest {
 
         verify(telegramClient).sendMessage("dev-chat", "장애 발생");
     }
+
+    @Test
+    void onEscalation_채널_메시지가_있으면_개발자_채팅방과_채널에_각각_보낸다() {
+        notifier.onEscalation(new EscalationEvent("상세 오류", "간략 오류"));
+
+        verify(telegramClient).sendMessage("dev-chat", "상세 오류");
+        verify(telegramClient).sendMessage("chat", "간략 오류");
+    }
 }

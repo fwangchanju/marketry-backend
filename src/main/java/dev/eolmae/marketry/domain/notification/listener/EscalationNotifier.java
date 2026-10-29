@@ -22,15 +22,22 @@ public class EscalationNotifier {
     @EventListener
     public void onEscalation(EscalationEvent event) {
         String chatId = properties.developerChatId();
-        if (chatId == null || chatId.isBlank()) {
-            return;
+        if (chatId != null && chatId.isBlank() == false) {
+            sendBestEffort(chatId, event.message());
         }
-        // 알림은 best-effort다 — 여기서 예외가 나면 @EventListener가 동기라 호출부(EscalationPublisher.report,
-        // GlobalExceptionHandler 등)로 역류해 원래 처리가 중단된다. 그래서 전부 잡아 로그만 남긴다.
+        if (event.channelMessage() != null
+                && properties.chatId() != null
+                && properties.chatId().isBlank() == false) {
+            sendBestEffort(properties.chatId(), event.channelMessage());
+        }
+    }
+
+    private void sendBestEffort(String chatId, String message) {
+        // 알림은 best-effort다 — 여기서 예외가 나면 @EventListener가 동기라 호출부로 역류해 원래 처리가 중단된다.
         try {
-            telegramClient.sendMessage(chatId, event.message());
+            telegramClient.sendMessage(chatId, message);
         } catch (Exception e) {
-            log.error("에스컬레이션 알림 발송에 실패했습니다 | message : {}", event.message(), e);
+            log.error("에스컬레이션 알림 발송에 실패했습니다 | chatId={} | message : {}", chatId, message, e);
         }
     }
 }

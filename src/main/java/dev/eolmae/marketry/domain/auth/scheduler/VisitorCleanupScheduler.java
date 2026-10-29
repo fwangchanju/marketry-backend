@@ -24,8 +24,9 @@ public class VisitorCleanupScheduler {
     public void cleanupVisitors() {
         try {
             visitorService.purgeOlderThan(RETENTION_DAYS);
+            escalationPublisher.resolve("비회원 방문 기록 정리");
         } catch (Exception e) {
-            escalationPublisher.report(EscalateException.wrap(ErrorCode.VISITOR_CLEANUP_FAILED, e));
+            escalationPublisher.report("비회원 방문 기록 정리", EscalateException.wrap(ErrorCode.VISITOR_CLEANUP_FAILED, e));
         }
     }
 }

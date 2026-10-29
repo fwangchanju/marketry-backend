@@ -34,6 +34,7 @@ public class HomeReportSender {
     private static final MarketQuery HOME_MARKETS = MarketQuery.ALL_STOCK;
     private static final int CAPTION_SECTOR_COUNT = 2;
     private static final String CLOSE_TAG = "#종가";
+    private static final String MAP_CAPTURE_ERROR_SOURCE = "홈리포트 모바일 지도 캡처";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
     private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
 
@@ -108,9 +109,12 @@ public class HomeReportSender {
     // 시장 지도 캡처가 실패해도 시장 요약은 보낸다 — 실패는 개발자 채널로 알리고 이미지 한 장으로 발송한다.
     private List<byte[]> captureMapImages(Optional<RenderBasis> basis) {
         try {
-            return screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
+            List<byte[]> images =
+                    screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
+            escalationPublisher.resolve(MAP_CAPTURE_ERROR_SOURCE);
+            return images;
         } catch (EscalateException e) {
-            escalationPublisher.report(e);
+            escalationPublisher.report(MAP_CAPTURE_ERROR_SOURCE, e);
             return List.of();
         }
     }
