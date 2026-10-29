@@ -13,6 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import dev.eolmae.marketry.common.enums.Market;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.domain.notification.client.TelegramClient;
@@ -115,8 +116,7 @@ class HomeReportSenderTest {
         when(screenshotClient.captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
-        when(screenshotClient.capture(
-                        "/map/allstock?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
+        when(screenshotClient.capture("/map/korea?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
                 .thenReturn(List.of(MAP_IMAGE));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
@@ -181,8 +181,7 @@ class HomeReportSenderTest {
         when(screenshotClient.captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
-        when(screenshotClient.capture(
-                        "/map/allstock?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
+        when(screenshotClient.capture("/map/korea?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
                 .thenReturn(List.of(MAP_IMAGE));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
@@ -199,7 +198,7 @@ class HomeReportSenderTest {
         when(screenshotClient.captureWithRows(
                         "/home?capture=mobile&basis=close", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
-        when(screenshotClient.capture("/map/allstock?capture=mobile&basis=close", RenderTarget.MAP_MOBILE.selector()))
+        when(screenshotClient.capture("/map/korea?capture=mobile&basis=close", RenderTarget.MAP_MOBILE.selector()))
                 .thenReturn(List.of(MAP_IMAGE));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("헬스케어 +1.91% / S7 +1.71%");
 
@@ -216,8 +215,7 @@ class HomeReportSenderTest {
         when(screenshotClient.captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(SUMMARY_IMAGE), ROWS));
-        when(screenshotClient.capture(
-                        "/map/allstock?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
+        when(screenshotClient.capture("/map/korea?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector()))
                 .thenReturn(List.of(MAP_IMAGE));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
@@ -294,8 +292,17 @@ class HomeReportSenderTest {
     void 캡처_주소와_캡처_이름은_프론트의_3대4_판과_맞다() {
         assertThat(RenderTarget.HOME_MOBILE.path()).isEqualTo("/home?capture=mobile");
         assertThat(RenderTarget.HOME_MOBILE.selector()).isEqualTo("[data-captureid='summary-capture']");
-        assertThat(RenderTarget.MAP_MOBILE.path()).isEqualTo("/map/allstock?capture=mobile");
+        assertThat(RenderTarget.MAP_MOBILE.path()).isEqualTo("/map/korea?capture=mobile");
         assertThat(RenderTarget.MAP_MOBILE.selector()).isEqualTo("[data-captureid='map-mobile-capture']");
+    }
+
+    @Test
+    void 마켓_세그먼트는_프론트_지도_주소와_맞다() {
+        // 프론트에 없는 주소(옛 /map/allstock)를 열면 캡처 요소가 없어 스크린샷이 타임아웃으로 실패한다.
+        assertThat(RenderTarget.marketSegment(MarketQuery.ALL_STOCK)).isEqualTo("korea");
+        assertThat(RenderTarget.marketSegment(MarketQuery.KOSPI)).isEqualTo("kospi");
+        assertThat(RenderTarget.marketSegment(MarketQuery.KOSDAQ)).isEqualTo("kosdaq");
+        assertThat(RenderTarget.marketSegment(Market.KOSPI)).isEqualTo("kospi");
     }
 
     @Test
@@ -304,6 +311,6 @@ class HomeReportSenderTest {
         assertThat(RenderTarget.HOME_MOBILE.path(Optional.of(RenderBasis.CLOSE)))
                 .isEqualTo("/home?capture=mobile&basis=close");
         assertThat(RenderTarget.MAP_MOBILE.path(Optional.of(RenderBasis.AFTER_HOURS)))
-                .isEqualTo("/map/allstock?capture=mobile&basis=afterHours");
+                .isEqualTo("/map/korea?capture=mobile&basis=afterHours");
     }
 }
