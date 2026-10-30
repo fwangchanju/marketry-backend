@@ -12,16 +12,18 @@ import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
+import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
 import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
+import dev.eolmae.marketry.domain.custom.enums.SectorDeleteBlockReason;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockSectorRepository;
-import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -32,10 +34,10 @@ class CustomSectorServiceTest {
 
     private final CustomSectorRepository sectorRepository = Mockito.mock(CustomSectorRepository.class);
     private final CustomStockSectorRepository stockSectorRepository = Mockito.mock(CustomStockSectorRepository.class);
-    private final StockInfoCacheService stockInfoCacheService = Mockito.mock(StockInfoCacheService.class);
+    private final JdbcTemplate jdbcTemplate = Mockito.mock(JdbcTemplate.class);
     private final ProtectedSectorService protectedSectorService = Mockito.mock(ProtectedSectorService.class);
-    private final CustomSectorService service = new CustomSectorService(
-            sectorRepository, stockSectorRepository, stockInfoCacheService, protectedSectorService);
+    private final CustomSectorService service =
+            new CustomSectorService(sectorRepository, stockSectorRepository, protectedSectorService, jdbcTemplate);
 
     @BeforeEach
     void authenticateUser() {
@@ -94,9 +96,9 @@ class CustomSectorServiceTest {
         ReflectionTestUtils.setField(listing, "id", 10L);
         when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(listing));
 
-        assertThatThrownBy(() -> service.delete(10L)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.delete(10L, null)).isInstanceOf(ConflictException.class);
 
-        verify(sectorRepository, Mockito.never()).deleteAll(any());
+        verify(sectorRepository, Mockito.never()).delete(any());
     }
 
     @Test
@@ -123,10 +125,10 @@ class CustomSectorServiceTest {
             CustomSector protectedOne = protectedSector(kind, 10L);
             when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(protectedOne));
 
-            assertThatThrownBy(() -> service.delete(10L)).isInstanceOf(ConflictException.class);
+            assertThatThrownBy(() -> service.delete(10L, null)).isInstanceOf(ConflictException.class);
             assertThat(service.deletePreview(10L).deletable()).isFalse();
         }
-        verify(sectorRepository, Mockito.never()).deleteAll(any());
+        verify(sectorRepository, Mockito.never()).delete(any());
     }
 
     @Test
@@ -206,5 +208,106 @@ class CustomSectorServiceTest {
         service.reset();
 
         verify(protectedSectorService).ensureForUser(USER_ID);
+    }
+
+    private CustomSector sectorWithId(CustomSector sector, long id) {
+        ReflectionTestUtils.setField(sector, "id", id);
+        return sector;
+    }
+
+    @Test
+    void deletePreview_하위_업종이_있으면_삭제할_수_없고_하위_업종_이름을_알린다() {
+        CustomSector parent = sectorWithId(CustomSector.createParent(USER_ID, "헬스케어"), 20L);
+        CustomSector child = sectorWithId(CustomSector.createChild(USER_ID, "CxO", parent), 21L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(parent, child));
+
+        var preview = service.deletePreview(20L);
+
+        assertThat(preview.deletable()).isFalse();
+        assertThat(preview.blockReason()).isEqualTo(SectorDeleteBlockReason.HAS_SUB_SECTORS);
+        assertThat(preview.subSectorNames()).containsExactly("CxO");
+        assertThatThrownBy(() -> service.delete(20L, null))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining(ErrorCode.SECTOR_HAS_SUB_SECTORS.getMessage());
+        verify(sectorRepository, Mockito.never()).delete(any());
+    }
+
+    @Test
+    void deletePreview_종목이_담겨_있어도_삭제할_수_있고_옮길_종목_수를_알린다() {
+        CustomSector cro = sectorWithId(CustomSector.createParent(USER_ID, "CRO"), 30L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro));
+        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L))
+                .thenReturn(List.of(
+                        CustomStockSector.create(USER_ID, "199730", 30L),
+                        CustomStockSector.create(USER_ID, "223250", 30L)));
+
+        var preview = service.deletePreview(30L);
+
+        assertThat(preview.deletable()).isTrue();
+        assertThat(preview.moveStockCount()).isEqualTo(2);
+        assertThat(preview.blockReason()).isNull();
+    }
+
+    @Test
+    void delete_담긴_종목_전부를_미분류로_옮기고_업종을_지운다() {
+        CustomSector cro = sectorWithId(CustomSector.createParent(USER_ID, "CRO"), 30L);
+        CustomSector unclassified = protectedSector(ProtectedSector.UNCLASSIFIED, 40L);
+        CustomStockSector first = CustomStockSector.create(USER_ID, "199730", 30L);
+        CustomStockSector second = CustomStockSector.create(USER_ID, "223250", 30L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro, unclassified));
+        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L)).thenReturn(List.of(first, second));
+
+        service.delete(30L, 2);
+
+        assertThat(first.getSectorId()).isEqualTo(40L);
+        assertThat(second.getSectorId()).isEqualTo(40L);
+        var order = Mockito.inOrder(stockSectorRepository, sectorRepository);
+        order.verify(stockSectorRepository).flush();
+        order.verify(sectorRepository).delete(cro);
+        verify(jdbcTemplate).update(Mockito.contains("first_custom_classification_at"), Mockito.eq(USER_ID));
+    }
+
+    @Test
+    void delete_미리보기에서_확인한_종목_수와_다르면_삭제하지_않는다() {
+        CustomSector cro = sectorWithId(CustomSector.createParent(USER_ID, "CRO"), 30L);
+        CustomStockSector only = CustomStockSector.create(USER_ID, "199730", 30L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro));
+        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L)).thenReturn(List.of(only));
+
+        assertThatThrownBy(() -> service.delete(30L, 5))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining(ErrorCode.SECTOR_MOVE_COUNT_CHANGED.getMessage());
+
+        assertThat(only.getSectorId()).isEqualTo(30L);
+        verify(sectorRepository, Mockito.never()).delete(any());
+    }
+
+    @Test
+    void delete_종목이_없으면_미분류를_찾지_않고_바로_지운다() {
+        CustomSector empty = sectorWithId(CustomSector.createParent(USER_ID, "빈 업종"), 31L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(empty));
+        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 31L)).thenReturn(List.of());
+
+        service.delete(31L, 0);
+
+        verify(sectorRepository).delete(empty);
+        verify(protectedSectorService, Mockito.never()).ensureForUser(USER_ID);
+        verify(jdbcTemplate, Mockito.never()).update(Mockito.anyString(), Mockito.eq(USER_ID));
+    }
+
+    @Test
+    void delete_미분류가_하위_업종_이름으로만_있어_찾을_수_없으면_삭제하지_않는다() {
+        CustomSector cro = sectorWithId(CustomSector.createParent(USER_ID, "CRO"), 30L);
+        CustomSector etc = sectorWithId(CustomSector.createParent(USER_ID, "기타"), 32L);
+        CustomSector nested = sectorWithId(CustomSector.createChild(USER_ID, "미분류", etc), 33L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro, etc, nested));
+        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L))
+                .thenReturn(List.of(CustomStockSector.create(USER_ID, "199730", 30L)));
+
+        assertThatThrownBy(() -> service.delete(30L, 1))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining(ErrorCode.SECTOR_UNCLASSIFIED_MISSING.getMessage());
+
+        verify(sectorRepository, Mockito.never()).delete(any());
     }
 }
