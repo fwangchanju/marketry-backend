@@ -314,6 +314,13 @@ class TreemapQueryServiceTest {
         assertThat(included.items().stream().flatMap(node -> node.items().stream()))
                 .extracting("stockCode")
                 .containsExactlyInAnyOrder("005930", "000660");
+        // 거래소 분류에서는 정지 종목을 "거래 정지" 업종으로 묶고, 나머지 종목은 원래 업종에 둔다.
+        assertThat(included.items())
+                .filteredOn(node -> node.sectorName().equals("거래 정지"))
+                .singleElement()
+                .satisfies(
+                        node -> assertThat(node.items()).extracting("stockCode").containsExactly("000660"));
+        assertThat(excluded.items()).noneMatch(node -> node.sectorName().equals("거래 정지"));
     }
 
     @Test

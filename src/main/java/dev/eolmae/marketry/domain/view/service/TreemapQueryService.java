@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.custom.entity.CustomSnapshot;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockAlias;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
 import dev.eolmae.marketry.domain.custom.entity.CustomValueTierThreshold;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomSnapshotRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockAliasRepository;
@@ -159,11 +160,17 @@ public class TreemapQueryService {
         Map<String, CachedStockPrice> priceMap = findPrices(markets, latestSnapshotTime, basis);
         List<CustomValueTierThreshold> sortedTiers = customValueTierThresholdService.findDefaultSortedAscending();
         Map<String, String> industryNameByStockCode = stockIndustryNameResolver.resolve(candidates);
+        // 정지 종목을 포함해 달라고 한 표 요청에서는 연속 5거래일 정지 종목을 "거래 정지"로 묶는다(재개되면 다음 조회부터 원래 업종).
+        Set<String> suspendedStockCodes = includeSuspended
+                ? stockTradingSuspensionService.findExcludedStockCodes(latestSnapshotTime.toLocalDate())
+                : Set.of();
 
         Map<String, List<TreemapItem>> grouped = candidates.stream()
                 .filter(stockInfo -> priceMap.containsKey(stockInfo.getStockCode()))
                 .collect(Collectors.groupingBy(
-                        stockInfo -> normalizeSectorName(industryNameByStockCode.get(stockInfo.getStockCode())),
+                        stockInfo -> suspendedStockCodes.contains(stockInfo.getStockCode())
+                                ? ProtectedSector.SUSPENDED.getSectorName()
+                                : normalizeSectorName(industryNameByStockCode.get(stockInfo.getStockCode())),
                         Collectors.mapping(
                                 stockInfo ->
                                         toTreemapItem(stockInfo, priceMap.get(stockInfo.getStockCode()), sortedTiers),
