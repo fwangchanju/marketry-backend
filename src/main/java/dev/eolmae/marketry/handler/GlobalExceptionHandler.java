@@ -7,11 +7,11 @@ import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
-import java.sql.SQLException;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.postgresql.util.PSQLException;
 import org.springframework.beans.TypeMismatchException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -89,11 +89,12 @@ public class GlobalExceptionHandler {
 
     private boolean isConcurrentSectorChange(Throwable e) {
         for (Throwable cause = e; cause != null; cause = cause.getCause()) {
-            if (cause instanceof SQLException sqlException
-                    && FOREIGN_KEY_VIOLATION_STATE.equals(sqlException.getSQLState())) {
-                return CONCURRENT_SECTOR_CONSTRAINTS.stream()
-                        .anyMatch(constraint -> String.valueOf(sqlException.getMessage())
-                                .contains("foreign key constraint \"" + constraint + "\""));
+            // 오류 문구(언어에 따라 달라짐)가 아니라 PostgreSQL이 구조화해서 내려 주는 제약 이름을 본다.
+            if (cause instanceof PSQLException postgresException
+                    && FOREIGN_KEY_VIOLATION_STATE.equals(postgresException.getSQLState())
+                    && postgresException.getServerErrorMessage() != null) {
+                return CONCURRENT_SECTOR_CONSTRAINTS.contains(
+                        postgresException.getServerErrorMessage().getConstraint());
             }
         }
         return false;

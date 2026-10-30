@@ -52,7 +52,7 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 
 	// postgresql
-	runtimeOnly 'org.postgresql:postgresql'
+	implementation 'org.postgresql:postgresql'
 	implementation 'org.flywaydb:flyway-database-postgresql'
 
 	// caffeine

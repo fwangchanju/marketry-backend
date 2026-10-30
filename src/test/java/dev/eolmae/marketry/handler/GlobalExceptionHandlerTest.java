@@ -11,9 +11,10 @@ import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import java.lang.reflect.Method;
-import java.sql.SQLException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
 import org.springframework.core.MethodParameter;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpInputMessage;
@@ -114,10 +115,10 @@ class GlobalExceptionHandlerTest {
     }
 
     private static DataIntegrityViolationException foreignKeyViolation(String constraint, String sqlState) {
-        SQLException cause = new SQLException(
-                "ERROR: insert or update on table \"custom_stock_sector\" violates foreign key constraint \""
-                        + constraint + "\"",
-                sqlState);
+        // 서버가 보낸 오류 필드(S·C·M·n)를 그대로 흉내 낸다 — 문구는 한글이어도 제약 이름 필드로 판별해야 한다.
+        ServerErrorMessage serverError =
+                new ServerErrorMessage("S오류\0C" + sqlState + "\0M외래키 제약을 어겼습니다\0n" + constraint + "\0");
+        PSQLException cause = new PSQLException(serverError);
         return new DataIntegrityViolationException("Unable to commit against JDBC Connection", cause);
     }
 
