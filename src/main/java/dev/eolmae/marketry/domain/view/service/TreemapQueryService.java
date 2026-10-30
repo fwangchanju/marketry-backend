@@ -192,7 +192,8 @@ public class TreemapQueryService {
                 findExchangeClassificationUpdatedAt(),
                 marketCalendarTimeService
                         .resolve(latestSnapshotTime.toLocalDate())
-                        .closingWindowEnd());
+                        .closingWindowEnd(),
+                includeSuspended ? 0 : countSuspendedStocks(markets, latestSnapshotTime, nxtOnly, basis));
     }
 
     /** 커스텀 마켓맵: 사용자가 구성한 섹터 트리에 배정된 종목만 반환한다.
@@ -686,7 +687,29 @@ public class TreemapQueryService {
                 findCustomClassificationUpdatedAt(userId),
                 marketCalendarTimeService
                         .resolve(latestSnapshotTime.toLocalDate())
-                        .closingWindowEnd());
+                        .closingWindowEnd(),
+                includeSuspended ? 0 : countSuspendedStocks(markets, latestSnapshotTime, nxtOnly, basis));
+    }
+
+    /**
+     * 연속 5거래일 정지로 이 지도에서 뺀 종목 수 — 가격이 있는 활성 주권만, 조회 마켓·NXT 필터에 맞춰 센다.
+     * 설정창 위쪽 종목 수의 분모를 정지 종목까지 더한 전체 종목 수와 맞추는 데 쓴다.
+     */
+    private int countSuspendedStocks(
+            List<Market> markets, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
+        Set<String> suspendedStockCodes =
+                stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate());
+        if (suspendedStockCodes.isEmpty()) {
+            return 0;
+        }
+        Map<String, CachedStockPrice> priceMap = findPrices(markets, snapshotTime, basis);
+        return (int) stockInfoCacheService.getCache().values().stream()
+                .filter(stockInfo -> markets.contains(stockInfo.getMarketType()))
+                .filter(StockInfo::isActiveAndOrdinary)
+                .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
+                .filter(stockInfo -> suspendedStockCodes.contains(stockInfo.getStockCode()))
+                .filter(stockInfo -> priceMap.containsKey(stockInfo.getStockCode()))
+                .count();
     }
 
     /** 조회 마켓·NXT 필터와 무관하게 거래소 분류 전체의 종목 정보 동기화 시각을 보여준다. */
