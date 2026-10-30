@@ -321,6 +321,9 @@ class TreemapQueryServiceTest {
                 .satisfies(
                         node -> assertThat(node.items()).extracting("stockCode").containsExactly("000660"));
         assertThat(excluded.items()).noneMatch(node -> node.sectorName().equals("거래 정지"));
+        // 뺀 지도는 정지 종목 수를 함께 알려 설정창 분모를 맞추고, 포함한 응답은 이미 담았으므로 0이다.
+        assertThat(excluded.suspendedStockCount()).isEqualTo(1);
+        assertThat(included.suspendedStockCount()).isZero();
     }
 
     @Test

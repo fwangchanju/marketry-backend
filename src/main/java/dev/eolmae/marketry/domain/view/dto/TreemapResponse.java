@@ -9,14 +9,17 @@ import java.util.List;
  * 여럿을 합친 조회면 단일 지수값이 없으므로 marketOverview는 null.
  * taxonomyUpdatedAt은 선택한 분류의 갱신 시각이다. 커스텀은 그 분류 데이터 주인(MARKETRY는 고정본, 내 분류은 본인)의 업종 정보·종목 배정 수정 시각,
  * 거래소는 활성 주권 종목 정보의 동기화 시각이며 해당 데이터가 없으면 null.
+ * suspendedStockCount는 연속 5거래일 정지로 이 지도에서 뺀 종목 수다. 설정창 위쪽 종목 수의 분모를 전체 종목 수와 맞추는 데 쓴다.
+ * 정지 종목 포함 옵션을 켠 응답은 이미 트리에 담았으므로 0이다.
  */
 public record TreemapResponse(
         LocalDateTime snapshotTime,
         List<TreemapSectorNode> items,
         MarketOverviewItem marketOverview,
         LocalDateTime taxonomyUpdatedAt,
-        LocalDateTime afterHoursStart) {
+        LocalDateTime afterHoursStart,
+        int suspendedStockCount) {
     public static TreemapResponse empty() {
-        return new TreemapResponse(null, List.of(), null, null, null);
+        return new TreemapResponse(null, List.of(), null, null, null, 0);
     }
 }
