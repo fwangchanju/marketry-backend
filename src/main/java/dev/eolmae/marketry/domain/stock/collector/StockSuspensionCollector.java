@@ -10,6 +10,7 @@ import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,8 +38,13 @@ public class StockSuspensionCollector {
                 .filter(StockInfo::isActiveAndOrdinary)
                 .map(StockInfo::getStockCode)
                 .toList();
+        if (stockCodes.isEmpty()) {
+            // 조회 대상이 비면 열린 정지 기록을 모두 닫게 되므로 그날은 기록하지 않는다.
+            log.warn("거래정지 종목 기록 생략: 조회 대상 종목이 없음 date={}", today);
+            return;
+        }
         StockSuspensionStatus status = tossStockListClient.fetchSuspensionStatus(stockCodes);
-        suspensionService.record(status.suspended(), today);
+        suspensionService.record(status.suspended(), status.resumed(), Set.copyOf(stockCodes), today);
         log.info(
                 "거래정지 종목 기록 완료: 조회 종목 수={}, 거래정지={}, 재개 확인={}",
                 stockCodes.size(),

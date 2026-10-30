@@ -7,10 +7,13 @@ import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.postgresql.util.PSQLException;
 import org.springframework.beans.TypeMismatchException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -28,6 +31,10 @@ import org.springframework.web.server.ResponseStatusException;
 public class GlobalExceptionHandler {
 
     private static final String ERROR_CODE_PROPERTY = "errorCode";
+    private static final String FOREIGN_KEY_VIOLATION_STATE = "23503";
+    // 업종 삭제와 종목 배정·하위 업종 생성이 동시에 들어오면, 외래키(커밋 시점 검사)를 어긴 쪽이 이 두 제약으로 실패한다.
+    private static final Set<String> CONCURRENT_SECTOR_CONSTRAINTS =
+            Set.of("fk_custom_stock_sector_sector_user", "fk_custom_sector_parent_user");
     private final EscalationPublisher escalationPublisher;
 
     @ExceptionHandler(BusinessException.class)
@@ -69,6 +76,30 @@ public class GlobalExceptionHandler {
      * 기본 처리로 보낸다. 안 그러면 domain/access의 403이 500으로 바뀌고, 봇 스캔의 404나 잘못된
      * 파라미터 하나하나가 텔레그램 알림이 된다.
      */
+    /** 업종 동시 변경으로 생긴 외래키 위반만 409로 알린다. 그 밖의 무결성 오류는 실제 결함일 수 있어 기존처럼 알림을 남긴다. */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException e) throws Exception {
+        if (isConcurrentSectorChange(e)) {
+            ConflictException conflict = new ConflictException(ErrorCode.SECTOR_CHANGED_CONCURRENTLY);
+            log.warn(conflict.createLogMessage(), e);
+            return toProblemDetail(HttpStatus.CONFLICT, conflict.getErrorCode(), conflict.getMessage());
+        }
+        return handleUnexpectedException(e);
+    }
+
+    private boolean isConcurrentSectorChange(Throwable e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+            // 오류 문구(언어에 따라 달라짐)가 아니라 PostgreSQL이 구조화해서 내려 주는 제약 이름을 본다.
+            if (cause instanceof PSQLException postgresException
+                    && FOREIGN_KEY_VIOLATION_STATE.equals(postgresException.getSQLState())
+                    && postgresException.getServerErrorMessage() != null) {
+                return CONCURRENT_SECTOR_CONSTRAINTS.contains(
+                        postgresException.getServerErrorMessage().getConstraint());
+            }
+        }
+        return false;
+    }
+
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleUnexpectedException(Exception e) throws Exception {
         if (isSpringHandledException(e)) {

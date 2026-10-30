@@ -98,7 +98,7 @@ class CustomSectorServiceTest {
         ReflectionTestUtils.setField(listing, "id", 10L);
         when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(listing));
 
-        assertThatThrownBy(() -> service.delete(10L, null)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.delete(10L, 0)).isInstanceOf(ConflictException.class);
 
         verify(sectorRepository, Mockito.never()).delete(any());
     }
@@ -127,7 +127,7 @@ class CustomSectorServiceTest {
             CustomSector protectedOne = protectedSector(kind, 10L);
             when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(protectedOne));
 
-            assertThatThrownBy(() -> service.delete(10L, null)).isInstanceOf(ConflictException.class);
+            assertThatThrownBy(() -> service.delete(10L, 0)).isInstanceOf(ConflictException.class);
             assertThat(service.deletePreview(10L).deletable()).isFalse();
         }
         verify(sectorRepository, Mockito.never()).delete(any());
@@ -229,7 +229,7 @@ class CustomSectorServiceTest {
         assertThat(preview.deletable()).isFalse();
         assertThat(preview.blockReason()).isEqualTo(SectorDeleteBlockReason.HAS_SUB_SECTORS);
         assertThat(preview.subSectorNames()).containsExactly("CxO");
-        assertThatThrownBy(() -> service.delete(20L, null))
+        assertThatThrownBy(() -> service.delete(20L, 0))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining(ErrorCode.SECTOR_HAS_SUB_SECTORS.getMessage());
         verify(sectorRepository, Mockito.never()).delete(any());
@@ -258,7 +258,8 @@ class CustomSectorServiceTest {
         CustomStockSector first = CustomStockSector.create(USER_ID, "199730", 30L);
         CustomStockSector second = CustomStockSector.create(USER_ID, "223250", 30L);
         when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro, unclassified));
-        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L)).thenReturn(List.of(first, second));
+        when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 30L))
+                .thenReturn(List.of(first, second));
 
         service.delete(30L, 2);
 
@@ -275,7 +276,8 @@ class CustomSectorServiceTest {
         CustomSector cro = sectorWithId(CustomSector.createParent(USER_ID, "CRO"), 30L);
         CustomStockSector only = CustomStockSector.create(USER_ID, "199730", 30L);
         when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro));
-        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L)).thenReturn(List.of(only));
+        when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 30L))
+                .thenReturn(List.of(only));
 
         assertThatThrownBy(() -> service.delete(30L, 5))
                 .isInstanceOf(ConflictException.class)
@@ -289,7 +291,8 @@ class CustomSectorServiceTest {
     void delete_종목이_없으면_미분류를_찾지_않고_바로_지운다() {
         CustomSector empty = sectorWithId(CustomSector.createParent(USER_ID, "빈 업종"), 31L);
         when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(empty));
-        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 31L)).thenReturn(List.of());
+        when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 31L))
+                .thenReturn(List.of());
 
         service.delete(31L, 0);
 
@@ -304,7 +307,7 @@ class CustomSectorServiceTest {
         CustomSector etc = sectorWithId(CustomSector.createParent(USER_ID, "기타"), 32L);
         CustomSector nested = sectorWithId(CustomSector.createChild(USER_ID, "미분류", etc), 33L);
         when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(cro, etc, nested));
-        when(stockSectorRepository.findByIdUserIdAndSectorId(USER_ID, 30L))
+        when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 30L))
                 .thenReturn(List.of(CustomStockSector.create(USER_ID, "199730", 30L)));
 
         assertThatThrownBy(() -> service.delete(30L, 1))
@@ -312,5 +315,19 @@ class CustomSectorServiceTest {
                 .hasMessageContaining(ErrorCode.SECTOR_UNCLASSIFIED_MISSING.getMessage());
 
         verify(sectorRepository, Mockito.never()).delete(any());
+    }
+
+    @Test
+    void delete_업종_행과_배정_행을_잠근_뒤_종목_수를_비교한다() {
+        CustomSector empty = sectorWithId(CustomSector.createParent(USER_ID, "빈 업종"), 31L);
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(empty));
+        when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 31L))
+                .thenReturn(List.of());
+
+        service.delete(31L, 0);
+
+        var order = Mockito.inOrder(sectorRepository, stockSectorRepository);
+        order.verify(sectorRepository).findLockedByIdAndUserId(31L, USER_ID);
+        order.verify(stockSectorRepository).findLockedByIdUserIdAndSectorId(USER_ID, 31L);
     }
 }

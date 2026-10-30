@@ -30,10 +30,15 @@ public class StockTradingSuspensionService {
 
     /**
      * 오늘 거래정지 중인 종목으로 기록을 맞춘다. 거래일 아침에 한 번 부른다 — 새로 정지된 종목은 기록을 열고, 이어지는 종목은
-     * 연속 거래일 수를 세 5거래일에 이르면 제외를 시작하며, 더는 정지가 아닌 종목은 기록을 닫는다.
+     * 연속 거래일 수를 세 5거래일에 이르면 제외를 시작한다. 기록은 토스가 정지가 아니라고 명시한 종목({@code resumedStockCodes})과
+     * 조회 대상에서 빠진 종목(상장폐지 등)만 닫는다 — 응답에 없거나 정지 여부가 빈 종목은 재개로 오판하지 않고 기록을 그대로 둔다.
      */
     @Transactional
-    public void record(Set<String> suspendedStockCodes, LocalDate today) {
+    public void record(
+            Set<String> suspendedStockCodes,
+            Set<String> resumedStockCodes,
+            Set<String> queriedStockCodes,
+            LocalDate today) {
         LocalDateTime now = KstClock.now();
         Map<String, StockTradingSuspension> openByStockCode = new HashMap<>();
         for (StockTradingSuspension open : suspensionRepository.findByEndedOnIsNull()) {
@@ -55,7 +60,10 @@ public class StockTradingSuspensionService {
         }
 
         for (StockTradingSuspension open : suspensionRepository.findByEndedOnIsNull()) {
-            if (!suspendedStockCodes.contains(open.getStockCode())) {
+            if (suspendedStockCodes.contains(open.getStockCode())) {
+                continue;
+            }
+            if (resumedStockCodes.contains(open.getStockCode()) || !queriedStockCodes.contains(open.getStockCode())) {
                 open.end(today, now);
             }
         }

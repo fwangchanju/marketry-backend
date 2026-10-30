@@ -1,9 +1,11 @@
 package dev.eolmae.marketry.domain.custom.repository;
 
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,10 @@ public interface CustomSectorRepository extends JpaRepository<CustomSector, Long
     Optional<CustomSector> findFirstByUserIdOrderByIdAsc(Long userId);
 
     Optional<CustomSector> findByIdAndUserId(Long id, Long userId);
+
+    /** 업종 행을 FOR UPDATE로 잠근다. 외래키가 커밋 시점에 검사돼 동시 배정을 즉시 막지는 못하고, 겹치면 진 쪽이 외래키 위반으로 실패한다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<CustomSector> findLockedByIdAndUserId(Long id, Long userId);
 
     boolean existsByUserIdAndName(Long userId, String name);
 

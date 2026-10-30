@@ -26,7 +26,7 @@ class StockTradingSuspensionServiceTest {
     void 새로_정지된_종목은_기록을_열고_바로_제외하지_않는다() {
         when(repository.findByEndedOnIsNull()).thenReturn(List.of());
 
-        service.record(Set.of("005930"), TODAY);
+        service.record(Set.of("005930"), Set.of(), Set.of("005930"), TODAY);
 
         var captor = ArgumentCaptor.forClass(StockTradingSuspension.class);
         verify(repository).save(captor.capture());
@@ -42,7 +42,7 @@ class StockTradingSuspensionServiceTest {
         when(repository.findByEndedOnIsNull()).thenReturn(List.of(open));
         when(calendar.countTradingDays(LocalDate.of(2026, 10, 7), TODAY)).thenReturn(5L);
 
-        service.record(Set.of("005930"), TODAY);
+        service.record(Set.of("005930"), Set.of(), Set.of("005930"), TODAY);
 
         assertThat(open.getExcludedFrom()).isEqualTo(TODAY);
     }
@@ -54,23 +54,49 @@ class StockTradingSuspensionServiceTest {
         when(repository.findByEndedOnIsNull()).thenReturn(List.of(open));
         when(calendar.countTradingDays(LocalDate.of(2026, 10, 11), TODAY)).thenReturn(3L);
 
-        service.record(Set.of("005930"), TODAY);
+        service.record(Set.of("005930"), Set.of(), Set.of("005930"), TODAY);
 
         assertThat(open.getExcludedFrom()).isNull();
         verify(repository, never()).save(any());
     }
 
     @Test
-    void 더는_정지가_아닌_종목은_오늘_기록을_닫는다() {
-        var open =
-                StockTradingSuspension.start("005930", LocalDate.of(2026, 10, 8), LocalDateTime.of(2026, 10, 8, 7, 0));
-        open.markExcluded(LocalDate.of(2026, 10, 13), LocalDateTime.of(2026, 10, 13, 7, 0));
+    void 재개가_명시된_종목은_오늘_기록을_닫는다() {
+        var open = excludedOpen("005930");
         when(repository.findByEndedOnIsNull()).thenReturn(List.of(open));
 
-        service.record(Set.of(), TODAY);
+        service.record(Set.of(), Set.of("005930"), Set.of("005930"), TODAY);
 
         assertThat(open.getEndedOn()).isEqualTo(TODAY);
         assertThat(open.isExcludedOn(TODAY)).isFalse();
+    }
+
+    @Test
+    void 응답에서_빠졌지만_조회_대상인_종목은_기록을_닫지_않는다() {
+        var open = excludedOpen("005930");
+        when(repository.findByEndedOnIsNull()).thenReturn(List.of(open));
+
+        service.record(Set.of(), Set.of(), Set.of("005930"), TODAY);
+
+        assertThat(open.getEndedOn()).isNull();
+        assertThat(open.isExcludedOn(TODAY)).isTrue();
+    }
+
+    @Test
+    void 조회_대상에서_빠진_종목은_기록을_닫는다() {
+        var open = excludedOpen("005930");
+        when(repository.findByEndedOnIsNull()).thenReturn(List.of(open));
+
+        service.record(Set.of(), Set.of(), Set.of(), TODAY);
+
+        assertThat(open.getEndedOn()).isEqualTo(TODAY);
+    }
+
+    private static StockTradingSuspension excludedOpen(String stockCode) {
+        var open =
+                StockTradingSuspension.start(stockCode, LocalDate.of(2026, 10, 8), LocalDateTime.of(2026, 10, 8, 7, 0));
+        open.markExcluded(LocalDate.of(2026, 10, 13), LocalDateTime.of(2026, 10, 13, 7, 0));
+        return open;
     }
 
     @Test

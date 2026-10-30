@@ -13,7 +13,10 @@ import dev.eolmae.marketry.domain.notification.listener.EscalationPublisher;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
 import org.springframework.core.MethodParameter;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -109,5 +112,42 @@ class GlobalExceptionHandlerTest {
         handler.handleUnexpectedException(new IllegalStateException("B"));
 
         verify(escalationPublisher, times(2)).report(Mockito.any());
+    }
+
+    private static DataIntegrityViolationException foreignKeyViolation(String constraint, String sqlState) {
+        // 서버가 보낸 오류 필드(S·C·M·n)를 그대로 흉내 낸다 — 문구는 한글이어도 제약 이름 필드로 판별해야 한다.
+        ServerErrorMessage serverError =
+                new ServerErrorMessage("S오류\0C" + sqlState + "\0M외래키 제약을 어겼습니다\0n" + constraint + "\0");
+        PSQLException cause = new PSQLException(serverError);
+        return new DataIntegrityViolationException("Unable to commit against JDBC Connection", cause);
+    }
+
+    @Test
+    void handleDataIntegrityViolation_업종_동시_변경으로_생긴_외래키_위반은_409로_알리고_알림은_보내지_않는다() throws Exception {
+        for (String constraint : new String[] {"fk_custom_stock_sector_sector_user", "fk_custom_sector_parent_user"}) {
+            ProblemDetail result = handler.handleDataIntegrityViolation(foreignKeyViolation(constraint, "23503"));
+
+            assertThat(result.getStatus()).isEqualTo(HttpStatus.CONFLICT.value());
+            assertThat(result.getProperties()).containsEntry("errorCode", ErrorCode.SECTOR_CHANGED_CONCURRENTLY.name());
+        }
+        verify(escalationPublisher, never()).report(Mockito.any());
+    }
+
+    @Test
+    void handleDataIntegrityViolation_다른_제약의_외래키_위반은_알림을_보내고_500을_반환한다() throws Exception {
+        ProblemDetail result =
+                handler.handleDataIntegrityViolation(foreignKeyViolation("fk_custom_stock_sector_stock", "23503"));
+
+        verify(escalationPublisher).report(Mockito.any());
+        assertThat(result.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+    }
+
+    @Test
+    void handleDataIntegrityViolation_외래키_위반이_아닌_무결성_오류는_알림을_보내고_500을_반환한다() throws Exception {
+        ProblemDetail result = handler.handleDataIntegrityViolation(
+                foreignKeyViolation("fk_custom_stock_sector_sector_user", "23505"));
+
+        verify(escalationPublisher).report(Mockito.any());
+        assertThat(result.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
     }
 }
