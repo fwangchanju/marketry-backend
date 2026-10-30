@@ -6,6 +6,7 @@ import static dev.eolmae.marketry.domain.custom.entity.QCustomStockSector.custom
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +47,7 @@ public class CustomStockSectorRepositoryImpl implements CustomStockSectorReposit
                 .from(customStockSector)
                 .join(customSector)
                 .on(customSector.id.eq(customStockSector.sectorId))
-                .where(customStockSector.id.userId.eq(userId), isNotAutoAssignedNewListing())
+                .where(customStockSector.id.userId.eq(userId), isNotAutoAssignedNewListing(), isNotInSuspendedSector())
                 .fetchOne();
     }
 
@@ -58,6 +59,11 @@ public class CustomStockSectorRepositoryImpl implements CustomStockSectorReposit
                 .isNotNull()
                 .or(customSector.name.ne(CustomSector.NEW_LISTING_NAME))
                 .or(customStockSector.updatedAt.ne(customStockSector.createdAt));
+    }
+
+    // 거래 정지 업종에는 서버만 종목을 넣는다(사용자는 직접 못 넣는다). 그 업종의 행은 모두 자동 배정이라 분류 업데이트 시각에서 뺀다.
+    private BooleanExpression isNotInSuspendedSector() {
+        return customSector.parentId.isNotNull().or(customSector.name.ne(ProtectedSector.SUSPENDED.getSectorName()));
     }
 
     @Override

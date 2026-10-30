@@ -2,6 +2,7 @@ package dev.eolmae.marketry.domain.stock.client;
 
 import dev.eolmae.marketry.common.exception.BadRequestException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
+import dev.eolmae.marketry.domain.stock.dto.StockSuspensionStatus;
 import dev.eolmae.marketry.domain.stock.dto.TossStockDetailResponse;
 import dev.eolmae.marketry.domain.stock.dto.TossStockListResponse;
 import java.util.Collection;
@@ -76,7 +77,13 @@ public class TossStockListClient {
 
     /** 거래정지 중인 종목코드를 돌려준다. 토스가 모르는 종목은 응답에 없어 정지로 보지 않는다. */
     public Set<String> fetchSuspendedStockCodes(Collection<String> stockCodes) {
+        return fetchSuspensionStatus(stockCodes).suspended();
+    }
+
+    /** 정지 중인 종목과, 정지가 아니라고 명시한 종목을 나눠 돌려준다. 응답에 없거나 정지 여부가 비어 있는 종목은 어느 쪽도 아니다. */
+    public StockSuspensionStatus fetchSuspensionStatus(Collection<String> stockCodes) {
         Set<String> suspended = new HashSet<>();
+        Set<String> resumed = new HashSet<>();
         List<String> codes = stockCodes.stream()
                 .filter(stockCode ->
                         stockCode != null && ALLOWED_SYMBOL.matcher(stockCode).matches())
@@ -93,15 +100,18 @@ public class TossStockListClient {
                 throw new BadRequestException(ErrorCode.TOSS_STOCK_LIST_FETCH_FAILED, "RESPONSE_INVALID");
             }
             for (TossStockDetailResponse.Item item : response.result()) {
-                if (item != null
-                        && item.symbol() != null
-                        && item.koreanMarketDetail() != null
-                        && Boolean.TRUE.equals(item.koreanMarketDetail().krxTradingSuspended())) {
+                if (item == null || item.symbol() == null || item.koreanMarketDetail() == null) {
+                    continue;
+                }
+                Boolean tradingSuspended = item.koreanMarketDetail().krxTradingSuspended();
+                if (Boolean.TRUE.equals(tradingSuspended)) {
                     suspended.add(item.symbol().trim());
+                } else if (Boolean.FALSE.equals(tradingSuspended)) {
+                    resumed.add(item.symbol().trim());
                 }
             }
         }
-        return suspended;
+        return new StockSuspensionStatus(suspended, resumed);
     }
 
     private Set<String> fetchStockCodes(String market, String status) {

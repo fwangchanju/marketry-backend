@@ -46,6 +46,7 @@ public class CustomSectorTreeService {
     private final UserPreferenceRepository userPreferenceRepository;
     private final StockInfoRepository stockInfoRepository;
     private final ProtectedSectorService protectedSectorService;
+    private final SuspendedStockClassificationService suspendedStockClassificationService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -147,6 +148,8 @@ public class CustomSectorTreeService {
                         userId, threshold.label(), threshold.thresholdValue(), threshold.excludedByDefault()))
                 .toList());
         updatePreferences(userId, snapshot.preferences());
+        // 복원한 배정 중 지금 거래 정지인 종목은 거래 정지 업종으로 맞춘다(MARKETRY 발행 사용자는 고정본이라 제외된다).
+        suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
     }
 
     private Map<Long, CustomSector> restoreSectors(

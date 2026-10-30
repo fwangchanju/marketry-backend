@@ -1,16 +1,18 @@
 package dev.eolmae.marketry.domain.stock.collector;
 
+import dev.eolmae.marketry.common.event.StockSuspensionSyncedEvent;
 import dev.eolmae.marketry.common.util.KstClock;
 import dev.eolmae.marketry.domain.stock.client.TossStockListClient;
+import dev.eolmae.marketry.domain.stock.dto.StockSuspensionStatus;
 import dev.eolmae.marketry.domain.stock.entity.StockInfo;
 import dev.eolmae.marketry.domain.stock.service.MarketCalendarTimeService;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 /** 거래일 아침에 토스로 거래정지 중인 종목을 받아 거래정지 기간을 기록한다. */
@@ -23,6 +25,7 @@ public class StockSuspensionCollector {
     private final TossStockListClient tossStockListClient;
     private final StockTradingSuspensionService suspensionService;
     private final MarketCalendarTimeService marketCalendarTimeService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void sync() {
         LocalDate today = KstClock.now().toLocalDate();
@@ -34,8 +37,15 @@ public class StockSuspensionCollector {
                 .filter(StockInfo::isActiveAndOrdinary)
                 .map(StockInfo::getStockCode)
                 .toList();
-        Set<String> suspended = tossStockListClient.fetchSuspendedStockCodes(stockCodes);
-        suspensionService.record(suspended, today);
-        log.info("거래정지 종목 기록 완료: 조회 종목 수={}, 거래정지={}", stockCodes.size(), suspended.size());
+        StockSuspensionStatus status = tossStockListClient.fetchSuspensionStatus(stockCodes);
+        suspensionService.record(status.suspended(), today);
+        log.info(
+                "거래정지 종목 기록 완료: 조회 종목 수={}, 거래정지={}, 재개 확인={}",
+                stockCodes.size(),
+                status.suspended().size(),
+                status.resumed().size());
+        // 연속 5거래일에 이른 종목과 재개가 확인된 종목을 알려, 사용자의 업종 분류에 반영하게 한다.
+        eventPublisher.publishEvent(
+                new StockSuspensionSyncedEvent(suspensionService.findExcludedStockCodes(today), status.resumed()));
     }
 }

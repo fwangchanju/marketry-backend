@@ -1,6 +1,7 @@
 package dev.eolmae.marketry.runner;
 
 import dev.eolmae.marketry.domain.custom.service.ProtectedSectorService;
+import dev.eolmae.marketry.domain.custom.service.SuspendedStockClassificationService;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,11 +16,22 @@ public class StartupRunner implements ApplicationRunner {
 
     private final StockInfoCacheService stockInfoCacheService;
     private final ProtectedSectorService protectedSectorService;
+    private final SuspendedStockClassificationService suspendedStockClassificationService;
 
     @Override
     public void run(ApplicationArguments args) {
         loadStockInfoCache();
         ensureProtectedSectors();
+        applyCurrentSuspensions();
+    }
+
+    /** 지금 정지로 제외 중인 종목을 모든 사용자의 거래 정지 업종에 맞춘다. 이미 맞으면 아무것도 바꾸지 않는다. */
+    private void applyCurrentSuspensions() {
+        try {
+            suspendedStockClassificationService.applyCurrentExclusionsToAllUsers();
+        } catch (Exception e) {
+            log.error("[startup] 거래 정지 종목 분류 실패", e);
+        }
     }
 
     /** 기존 사용자에게 없는 보호 업종을 추가한다. 이미 있으면 아무것도 바꾸지 않아 몇 번 시작해도 같다. */

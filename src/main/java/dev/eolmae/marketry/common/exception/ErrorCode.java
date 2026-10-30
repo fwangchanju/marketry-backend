@@ -69,6 +69,8 @@ public enum ErrorCode {
     SECTOR_MOVE_COUNT_CHANGED("옮길 종목 수가 바뀌었습니다. 다시 확인해 주세요."),
     SECTOR_UNCLASSIFIED_MISSING("미분류 업종이 없어 종목을 옮길 수 없습니다."),
     SECTOR_PROTECTED("신규 상장·거래 정지·미분류는 삭제, 이름 변경, 이동이 불가능합니다."),
+    STOCK_SUSPENDED_LOCKED("거래 정지 종목은 다른 업종으로 옮길 수 없습니다."),
+    SECTOR_SUSPENDED_AUTO_ONLY("거래 정지 업종에는 직접 넣을 수 없습니다. 거래 정지 종목이 자동으로 배정됩니다."),
     SECTOR_NAME_RESERVED("신규 상장·거래 정지·미분류는 업종 이름으로 쓸 수 없습니다."),
     STOCK_SECTOR_NOT_FOUND("섹터 배정 정보가 없는 종목입니다."),
     SNAPSHOT_NOT_FOUND("이미 삭제되었거나 존재하지 않는 스냅샷입니다."),

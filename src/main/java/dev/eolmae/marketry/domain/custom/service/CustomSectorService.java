@@ -33,6 +33,7 @@ public class CustomSectorService {
     private final CustomStockSectorRepository customStockSectorRepository;
     private final ProtectedSectorService protectedSectorService;
     private final JdbcTemplate jdbcTemplate;
+    private final SuspendedStockClassificationService suspendedStockClassificationService;
 
     @Transactional(readOnly = true)
     public List<SectorItem> getSectors() {
@@ -46,6 +47,8 @@ public class CustomSectorService {
         customStockSectorRepository.deleteAllByIdUserId(userId);
         customSectorRepository.deleteAllOfUser(userId);
         protectedSectorService.ensureForUser(userId);
+        // 초기화로 지워진 배정 중 지금 거래 정지인 종목은 다시 거래 정지 업종에 놓는다.
+        suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
     }
 
     public SectorItem createParent(String name) {

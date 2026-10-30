@@ -103,6 +103,25 @@ class TossStockListClientTest {
     }
 
     @Test
+    void 정지가_아니라고_명시한_종목만_재개로_보고_응답에_없거나_비어_있는_종목은_어느_쪽도_아니다() {
+        expectToken();
+        server.expect(requestTo(BASE_URL + "/api/v1/stocks?symbols=000001,000002,000003,000004,000005"))
+                .andRespond(withSuccess(
+                        "{\"result\":["
+                                + "{\"symbol\":\"000001\",\"koreanMarketDetail\":{\"krxTradingSuspended\":true}},"
+                                + "{\"symbol\":\"000002\",\"koreanMarketDetail\":{\"krxTradingSuspended\":false}},"
+                                + "{\"symbol\":\"000003\",\"koreanMarketDetail\":null},"
+                                + "{\"symbol\":\"000004\",\"koreanMarketDetail\":{}}]}",
+                        MediaType.APPLICATION_JSON));
+
+        var status = client.fetchSuspensionStatus(java.util.List.of("000001", "000002", "000003", "000004", "000005"));
+
+        assertThat(status.suspended()).containsExactly("000001");
+        assertThat(status.resumed()).containsExactly("000002");
+        server.verify();
+    }
+
+    @Test
     void 거래정지_조회가_실패하면_안전한_상태번호만_로그에_남긴다() {
         expectToken();
         server.expect(requestTo(BASE_URL + "/api/v1/stocks?symbols=005930"))

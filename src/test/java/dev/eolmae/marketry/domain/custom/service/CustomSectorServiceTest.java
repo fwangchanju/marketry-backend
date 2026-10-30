@@ -36,8 +36,10 @@ class CustomSectorServiceTest {
     private final CustomStockSectorRepository stockSectorRepository = Mockito.mock(CustomStockSectorRepository.class);
     private final JdbcTemplate jdbcTemplate = Mockito.mock(JdbcTemplate.class);
     private final ProtectedSectorService protectedSectorService = Mockito.mock(ProtectedSectorService.class);
-    private final CustomSectorService service =
-            new CustomSectorService(sectorRepository, stockSectorRepository, protectedSectorService, jdbcTemplate);
+    private final SuspendedStockClassificationService suspendedClassification =
+            Mockito.mock(SuspendedStockClassificationService.class);
+    private final CustomSectorService service = new CustomSectorService(
+            sectorRepository, stockSectorRepository, protectedSectorService, jdbcTemplate, suspendedClassification);
 
     @BeforeEach
     void authenticateUser() {
@@ -208,6 +210,7 @@ class CustomSectorServiceTest {
         service.reset();
 
         verify(protectedSectorService).ensureForUser(USER_ID);
+        verify(suspendedClassification).applyCurrentExclusionsToUser(USER_ID);
     }
 
     private CustomSector sectorWithId(CustomSector sector, long id) {
