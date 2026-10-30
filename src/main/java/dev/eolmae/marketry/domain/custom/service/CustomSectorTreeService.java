@@ -45,6 +45,7 @@ public class CustomSectorTreeService {
     private final CustomValueTierThresholdRepository customValueTierThresholdRepository;
     private final UserPreferenceRepository userPreferenceRepository;
     private final StockInfoRepository stockInfoRepository;
+    private final ProtectedSectorService protectedSectorService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -125,6 +126,8 @@ public class CustomSectorTreeService {
         customSectorRepository.flush();
 
         Map<Long, CustomSector> sectorBySnapshotId = restoreSectors(snapshot.sectors(), userId, snapshotId);
+        // 옛 스냅샷에는 보호 업종이 없을 수 있어서, 복원한 트리에 없는 보호 업종을 채운다.
+        protectedSectorService.ensureForUser(userId);
         List<CustomStockSector> assignments = snapshot.assignments().stream()
                 .map(assignment -> CustomStockSector.create(
                         userId,

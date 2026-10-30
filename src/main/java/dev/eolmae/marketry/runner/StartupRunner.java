@@ -1,5 +1,6 @@
 package dev.eolmae.marketry.runner;
 
+import dev.eolmae.marketry.domain.custom.service.ProtectedSectorService;
 import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +14,21 @@ import org.springframework.stereotype.Component;
 public class StartupRunner implements ApplicationRunner {
 
     private final StockInfoCacheService stockInfoCacheService;
+    private final ProtectedSectorService protectedSectorService;
 
     @Override
     public void run(ApplicationArguments args) {
         loadStockInfoCache();
+        ensureProtectedSectors();
+    }
+
+    /** 기존 사용자에게 없는 보호 업종을 추가한다. 이미 있으면 아무것도 바꾸지 않아 몇 번 시작해도 같다. */
+    private void ensureProtectedSectors() {
+        try {
+            protectedSectorService.ensureForAllUsers();
+        } catch (Exception e) {
+            log.error("[startup] 보호 업종 보정 실패", e);
+        }
     }
 
     private void loadStockInfoCache() {

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RequestMapping("/api/custom/sectors")
@@ -58,8 +59,9 @@ public class CustomSectorController {
         return customSectorService.deletePreview(id);
     }
 
+    /** expectedMoveCount는 미리보기에서 확인한 이동 종목 수다. 보내면 지금 수와 다를 때 삭제하지 않고 409로 다시 확인하게 한다. */
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        customSectorService.delete(id);
+    public void delete(@PathVariable Long id, @RequestParam(required = false) Integer expectedMoveCount) {
+        customSectorService.delete(id, expectedMoveCount);
     }
 }

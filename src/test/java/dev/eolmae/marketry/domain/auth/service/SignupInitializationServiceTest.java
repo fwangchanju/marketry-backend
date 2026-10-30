@@ -12,6 +12,7 @@ import dev.eolmae.marketry.domain.custom.entity.CustomValueTierThreshold;
 import dev.eolmae.marketry.domain.custom.entity.UserPreference;
 import dev.eolmae.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import dev.eolmae.marketry.domain.custom.repository.UserPreferenceRepository;
+import dev.eolmae.marketry.domain.custom.service.ProtectedSectorService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -29,8 +30,9 @@ class SignupInitializationServiceTest {
     private final CustomValueTierThresholdRepository customValueTierThresholdRepository =
             mock(CustomValueTierThresholdRepository.class);
     private final UserPreferenceRepository userPreferenceRepository = mock(UserPreferenceRepository.class);
-    private final SignupInitializationService service =
-            new SignupInitializationService(jdbcTemplate, customValueTierThresholdRepository, userPreferenceRepository);
+    private final ProtectedSectorService protectedSectorService = mock(ProtectedSectorService.class);
+    private final SignupInitializationService service = new SignupInitializationService(
+            jdbcTemplate, customValueTierThresholdRepository, userPreferenceRepository, protectedSectorService);
 
     @Test
     void 가입시_advisory_lock을_잡는다() {

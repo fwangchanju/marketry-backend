@@ -6,20 +6,19 @@ import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.auth.service.CurrentUser;
 import dev.eolmae.marketry.domain.custom.dto.SectorDeletePreview;
 import dev.eolmae.marketry.domain.custom.dto.SectorItem;
-import dev.eolmae.marketry.domain.custom.dto.StockSectorItem;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
+import dev.eolmae.marketry.domain.custom.enums.SectorDeleteBlockReason;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockSectorRepository;
-import dev.eolmae.marketry.domain.stock.entity.StockInfo;
-import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +31,8 @@ public class CustomSectorService {
 
     private final CustomSectorRepository customSectorRepository;
     private final CustomStockSectorRepository customStockSectorRepository;
-    private final StockInfoCacheService stockInfoCacheService;
+    private final ProtectedSectorService protectedSectorService;
+    private final JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public List<SectorItem> getSectors() {
@@ -45,10 +45,12 @@ public class CustomSectorService {
         Long userId = CurrentUser.requireId();
         customStockSectorRepository.deleteAllByIdUserId(userId);
         customSectorRepository.deleteAllOfUser(userId);
+        protectedSectorService.ensureForUser(userId);
     }
 
     public SectorItem createParent(String name) {
         Long userId = CurrentUser.requireId();
+        requireNotReservedName(name);
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
@@ -58,12 +60,14 @@ public class CustomSectorService {
 
     public SectorItem createChild(String name, Long parentId) {
         Long userId = CurrentUser.requireId();
+        requireNotReservedName(name);
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
         CustomSector parent = customSectorRepository
                 .findByIdAndUserId(parentId, userId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, parentId));
+        requireNotProtected(parent);
         CustomSector sector = CustomSector.createChild(userId, name, parent);
         return toItem(customSectorRepository.save(sector));
     }
@@ -85,9 +89,11 @@ public class CustomSectorService {
     public void rename(Long sectorId, String name) {
         Long userId = CurrentUser.requireId();
         CustomSector target = findOwnedSector(sectorId, userId);
+        requireNotProtected(target);
         if (target.getName().equals(name)) {
             return;
         }
+        requireNotReservedName(name);
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
@@ -102,6 +108,7 @@ public class CustomSectorService {
         Map<Long, CustomSector> sectorById = maps.sectorById();
         Map<Long, List<CustomSector>> sectorByParentId = maps.sectorByParentId();
         CustomSector target = findSector(sectorId, sectorById);
+        requireNotProtected(target);
 
         List<Long> subSectorIds = collectSubSectorIds(sectorId, sectorByParentId);
         if (subSectorIds.contains(newParentId)) {
@@ -111,6 +118,7 @@ public class CustomSectorService {
         int newDepth = 0;
         if (newParentId != null) {
             CustomSector newParent = findSector(newParentId, sectorById);
+            requireNotProtected(newParent);
             newDepth = newParent.getDepth() + 1;
         }
         int depthDifference = newDepth - target.getDepth();
@@ -130,49 +138,95 @@ public class CustomSectorService {
         SectorMaps maps = getSectorMaps();
         Map<Long, CustomSector> sectorById = maps.sectorById();
         CustomSector target = findSector(sectorId, sectorById);
-        if (target.isNewListing()) {
-            return SectorDeletePreview.blocked(target.getName(), List.of());
+        if (target.isProtected()) {
+            return SectorDeletePreview.blocked(target.getName(), SectorDeleteBlockReason.PROTECTED, List.of());
         }
-
-        List<Long> subSectorIds = collectSubSectorIds(sectorId, maps.sectorByParentId());
-        List<CustomStockSector> stockSectors =
-                customStockSectorRepository.findByIdUserIdAndSectorIdIn(userId, subSectorIds);
-        List<CustomStockSector> blockingStockSectors = findBlockingStockSectors(stockSectors);
-        if (!blockingStockSectors.isEmpty()) {
+        List<String> subSectorNames = findSubSectorNames(sectorId, maps.sectorByParentId());
+        if (!subSectorNames.isEmpty()) {
             return SectorDeletePreview.blocked(
-                    target.getName(), toBlockingStockSectorItems(blockingStockSectors, sectorById));
+                    target.getName(), SectorDeleteBlockReason.HAS_SUB_SECTORS, subSectorNames);
         }
         return SectorDeletePreview.deletable(
-                target.getName(), toDeletableSectorNames(sectorId, subSectorIds, sectorById));
+                target.getName(),
+                customStockSectorRepository
+                        .findByIdUserIdAndSectorId(userId, sectorId)
+                        .size());
     }
 
-    public void delete(Long sectorId) {
+    /**
+     * 업종을 삭제하고 담긴 종목 전부(비활성·화면에 없는 종목 포함)를 미분류로 옮긴다. 하위 업종이 있으면 삭제하지 않는다.
+     * expectedMoveCount가 있으면 미리보기에서 확인한 종목 수와 지금 옮길 종목 수를 비교해, 다르면 삭제하지 않고 다시 확인하게 한다.
+     */
+    public void delete(Long sectorId, Integer expectedMoveCount) {
         Long userId = CurrentUser.requireId();
         SectorMaps maps = getSectorMaps();
         Map<Long, CustomSector> sectorById = maps.sectorById();
-        if (findSector(sectorId, sectorById).isNewListing()) {
-            throw new ConflictException(ErrorCode.SECTOR_NEW_LISTING_PROTECTED, sectorId);
+        CustomSector target = findSector(sectorId, sectorById);
+        requireNotProtected(target);
+        if (!findSubSectorNames(sectorId, maps.sectorByParentId()).isEmpty()) {
+            throw new ConflictException(ErrorCode.SECTOR_HAS_SUB_SECTORS, sectorId);
         }
 
-        List<Long> subSectorIds = collectSubSectorIds(sectorId, maps.sectorByParentId());
-        List<CustomStockSector> stockSectors =
-                customStockSectorRepository.findByIdUserIdAndSectorIdIn(userId, subSectorIds);
-        if (!findBlockingStockSectors(stockSectors).isEmpty()) {
-            throw new ConflictException(ErrorCode.SECTOR_HAS_ASSIGNED_STOCK, sectorId);
+        List<CustomStockSector> assignments = customStockSectorRepository.findByIdUserIdAndSectorId(userId, sectorId);
+        if (expectedMoveCount != null && expectedMoveCount != assignments.size()) {
+            throw new ConflictException(ErrorCode.SECTOR_MOVE_COUNT_CHANGED, sectorId);
         }
-
-        // 활성 주권 배정은 없다고 확인했지만(위 판정), 비활성 종목의 배정 행은 여전히 남아있을 수 있다 —
-        // custom_sector를 가리키는 FK라 섹터 삭제 전에 먼저 지워야 한다(결정 1).
-        if (!stockSectors.isEmpty()) {
-            log.info("[섹터삭제] 비활성 배정 행 삭제 | sectorId={}|count={}", sectorId, stockSectors.size());
-            customStockSectorRepository.deleteByUserIdAndSectorIdIn(userId, subSectorIds);
+        if (!assignments.isEmpty()) {
+            Long unclassifiedId = findUnclassifiedSectorId(userId);
+            log.info("[섹터삭제] 종목을 미분류로 이동 | sectorId={}|count={}", sectorId, assignments.size());
+            assignments.forEach(assignment -> assignment.reassign(unclassifiedId));
+            // 배정 행을 먼저 새 업종으로 내보내야, 이 업종을 가리키는 FK 때문에 삭제가 실패하지 않는다.
+            customStockSectorRepository.flush();
+            // 삭제로 미분류에 옮긴 것도 사용자가 직접 한 분류라 첫 분류 시각을 기록한다. CustomStockSectorService와 같은 문장이다.
+            // 값이 비어 있을 때만 채우는 조건부 UPDATE라 JPQL/QueryDSL보다 한 문장으로 쓰는 편이 안전해 JdbcTemplate을 쓴다.
+            jdbcTemplate.update(
+                    "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
+                    userId);
         }
+        customSectorRepository.delete(target);
+    }
 
-        List<CustomSector> subSectors = subSectorIds.stream()
-                .map(sectorById::get)
-                .sorted(Comparator.comparingInt(CustomSector::getDepth).reversed())
+    private Long findUnclassifiedSectorId(Long userId) {
+        return findOrCreateUnclassified(userId)
+                .orElseThrow(() -> new ConflictException(ErrorCode.SECTOR_UNCLASSIFIED_MISSING));
+    }
+
+    /** 최상위 미분류 업종을 찾는다. 없으면(오래된 데이터) 보호 업종을 채운 뒤 한 번 더 찾는다. */
+    private java.util.Optional<Long> findOrCreateUnclassified(Long userId) {
+        java.util.Optional<Long> found = findUnclassified(userId);
+        if (found.isPresent()) {
+            return found;
+        }
+        protectedSectorService.ensureForUser(userId);
+        return findUnclassified(userId);
+    }
+
+    private java.util.Optional<Long> findUnclassified(Long userId) {
+        return findAllSectors(userId).stream()
+                .filter(sector -> sector.isProtected()
+                        && ProtectedSector.UNCLASSIFIED.getSectorName().equals(sector.getName()))
+                .map(CustomSector::getId)
+                .findFirst();
+    }
+
+    private List<String> findSubSectorNames(Long sectorId, Map<Long, List<CustomSector>> sectorByParentId) {
+        return sectorByParentId.getOrDefault(sectorId, List.of()).stream()
+                .map(CustomSector::getName)
                 .toList();
-        customSectorRepository.deleteAll(subSectors);
+    }
+
+    /** 보호 업종(신규 상장·거래 정지·미분류)은 삭제·이름 변경·이동을 하지 못하고, 그 아래에 하위 업종을 만들 수도 없다. */
+    private void requireNotProtected(CustomSector sector) {
+        if (sector.isProtected()) {
+            throw new ConflictException(ErrorCode.SECTOR_PROTECTED, sector.getId());
+        }
+    }
+
+    /** 보호 업종 이름은 다른 업종이 쓸 수 없다. 보호 업종 자체는 서버가 ProtectedSectorService로 만든다. */
+    private void requireNotReservedName(String name) {
+        if (ProtectedSector.isReservedName(name)) {
+            throw new ConflictException(ErrorCode.SECTOR_NAME_RESERVED, name);
+        }
     }
 
     /** 섹터 전체 스냅샷을 id 조회용/parentId 그룹핑용 두 가지 형태로 함께 준비해둔다.
@@ -208,48 +262,6 @@ public class CustomSectorService {
             throw new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId);
         }
         return sector;
-    }
-
-    private List<String> toDeletableSectorNames(
-            Long sectorId, List<Long> subSectorIds, Map<Long, CustomSector> sectorById) {
-        return subSectorIds.stream()
-                .filter(id -> !id.equals(sectorId))
-                .map(id -> sectorById.get(id).getName())
-                .toList();
-    }
-
-    /** "이 섹터들을 막는" 배정만 남긴다 — 그 행이 가리키는 종목이 stock_info 캐시에서 활성 주권인
-     * 것만(캐시에 아예 없는 종목은 화면에도 안 보이므로 "막지 않음"으로 친다, 5-3). deletePreview·delete가
-     * 이 필터를 공유해서 화면(종목 관리 페이지)과 같은 기준으로 판정한다. */
-    private List<CustomStockSector> findBlockingStockSectors(List<CustomStockSector> stockSectors) {
-        Map<String, StockInfo> stockInfoCache = stockInfoCacheService.getCache();
-        return stockSectors.stream()
-                .filter(stockSector -> isActiveOrdinaryStock(stockSector, stockInfoCache))
-                .toList();
-    }
-
-    private boolean isActiveOrdinaryStock(CustomStockSector stockSector, Map<String, StockInfo> stockInfoCache) {
-        StockInfo stockInfo = stockInfoCache.get(stockSector.getStockCode());
-        return stockInfo != null && stockInfo.isActiveAndOrdinary();
-    }
-
-    private List<StockSectorItem> toBlockingStockSectorItems(
-            List<CustomStockSector> stockSectors, Map<Long, CustomSector> sectorById) {
-        Map<String, StockInfo> stockInfoCache = stockInfoCacheService.getCache();
-        return stockSectors.stream()
-                .map(stockSector -> new StockSectorItem(
-                        stockSector.getStockCode(),
-                        resolveStockName(stockSector.getStockCode(), stockInfoCache),
-                        sectorById.get(stockSector.getSectorId()).getName()))
-                .toList();
-    }
-
-    /** 캐시에 없는 종목이면 종목코드를 그대로 이름 자리에 넣는다 — findBlockingStockSectors가 활성
-     * 주권만 통과시키므로 이 자리는 지금 도달 불가능하지만, "캐시가 낡았을 때"의 대가(5-3)를 실제 예외로
-     * 만들지 않기 위한 방어다. */
-    private String resolveStockName(String stockCode, Map<String, StockInfo> stockInfoCache) {
-        StockInfo stockInfo = stockInfoCache.get(stockCode);
-        return stockInfo != null ? stockInfo.getStockName() : stockCode;
     }
 
     private List<Long> collectSubSectorIds(Long sectorId, Map<Long, List<CustomSector>> sectorByParentId) {
