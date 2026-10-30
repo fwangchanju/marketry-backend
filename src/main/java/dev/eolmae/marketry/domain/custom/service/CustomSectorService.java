@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.custom.dto.SectorItem;
 import dev.eolmae.marketry.domain.custom.dto.StockSectorItem;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockSectorRepository;
 import dev.eolmae.marketry.domain.stock.entity.StockInfo;
@@ -33,6 +34,7 @@ public class CustomSectorService {
     private final CustomSectorRepository customSectorRepository;
     private final CustomStockSectorRepository customStockSectorRepository;
     private final StockInfoCacheService stockInfoCacheService;
+    private final ProtectedSectorService protectedSectorService;
 
     @Transactional(readOnly = true)
     public List<SectorItem> getSectors() {
@@ -45,10 +47,12 @@ public class CustomSectorService {
         Long userId = CurrentUser.requireId();
         customStockSectorRepository.deleteAllByIdUserId(userId);
         customSectorRepository.deleteAllOfUser(userId);
+        protectedSectorService.ensureForUser(userId);
     }
 
     public SectorItem createParent(String name) {
         Long userId = CurrentUser.requireId();
+        requireNotReservedName(name);
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
@@ -58,12 +62,14 @@ public class CustomSectorService {
 
     public SectorItem createChild(String name, Long parentId) {
         Long userId = CurrentUser.requireId();
+        requireNotReservedName(name);
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
         CustomSector parent = customSectorRepository
                 .findByIdAndUserId(parentId, userId)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, parentId));
+        requireNotProtected(parent);
         CustomSector sector = CustomSector.createChild(userId, name, parent);
         return toItem(customSectorRepository.save(sector));
     }
@@ -85,9 +91,11 @@ public class CustomSectorService {
     public void rename(Long sectorId, String name) {
         Long userId = CurrentUser.requireId();
         CustomSector target = findOwnedSector(sectorId, userId);
+        requireNotProtected(target);
         if (target.getName().equals(name)) {
             return;
         }
+        requireNotReservedName(name);
         if (customSectorRepository.existsByUserIdAndName(userId, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
@@ -102,6 +110,7 @@ public class CustomSectorService {
         Map<Long, CustomSector> sectorById = maps.sectorById();
         Map<Long, List<CustomSector>> sectorByParentId = maps.sectorByParentId();
         CustomSector target = findSector(sectorId, sectorById);
+        requireNotProtected(target);
 
         List<Long> subSectorIds = collectSubSectorIds(sectorId, sectorByParentId);
         if (subSectorIds.contains(newParentId)) {
@@ -111,6 +120,7 @@ public class CustomSectorService {
         int newDepth = 0;
         if (newParentId != null) {
             CustomSector newParent = findSector(newParentId, sectorById);
+            requireNotProtected(newParent);
             newDepth = newParent.getDepth() + 1;
         }
         int depthDifference = newDepth - target.getDepth();
@@ -130,7 +140,7 @@ public class CustomSectorService {
         SectorMaps maps = getSectorMaps();
         Map<Long, CustomSector> sectorById = maps.sectorById();
         CustomSector target = findSector(sectorId, sectorById);
-        if (target.isNewListing()) {
+        if (target.isProtected()) {
             return SectorDeletePreview.blocked(target.getName(), List.of());
         }
 
@@ -150,9 +160,7 @@ public class CustomSectorService {
         Long userId = CurrentUser.requireId();
         SectorMaps maps = getSectorMaps();
         Map<Long, CustomSector> sectorById = maps.sectorById();
-        if (findSector(sectorId, sectorById).isNewListing()) {
-            throw new ConflictException(ErrorCode.SECTOR_NEW_LISTING_PROTECTED, sectorId);
-        }
+        requireNotProtected(findSector(sectorId, sectorById));
 
         List<Long> subSectorIds = collectSubSectorIds(sectorId, maps.sectorByParentId());
         List<CustomStockSector> stockSectors =
@@ -173,6 +181,20 @@ public class CustomSectorService {
                 .sorted(Comparator.comparingInt(CustomSector::getDepth).reversed())
                 .toList();
         customSectorRepository.deleteAll(subSectors);
+    }
+
+    /** 보호 업종(신규 상장·거래 정지·미분류)은 삭제·이름 변경·이동을 하지 못하고, 그 아래에 하위 업종을 만들 수도 없다. */
+    private void requireNotProtected(CustomSector sector) {
+        if (sector.isProtected()) {
+            throw new ConflictException(ErrorCode.SECTOR_PROTECTED, sector.getId());
+        }
+    }
+
+    /** 보호 업종 이름은 다른 업종이 쓸 수 없다. 보호 업종 자체는 서버가 ProtectedSectorService로 만든다. */
+    private void requireNotReservedName(String name) {
+        if (ProtectedSector.isReservedName(name)) {
+            throw new ConflictException(ErrorCode.SECTOR_NAME_RESERVED, name);
+        }
     }
 
     /** 섹터 전체 스냅샷을 id 조회용/parentId 그룹핑용 두 가지 형태로 함께 준비해둔다.

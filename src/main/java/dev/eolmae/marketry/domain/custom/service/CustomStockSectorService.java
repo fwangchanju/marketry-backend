@@ -15,6 +15,7 @@ import dev.eolmae.marketry.domain.custom.entity.CustomStockAlias;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockAliasId;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
 import dev.eolmae.marketry.domain.custom.entity.CustomValueTierThreshold;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockAliasRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockSectorRepository;
@@ -64,6 +65,7 @@ public class CustomStockSectorService {
     private final CustomValueTierThresholdService customValueTierThresholdService;
     private final StockIndustryNameResolver stockIndustryNameResolver;
     private final JdbcTemplate jdbcTemplate;
+    private final ProtectedSectorService protectedSectorService;
     private final Cache<Long, ArrayDeque<Long>> classificationUploadAttempts = Caffeine.newBuilder()
             .expireAfterAccess(UPLOAD_WINDOW)
             .maximumSize(MAX_UPLOAD_USERS_IN_CACHE)
@@ -182,6 +184,10 @@ public class CustomStockSectorService {
                 }
 
                 String name = partialPath.get(partialPath.size() - 1);
+                // 보호 업종 이름은 대분류로만 쓸 수 있다 — 하위 업종으로 만들려는 업로드는 거절한다.
+                if (depth > 1 && ProtectedSector.isReservedName(name)) {
+                    throw new BadRequestException(ErrorCode.SECTOR_NAME_RESERVED, name);
+                }
                 if (pathByName.containsKey(name)) {
                     throw new BadRequestException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
                 }
@@ -221,6 +227,7 @@ public class CustomStockSectorService {
                     "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
                     userId);
         }
+        protectedSectorService.ensureForUser(userId);
         return new ClassificationUploadResponse(createdSectorCount, appliedAssignments, List.copyOf(failedStockCodes));
     }
 

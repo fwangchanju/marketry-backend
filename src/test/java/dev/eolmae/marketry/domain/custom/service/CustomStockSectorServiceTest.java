@@ -50,6 +50,7 @@ class CustomStockSectorServiceTest {
             new CustomValueTierThresholdService(Mockito.mock(CustomValueTierThresholdRepository.class));
     private final IndustryInfoRepository industryInfoRepository = Mockito.mock(IndustryInfoRepository.class);
     private final JdbcTemplate jdbcTemplate = Mockito.mock(JdbcTemplate.class);
+    private final ProtectedSectorService protectedSectorService = Mockito.mock(ProtectedSectorService.class);
     private final CustomStockSectorService service = new CustomStockSectorService(
             stockSectorRepository,
             stockAliasRepository,
@@ -58,7 +59,8 @@ class CustomStockSectorServiceTest {
             sectorPriceSnapshotService,
             valueTierService,
             new StockIndustryNameResolver(industryInfoRepository, Mockito.mock(StockIndustryOverrideRepository.class)),
-            jdbcTemplate);
+            jdbcTemplate,
+            protectedSectorService);
 
     private final CustomSector sector = CustomSector.createParent(USER_ID, "산업");
     private final StockInfo stock =

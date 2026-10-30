@@ -44,6 +44,7 @@ class CustomSectorTreeServiceTest {
             Mockito.mock(CustomValueTierThresholdRepository.class);
     private final UserPreferenceRepository userPreferenceRepository = Mockito.mock(UserPreferenceRepository.class);
     private final StockInfoRepository stockInfoRepository = Mockito.mock(StockInfoRepository.class);
+    private final ProtectedSectorService protectedSectorService = Mockito.mock(ProtectedSectorService.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final CustomSectorTreeService service = new CustomSectorTreeService(
             sectorRepository,
@@ -53,6 +54,7 @@ class CustomSectorTreeServiceTest {
             valueTierRepository,
             userPreferenceRepository,
             stockInfoRepository,
+            protectedSectorService,
             objectMapper);
 
     @Test

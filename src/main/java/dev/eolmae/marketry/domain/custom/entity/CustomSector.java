@@ -1,6 +1,7 @@
 package dev.eolmae.marketry.domain.custom.entity;
 
 import dev.eolmae.marketry.common.enums.Zone;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -16,7 +17,7 @@ import lombok.Getter;
 public class CustomSector {
 
     /** 신규 종목이 자동 배정되는 최상위 업종 이름 — 삭제할 수 없다. */
-    public static final String NEW_LISTING_NAME = "신규 상장";
+    public static final String NEW_LISTING_NAME = ProtectedSector.NEW_LISTING.getSectorName();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,6 +52,11 @@ public class CustomSector {
     /** 삭제할 수 없는 "신규 상장" 최상위 업종인지. */
     public boolean isNewListing() {
         return parentId == null && NEW_LISTING_NAME.equals(name);
+    }
+
+    /** 삭제·이름 변경·이동이 불가능한 보호 업종(신규 상장·거래 정지·미분류)인지 — 최상위에 있는 같은 이름의 업종만 해당한다. */
+    public boolean isProtected() {
+        return parentId == null && ProtectedSector.isReservedName(name);
     }
 
     public static CustomSector createParent(Long userId, String name) {
