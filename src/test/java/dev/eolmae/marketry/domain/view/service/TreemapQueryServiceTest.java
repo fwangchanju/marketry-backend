@@ -288,6 +288,35 @@ class TreemapQueryServiceTest {
     }
 
     @Test
+    void 정지_종목_포함_옵션을_켜면_연속_5거래일_정지_종목도_담고_기본은_뺀다() {
+        LocalDateTime snapshotTime = LocalDateTime.of(2026, 10, 9, 10, 0);
+        when(stockInfoCacheService.getCache())
+                .thenReturn(Map.of(
+                        "005930", stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN),
+                        "000660", stockInfo("000660", "SK하이닉스", 100L, BigDecimal.TEN)));
+        when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
+                        Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
+                .thenReturn(Optional.of(snapshotTime));
+        when(sectorPriceCacheService.getCache(Market.KOSPI, snapshotTime))
+                .thenReturn(Map.ofEntries(
+                        priceSnapshot("005930", snapshotTime, BigDecimal.TEN),
+                        priceSnapshot("000660", snapshotTime, BigDecimal.TEN)));
+        when(stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate()))
+                .thenReturn(java.util.Set.of("000660"));
+
+        TreemapResponse excluded = service.getDefaultTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
+        TreemapResponse included =
+                service.getDefaultTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY, true);
+
+        assertThat(excluded.items().stream().flatMap(node -> node.items().stream()))
+                .extracting("stockCode")
+                .containsExactly("005930");
+        assertThat(included.items().stream().flatMap(node -> node.items().stream()))
+                .extracting("stockCode")
+                .containsExactlyInAnyOrder("005930", "000660");
+    }
+
+    @Test
     void 신규회원의_배정이_없어도_MARKETRY와_KRX_종목은_유지된다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 10, 9, 10, 0);
         when(stockInfoCacheService.getCache())
