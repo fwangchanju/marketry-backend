@@ -14,6 +14,7 @@ import dev.eolmae.marketry.common.enums.Market;
 import dev.eolmae.marketry.common.exception.ConflictException;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
+import dev.eolmae.marketry.domain.custom.dto.ClassificationUploadRequest;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
@@ -193,6 +194,24 @@ class CustomStockSectorServiceTest {
 
         assertThat(response.failedStockCodes()).containsExactly("005930");
         verify(jdbcTemplate, Mockito.never()).batchUpdate(anyString(), any(List.class), anyInt(), any());
+    }
+
+    @Test
+    void uploadClassification_거래_정지_줄은_요청을_거절하지_않고_그_종목만_반영하지_않는다() {
+        StockInfo other = StockInfo.create("000660", "SK하이닉스", Market.KOSPI, "0", null, 100L, BigDecimal.TEN, false);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("005930", stock, "000660", other));
+        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(sector));
+        var request = new ClassificationUploadRequest(List.of(
+                new ClassificationUploadRequest.Assignment(List.of("거래 정지"), List.of("005930")),
+                new ClassificationUploadRequest.Assignment(List.of("산업"), List.of("000660"))));
+
+        var response = service.uploadClassification(request);
+
+        // 거래 정지 줄의 종목은 반영하지 않은 종목으로 돌려주고, 같은 요청의 다른 줄은 정상 적용된다.
+        assertThat(response.failedStockCodes()).containsExactly("005930");
+        assertThat(response.appliedAssignments()).hasSize(1);
+        assertThat(response.appliedAssignments().get(0).stockCodes()).containsExactly("000660");
+        assertThat(response.createdSectorCount()).isZero();
     }
 
     @Test

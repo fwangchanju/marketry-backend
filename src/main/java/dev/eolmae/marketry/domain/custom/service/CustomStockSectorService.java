@@ -172,9 +172,9 @@ public class CustomStockSectorService {
             if (path.isEmpty() || path.size() > MAX_SECTOR_DEPTH) {
                 throw new BadRequestException(ErrorCode.INVALID_INPUT, "업종 경로는 1~3단계여야 합니다.");
             }
-            if (ProtectedSector.SUSPENDED.getSectorName().equals(path.get(0))) {
-                throw new BadRequestException(ErrorCode.SECTOR_SUSPENDED_AUTO_ONLY);
-            }
+            // 거래 정지 업종에는 서버가 정지 종목만 자동으로 넣는다. 내려받은 엑셀에는 이 업종이 들어 있으니, 요청을 거절하지 않고
+            // 그 줄의 종목만 반영하지 않은 종목으로 돌려준다(나머지 줄은 정상 적용).
+            boolean autoOnlySector = ProtectedSector.SUSPENDED.getSectorName().equals(path.get(0));
 
             List<String> validStockCodes = new ArrayList<>();
             for (String stockCode : assignment.stockCodes()) {
@@ -182,7 +182,10 @@ public class CustomStockSectorService {
                     throw new BadRequestException(ErrorCode.INVALID_INPUT, "종목 코드가 중복되어 있습니다.");
                 }
                 StockInfo stock = stocks.get(stockCode);
-                if (stock == null || !stock.isActiveAndOrdinary() || lockedStockCodes.contains(stockCode)) {
+                if (stock == null
+                        || !stock.isActiveAndOrdinary()
+                        || lockedStockCodes.contains(stockCode)
+                        || autoOnlySector) {
                     failedStockCodes.add(stockCode);
                 } else {
                     validStockCodes.add(stockCode);
