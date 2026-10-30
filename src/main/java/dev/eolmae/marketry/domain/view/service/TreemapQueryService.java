@@ -9,6 +9,7 @@ import dev.eolmae.marketry.domain.custom.entity.CustomSnapshot;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockAlias;
 import dev.eolmae.marketry.domain.custom.entity.CustomStockSector;
 import dev.eolmae.marketry.domain.custom.entity.CustomValueTierThreshold;
+import dev.eolmae.marketry.domain.custom.enums.ProtectedSector;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomSnapshotRepository;
 import dev.eolmae.marketry.domain.custom.repository.CustomStockAliasRepository;
@@ -129,25 +130,47 @@ public class TreemapQueryService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getDefaultTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
+        return getDefaultTreemap(marketQuery, snapshotTime, nxtOnly, basis, false);
+    }
+
+    /** includeSuspended면 연속 5거래일 정지로 지도·평균에서 빼는 종목도 담는다 — 업종 표가 전체 종목 수와 맞도록 쓴다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public TreemapResponse getDefaultTreemap(
+            MarketQuery marketQuery,
+            LocalDateTime snapshotTime,
+            boolean nxtOnly,
+            ChangeRateMode basis,
+            boolean includeSuspended) {
         List<Market> markets = marketQuery.toMarkets();
         return resolveSnapshotTime(markets, snapshotTime)
-                .map(resolvedSnapshotTime -> buildDefaultTreemap(markets, resolvedSnapshotTime, nxtOnly, basis))
+                .map(resolvedSnapshotTime ->
+                        buildDefaultTreemap(markets, resolvedSnapshotTime, nxtOnly, basis, includeSuspended))
                 .orElseGet(TreemapResponse::empty);
     }
 
     private TreemapResponse buildDefaultTreemap(
-            List<Market> markets, LocalDateTime latestSnapshotTime, boolean nxtOnly, ChangeRateMode basis) {
-        List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime).stream()
+            List<Market> markets,
+            LocalDateTime latestSnapshotTime,
+            boolean nxtOnly,
+            ChangeRateMode basis,
+            boolean includeSuspended) {
+        List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime, includeSuspended).stream()
                 .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
                 .toList();
         Map<String, CachedStockPrice> priceMap = findPrices(markets, latestSnapshotTime, basis);
         List<CustomValueTierThreshold> sortedTiers = customValueTierThresholdService.findDefaultSortedAscending();
         Map<String, String> industryNameByStockCode = stockIndustryNameResolver.resolve(candidates);
+        // 정지 종목을 포함해 달라고 한 표 요청에서는 연속 5거래일 정지 종목을 "거래 정지"로 묶는다(재개되면 다음 조회부터 원래 업종).
+        Set<String> suspendedStockCodes = includeSuspended
+                ? stockTradingSuspensionService.findExcludedStockCodes(latestSnapshotTime.toLocalDate())
+                : Set.of();
 
         Map<String, List<TreemapItem>> grouped = candidates.stream()
                 .filter(stockInfo -> priceMap.containsKey(stockInfo.getStockCode()))
                 .collect(Collectors.groupingBy(
-                        stockInfo -> normalizeSectorName(industryNameByStockCode.get(stockInfo.getStockCode())),
+                        stockInfo -> suspendedStockCodes.contains(stockInfo.getStockCode())
+                                ? ProtectedSector.SUSPENDED.getSectorName()
+                                : normalizeSectorName(industryNameByStockCode.get(stockInfo.getStockCode())),
                         Collectors.mapping(
                                 stockInfo ->
                                         toTreemapItem(stockInfo, priceMap.get(stockInfo.getStockCode()), sortedTiers),
@@ -188,27 +211,50 @@ public class TreemapQueryService {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getCustomTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
-        return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, CurrentUser.requireId());
+        return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, false);
+    }
+
+    /** includeSuspended면 연속 5거래일 정지로 지도·평균에서 빼는 종목도 담는다 — 업종 표가 전체 종목 수와 맞도록 쓴다. */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public TreemapResponse getCustomTreemap(
+            MarketQuery marketQuery,
+            LocalDateTime snapshotTime,
+            boolean nxtOnly,
+            ChangeRateMode basis,
+            boolean includeSuspended) {
+        return getUserTreemap(marketQuery, snapshotTime, nxtOnly, basis, CurrentUser.requireId(), includeSuspended);
     }
 
     /** MARKETRY: 운영자가 올린 고정본(발행 사용자)의 분류 기준 — 로그인 없이 누구나 읽는다. */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public TreemapResponse getPublishedTreemap(
             MarketQuery marketQuery, LocalDateTime snapshotTime, boolean nxtOnly, ChangeRateMode basis) {
-        return getCustomTreemap(marketQuery, snapshotTime, nxtOnly, basis, marketryProperties.publishedUserId());
+        return getPublishedTreemap(marketQuery, snapshotTime, nxtOnly, basis, false);
     }
 
-    /** 비즈니스 로직 오버로드: dataUserId의 분류 데이터로 커스텀 마켓맵을 만든다. */
-    private TreemapResponse getCustomTreemap(
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public TreemapResponse getPublishedTreemap(
             MarketQuery marketQuery,
             LocalDateTime snapshotTime,
             boolean nxtOnly,
             ChangeRateMode basis,
-            Long dataUserId) {
+            boolean includeSuspended) {
+        return getUserTreemap(
+                marketQuery, snapshotTime, nxtOnly, basis, marketryProperties.publishedUserId(), includeSuspended);
+    }
+
+    /** 비즈니스 로직: dataUserId의 분류 데이터로 커스텀 마켓맵을 만든다. */
+    private TreemapResponse getUserTreemap(
+            MarketQuery marketQuery,
+            LocalDateTime snapshotTime,
+            boolean nxtOnly,
+            ChangeRateMode basis,
+            Long dataUserId,
+            boolean includeSuspended) {
         List<Market> markets = marketQuery.toMarkets();
         return resolveSnapshotTime(markets, snapshotTime)
                 .map(resolvedSnapshotTime ->
-                        buildCustomTreemap(markets, resolvedSnapshotTime, dataUserId, nxtOnly, basis))
+                        buildCustomTreemap(markets, resolvedSnapshotTime, dataUserId, nxtOnly, basis, includeSuspended))
                 .orElseGet(TreemapResponse::empty);
     }
 
@@ -621,7 +667,7 @@ public class TreemapQueryService {
         if (sectorPriceSnapshotService.notExistsSnapshot(market, snapshotTime)) {
             return List.of();
         }
-        return buildSectorTree(List.of(market), snapshotTime, customDataUserId(), nxtOnly, ChangeRateMode.DAILY);
+        return buildSectorTree(List.of(market), snapshotTime, customDataUserId(), nxtOnly, ChangeRateMode.DAILY, false);
     }
 
     private TreemapResponse buildCustomTreemap(
@@ -629,8 +675,10 @@ public class TreemapQueryService {
             LocalDateTime latestSnapshotTime,
             Long userId,
             boolean nxtOnly,
-            ChangeRateMode basis) {
-        List<TreemapSectorNode> tree = buildSectorTree(markets, latestSnapshotTime, userId, nxtOnly, basis);
+            ChangeRateMode basis,
+            boolean includeSuspended) {
+        List<TreemapSectorNode> tree =
+                buildSectorTree(markets, latestSnapshotTime, userId, nxtOnly, basis, includeSuspended);
         return new TreemapResponse(
                 latestSnapshotTime,
                 tree,
@@ -691,8 +739,9 @@ public class TreemapQueryService {
             LocalDateTime latestSnapshotTime,
             Long userId,
             boolean nxtOnly,
-            ChangeRateMode basis) {
-        List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime).stream()
+            ChangeRateMode basis,
+            boolean includeSuspended) {
+        List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime, includeSuspended).stream()
                 .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
                 .toList();
         List<CustomSector> sectors = customSectorRepository.findAllByUserId(userId);
@@ -845,10 +894,13 @@ public class TreemapQueryService {
     /**
      * 지도와 평균에 담을 종목. 거래정지가 연속 5거래일 이상 이어진 종목은 그 스냅샷 날짜 기준으로 뺀다 — 가격이 움직이지 않아
      * 등락률 0%로 평균을 끌어당기기 때문이다. 정지가 풀리면 가격이 다시 들어온 날부터 돌아온다.
+     * includeSuspended면 이 종목도 담는다 — 업종 표는 분류를 보여 주는 표라 정지 종목도 원래 업종에 세어야 전체 종목 수와 맞는다.
      */
-    private List<StockInfo> filterCandidates(List<Market> markets, LocalDateTime snapshotTime) {
-        Set<String> suspendedStockCodes =
-                stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate());
+    private List<StockInfo> filterCandidates(
+            List<Market> markets, LocalDateTime snapshotTime, boolean includeSuspended) {
+        Set<String> suspendedStockCodes = includeSuspended
+                ? Set.of()
+                : stockTradingSuspensionService.findExcludedStockCodes(snapshotTime.toLocalDate());
         return stockInfoCacheService.getCache().values().stream()
                 .filter(stockInfo -> markets.contains(stockInfo.getMarketType()))
                 .filter(StockInfo::isActiveAndOrdinary)

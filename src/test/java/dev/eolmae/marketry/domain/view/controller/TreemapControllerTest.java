@@ -108,69 +108,98 @@ class TreemapControllerTest {
     @Test
     void getTreemap_snapshotTime이_LocalDateTime으로_바인딩된다() throws Exception {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 9, 22, 10, 5, 0);
-        when(treemapQueryService.getCustomTreemap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY))
+        when(treemapQueryService.getCustomTreemap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY, false))
                 .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=true&snapshotTime=2026-09-22T10:05:00"));
 
-        verify(treemapQueryService).getCustomTreemap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY);
+        verify(treemapQueryService)
+                .getCustomTreemap(MarketQuery.KOSPI, snapshotTime, false, ChangeRateMode.DAILY, false);
     }
 
     @Test
     void getTreemap_nxtOnly가_내_분류에도_전달된다() throws Exception {
-        when(treemapQueryService.getCustomTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY)))
+        when(treemapQueryService.getCustomTreemap(
+                        eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY), eq(false)))
                 .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=true&nxtOnly=true"));
 
         verify(treemapQueryService)
-                .getCustomTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY));
+                .getCustomTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY), eq(false));
     }
 
     @Test
     void getTreemap_snapshotTime이_없으면_null로_바인딩된다() throws Exception {
         when(treemapQueryService.getDefaultTreemap(
-                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY)))
+                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(false)))
                 .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false"));
 
         verify(treemapQueryService)
-                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY));
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(false));
     }
 
     @Test
     void getTreemap_nxtOnly가_거래소_분류에_전달된다() throws Exception {
-        when(treemapQueryService.getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY)))
+        when(treemapQueryService.getDefaultTreemap(
+                        eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY), eq(false)))
                 .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false&nxtOnly=true"));
 
         verify(treemapQueryService)
-                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY));
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(true), eq(ChangeRateMode.DAILY), eq(false));
     }
 
     @Test
     void getTreemap_basis가_afterHours면_시간외_기준으로_전달된다() throws Exception {
         when(treemapQueryService.getDefaultTreemap(
-                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS)))
+                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS), eq(false)))
                 .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false&basis=afterHours"));
 
         verify(treemapQueryService)
-                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS));
+                .getDefaultTreemap(
+                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.AFTER_HOURS), eq(false));
+    }
+
+    @Test
+    void getTreemap_includeSuspended가_분류별로_전달된다() throws Exception {
+        when(treemapQueryService.getDefaultTreemap(
+                        eq(MarketQuery.ALL_STOCK), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(true)))
+                .thenReturn(TreemapResponse.empty());
+        when(treemapQueryService.getPublishedTreemap(
+                        eq(MarketQuery.ALL_STOCK), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(true)))
+                .thenReturn(TreemapResponse.empty());
+        when(treemapQueryService.getCustomTreemap(
+                        eq(MarketQuery.ALL_STOCK), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(true)))
+                .thenReturn(TreemapResponse.empty());
+
+        mockMvc.perform(get("/api/map?market=ALL_STOCK&source=KRX&includeSuspended=true"));
+        mockMvc.perform(get("/api/map?market=ALL_STOCK&source=MARKETRY&includeSuspended=true"));
+        mockMvc.perform(get("/api/map?market=ALL_STOCK&source=MINE&includeSuspended=true"));
+
+        verify(treemapQueryService)
+                .getDefaultTreemap(eq(MarketQuery.ALL_STOCK), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(true));
+        verify(treemapQueryService)
+                .getPublishedTreemap(
+                        eq(MarketQuery.ALL_STOCK), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(true));
+        verify(treemapQueryService)
+                .getCustomTreemap(eq(MarketQuery.ALL_STOCK), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(true));
     }
 
     @Test
     void getTreemap_모르는_basis_값은_기본_기준으로_본다() throws Exception {
         when(treemapQueryService.getDefaultTreemap(
-                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY)))
+                        eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(false)))
                 .thenReturn(TreemapResponse.empty());
 
         mockMvc.perform(get("/api/map?market=KOSPI&isCustom=false&basis=whatever"));
 
         verify(treemapQueryService)
-                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY));
+                .getDefaultTreemap(eq(MarketQuery.KOSPI), isNull(), eq(false), eq(ChangeRateMode.DAILY), eq(false));
     }
 }
