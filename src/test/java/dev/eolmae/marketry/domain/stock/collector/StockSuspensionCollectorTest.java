@@ -40,7 +40,7 @@ class StockSuspensionCollectorTest {
         collector.sync();
 
         verify(tossStockListClient, never()).fetchSuspensionStatus(anyCollection());
-        verify(suspensionService, never()).record(any(), any());
+        verify(suspensionService, never()).record(any(), any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any(Object.class));
     }
 
@@ -63,7 +63,12 @@ class StockSuspensionCollectorTest {
         ArgumentCaptor<Collection<String>> codes = ArgumentCaptor.forClass(Collection.class);
         verify(tossStockListClient).fetchSuspensionStatus(codes.capture());
         org.assertj.core.api.Assertions.assertThat(codes.getValue()).containsExactly("005930");
-        verify(suspensionService).record(Mockito.eq(Set.of("005930")), any(LocalDate.class));
+        verify(suspensionService)
+                .record(
+                        Mockito.eq(Set.of("005930")),
+                        Mockito.eq(Set.of("000660")),
+                        Mockito.eq(Set.of("005930")),
+                        any(LocalDate.class));
         // 5거래일에 이른 정지 종목과 재개가 확인된 종목을 업종 분류 쪽에 알린다.
         verify(eventPublisher).publishEvent(new StockSuspensionSyncedEvent(Set.of("005930"), Set.of("000660")));
     }

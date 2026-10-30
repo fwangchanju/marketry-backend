@@ -59,9 +59,9 @@ public class CustomSectorController {
         return customSectorService.deletePreview(id);
     }
 
-    /** expectedMoveCount는 미리보기에서 확인한 이동 종목 수다. 보내면 지금 수와 다를 때 삭제하지 않고 409로 다시 확인하게 한다. */
+    /** expectedMoveCount는 미리보기에서 확인한 이동 종목 수다. 지금 수와 다르면 삭제하지 않고 409로 다시 확인하게 한다. */
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id, @RequestParam(required = false) Integer expectedMoveCount) {
+    public void delete(@PathVariable Long id, @RequestParam int expectedMoveCount) {
         customSectorService.delete(id, expectedMoveCount);
     }
 }

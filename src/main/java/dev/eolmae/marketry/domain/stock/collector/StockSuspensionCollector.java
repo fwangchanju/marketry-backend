@@ -10,6 +10,7 @@ import dev.eolmae.marketry.domain.stock.service.StockInfoCacheService;
 import dev.eolmae.marketry.domain.stock.service.StockTradingSuspensionService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,7 +39,7 @@ public class StockSuspensionCollector {
                 .map(StockInfo::getStockCode)
                 .toList();
         StockSuspensionStatus status = tossStockListClient.fetchSuspensionStatus(stockCodes);
-        suspensionService.record(status.suspended(), today);
+        suspensionService.record(status.suspended(), status.resumed(), Set.copyOf(stockCodes), today);
         log.info(
                 "거래정지 종목 기록 완료: 조회 종목 수={}, 거래정지={}, 재개 확인={}",
                 stockCodes.size(),
