@@ -3,6 +3,7 @@ package dev.eolmae.marketry.domain.custom.service;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import dev.eolmae.marketry.common.exception.BadRequestException;
+import dev.eolmae.marketry.common.exception.ConflictException;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.NotFoundException;
 import dev.eolmae.marketry.domain.auth.service.CurrentUser;
@@ -66,6 +67,7 @@ public class CustomStockSectorService {
     private final StockIndustryNameResolver stockIndustryNameResolver;
     private final JdbcTemplate jdbcTemplate;
     private final ProtectedSectorService protectedSectorService;
+    private final SuspendedStockClassificationService suspendedStockClassificationService;
     private final Cache<Long, ArrayDeque<Long>> classificationUploadAttempts = Caffeine.newBuilder()
             .expireAfterAccess(UPLOAD_WINDOW)
             .maximumSize(MAX_UPLOAD_USERS_IN_CACHE)
@@ -74,7 +76,8 @@ public class CustomStockSectorService {
     public void assign(String stockCode, Long sectorId) {
         Long userId = CurrentUser.requireId();
         requireActiveStock(stockCode);
-        requireOwnedSector(sectorId, userId);
+        requireNotSuspendedSector(requireOwnedSector(sectorId, userId));
+        requireNotLocked(userId, stockCode);
         // ON CONFLICT ... DO UPDATE upsert — JPQL/QueryDSL에 없는 문법이라 JdbcTemplate으로 직접 쓴다.
         jdbcTemplate.update("""
                 INSERT INTO custom_stock_sector (user_id, stock_code, sector_id, created_at, updated_at)
@@ -88,16 +91,21 @@ public class CustomStockSectorService {
     }
 
     public void unassign(String stockCode) {
-        customStockSectorRepository.deleteByIdUserIdAndIdStockCode(CurrentUser.requireId(), stockCode);
+        Long userId = CurrentUser.requireId();
+        requireNotLocked(userId, stockCode);
+        customStockSectorRepository.deleteByIdUserIdAndIdStockCode(userId, stockCode);
     }
 
     /** 요청에 있는 유효 종목은 배정 행 유무와 관계없이 upsert한다. */
     public BulkAssignResponse bulkAssign(List<String> stockCodes, Long sectorId) {
         Long userId = CurrentUser.requireId();
-        requireOwnedSector(sectorId, userId);
+        requireNotSuspendedSector(requireOwnedSector(sectorId, userId));
         Set<String> remaining = new LinkedHashSet<>(stockCodes);
         Map<String, StockInfo> stocks = stockInfoCacheService.getCache();
+        // 거래 정지 종목은 옮길 수 없어 반영하지 않은 종목으로 돌려준다.
+        Set<String> lockedStockCodes = suspendedStockClassificationService.findLockedStockCodes(userId, remaining);
         List<String> validStockCodes = remaining.stream()
+                .filter(stockCode -> !lockedStockCodes.contains(stockCode))
                 .filter(stockCode -> {
                     StockInfo stock = stocks.get(stockCode);
                     return stock != null && stock.isActiveAndOrdinary();
@@ -152,11 +160,20 @@ public class CustomStockSectorService {
         List<ClassificationUploadResponse.AppliedAssignment> appliedAssignments = new ArrayList<>();
         List<UploadAssignmentRow> assignmentRows = new ArrayList<>();
         int createdSectorCount = 0;
+        // 거래 정지 종목은 옮길 수 없어서 업로드에서도 반영하지 않은 종목으로 돌려준다.
+        Set<String> lockedStockCodes = suspendedStockClassificationService.findLockedStockCodes(
+                userId,
+                request.assignments().stream()
+                        .flatMap(assignment -> assignment.stockCodes().stream())
+                        .collect(Collectors.toSet()));
 
         for (ClassificationUploadRequest.Assignment assignment : request.assignments()) {
             List<String> path = assignment.path().stream().map(String::trim).toList();
             if (path.isEmpty() || path.size() > MAX_SECTOR_DEPTH) {
                 throw new BadRequestException(ErrorCode.INVALID_INPUT, "업종 경로는 1~3단계여야 합니다.");
+            }
+            if (ProtectedSector.SUSPENDED.getSectorName().equals(path.get(0))) {
+                throw new BadRequestException(ErrorCode.SECTOR_SUSPENDED_AUTO_ONLY);
             }
 
             List<String> validStockCodes = new ArrayList<>();
@@ -165,7 +182,7 @@ public class CustomStockSectorService {
                     throw new BadRequestException(ErrorCode.INVALID_INPUT, "종목 코드가 중복되어 있습니다.");
                 }
                 StockInfo stock = stocks.get(stockCode);
-                if (stock == null || !stock.isActiveAndOrdinary()) {
+                if (stock == null || !stock.isActiveAndOrdinary() || lockedStockCodes.contains(stockCode)) {
                     failedStockCodes.add(stockCode);
                 } else {
                     validStockCodes.add(stockCode);
@@ -228,6 +245,7 @@ public class CustomStockSectorService {
                     userId);
         }
         protectedSectorService.ensureForUser(userId);
+        suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
         return new ClassificationUploadResponse(createdSectorCount, appliedAssignments, List.copyOf(failedStockCodes));
     }
 
@@ -316,9 +334,25 @@ public class CustomStockSectorService {
                 sector == null ? null : sector.getId());
     }
 
-    private void requireOwnedSector(Long sectorId, Long userId) {
-        if (customSectorRepository.findByIdAndUserId(sectorId, userId).isEmpty()) {
-            throw new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId);
+    private CustomSector requireOwnedSector(Long sectorId, Long userId) {
+        return customSectorRepository
+                .findByIdAndUserId(sectorId, userId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId));
+    }
+
+    /** 거래 정지 업종에는 서버가 거래 정지 종목만 자동으로 넣는다 — 사용자(운영자 포함)가 직접 넣을 수 없다. */
+    private void requireNotSuspendedSector(CustomSector sector) {
+        if (sector.isSuspended()) {
+            throw new ConflictException(ErrorCode.SECTOR_SUSPENDED_AUTO_ONLY, sector.getId());
+        }
+    }
+
+    /** 지금 거래 정지인 종목(거래 정지 업종에 있는 종목)은 다른 업종으로 옮기거나 해제할 수 없다. */
+    private void requireNotLocked(Long userId, String stockCode) {
+        if (!suspendedStockClassificationService
+                .findLockedStockCodes(userId, List.of(stockCode))
+                .isEmpty()) {
+            throw new ConflictException(ErrorCode.STOCK_SUSPENDED_LOCKED, stockCode);
         }
     }
 

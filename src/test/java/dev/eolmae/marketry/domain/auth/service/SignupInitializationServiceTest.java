@@ -13,6 +13,7 @@ import dev.eolmae.marketry.domain.custom.entity.UserPreference;
 import dev.eolmae.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import dev.eolmae.marketry.domain.custom.repository.UserPreferenceRepository;
 import dev.eolmae.marketry.domain.custom.service.ProtectedSectorService;
+import dev.eolmae.marketry.domain.custom.service.SuspendedStockClassificationService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -31,8 +32,22 @@ class SignupInitializationServiceTest {
             mock(CustomValueTierThresholdRepository.class);
     private final UserPreferenceRepository userPreferenceRepository = mock(UserPreferenceRepository.class);
     private final ProtectedSectorService protectedSectorService = mock(ProtectedSectorService.class);
+    private final SuspendedStockClassificationService suspendedStockClassificationService =
+            mock(SuspendedStockClassificationService.class);
     private final SignupInitializationService service = new SignupInitializationService(
-            jdbcTemplate, customValueTierThresholdRepository, userPreferenceRepository, protectedSectorService);
+            jdbcTemplate,
+            customValueTierThresholdRepository,
+            userPreferenceRepository,
+            protectedSectorService,
+            suspendedStockClassificationService);
+
+    @Test
+    void 가입시_보호_업종을_채우고_지금_거래_정지_종목을_거래_정지_업종에_맞춘다() {
+        service.onUserSignedUp(new UserSignedUpEvent(USER_ID));
+
+        verify(protectedSectorService).ensureForUser(USER_ID);
+        verify(suspendedStockClassificationService).applyCurrentExclusionsToUser(USER_ID);
+    }
 
     @Test
     void 가입시_advisory_lock을_잡는다() {

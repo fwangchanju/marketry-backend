@@ -1,12 +1,17 @@
 package dev.eolmae.marketry.domain.custom.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.enums.Market;
+import dev.eolmae.marketry.common.exception.ConflictException;
 import dev.eolmae.marketry.domain.auth.enums.Role;
 import dev.eolmae.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
@@ -25,6 +30,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,6 +57,8 @@ class CustomStockSectorServiceTest {
     private final IndustryInfoRepository industryInfoRepository = Mockito.mock(IndustryInfoRepository.class);
     private final JdbcTemplate jdbcTemplate = Mockito.mock(JdbcTemplate.class);
     private final ProtectedSectorService protectedSectorService = Mockito.mock(ProtectedSectorService.class);
+    private final SuspendedStockClassificationService suspendedClassification =
+            Mockito.mock(SuspendedStockClassificationService.class);
     private final CustomStockSectorService service = new CustomStockSectorService(
             stockSectorRepository,
             stockAliasRepository,
@@ -60,7 +68,8 @@ class CustomStockSectorServiceTest {
             valueTierService,
             new StockIndustryNameResolver(industryInfoRepository, Mockito.mock(StockIndustryOverrideRepository.class)),
             jdbcTemplate,
-            protectedSectorService);
+            protectedSectorService,
+            suspendedClassification);
 
     private final CustomSector sector = CustomSector.createParent(USER_ID, "산업");
     private final StockInfo stock =
@@ -150,6 +159,40 @@ class CustomStockSectorServiceTest {
                         eq(List.of("005930")),
                         eq(1),
                         Mockito.<ParameterizedPreparedStatementSetter<String>>any());
+    }
+
+    @Test
+    void assign_거래_정지_업종에는_직접_넣을_수_없다() {
+        CustomSector suspendedSector = CustomSector.createParent(USER_ID, "거래 정지");
+        ReflectionTestUtils.setField(suspendedSector, "id", 77L);
+        when(sectorRepository.findByIdAndUserId(77L, USER_ID)).thenReturn(Optional.of(suspendedSector));
+
+        assertThatThrownBy(() -> service.assign(stock.getStockCode(), 77L)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.bulkAssign(List.of("005930"), 77L)).isInstanceOf(ConflictException.class);
+
+        verify(jdbcTemplate, Mockito.never()).update(contains("INSERT INTO custom_stock_sector"), any(), any(), any());
+        verify(jdbcTemplate, Mockito.never()).batchUpdate(anyString(), any(List.class), anyInt(), any());
+    }
+
+    @Test
+    void assign_거래_정지_종목은_다른_업종으로_옮기거나_해제할_수_없다() {
+        when(suspendedClassification.findLockedStockCodes(eq(USER_ID), any())).thenReturn(Set.of("005930"));
+
+        assertThatThrownBy(() -> service.assign("005930", SECTOR_ID)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.unassign("005930")).isInstanceOf(ConflictException.class);
+
+        verify(jdbcTemplate, Mockito.never()).update(contains("INSERT INTO custom_stock_sector"), any(), any(), any());
+        verify(stockSectorRepository, Mockito.never()).deleteByIdUserIdAndIdStockCode(any(), any());
+    }
+
+    @Test
+    void bulkAssign_거래_정지_종목은_반영하지_않고_응답에_반환한다() {
+        when(suspendedClassification.findLockedStockCodes(eq(USER_ID), any())).thenReturn(Set.of("005930"));
+
+        var response = service.bulkAssign(List.of("005930"), SECTOR_ID);
+
+        assertThat(response.failedStockCodes()).containsExactly("005930");
+        verify(jdbcTemplate, Mockito.never()).batchUpdate(anyString(), any(List.class), anyInt(), any());
     }
 
     @Test

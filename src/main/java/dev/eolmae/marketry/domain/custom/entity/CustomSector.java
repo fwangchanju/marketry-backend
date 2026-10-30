@@ -59,6 +59,11 @@ public class CustomSector {
         return parentId == null && ProtectedSector.isReservedName(name);
     }
 
+    /** 거래 정지 종목이 자동 배정되는 "거래 정지" 업종인지 — 사용자가 직접 종목을 넣을 수 없다. */
+    public boolean isSuspended() {
+        return parentId == null && ProtectedSector.SUSPENDED.getSectorName().equals(name);
+    }
+
     public static CustomSector createParent(Long userId, String name) {
         var entity = new CustomSector();
         entity.userId = userId;
