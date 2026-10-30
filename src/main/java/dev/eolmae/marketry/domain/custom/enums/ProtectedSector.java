@@ -8,9 +8,9 @@ import java.util.List;
  * 선언 순서가 화면의 표시 순서(맨 아래)다.
  */
 public enum ProtectedSector {
+    UNCLASSIFIED("미분류"), // 업종 삭제 시 종목이 옮겨 온다
     NEW_LISTING("신규 상장"), // 신규 상장 종목이 자동 배정된다
-    SUSPENDED("거래 정지"), // 거래 정지 종목이 자동 배정된다
-    UNCLASSIFIED("미분류"); // 업종 삭제 시 종목이 옮겨 온다
+    SUSPENDED("거래 정지"); // 거래 정지 종목이 자동 배정된다
 
     private final String sectorName;
 

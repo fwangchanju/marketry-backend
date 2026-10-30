@@ -40,7 +40,7 @@ class ProtectedSectorServiceTest {
 
     @Test
     void 보호_업종_이름은_띄어쓰기까지_정해진_값이다() {
-        assertThat(ProtectedSector.sectorNames()).containsExactly("신규 상장", "거래 정지", "미분류");
+        assertThat(ProtectedSector.sectorNames()).containsExactly("미분류", "신규 상장", "거래 정지");
         assertThat(ProtectedSector.isReservedName("거래정지")).isFalse();
         assertThat(ProtectedSector.isReservedName("거래 정지")).isTrue();
     }
