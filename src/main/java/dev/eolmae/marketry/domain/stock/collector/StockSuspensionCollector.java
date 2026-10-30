@@ -38,6 +38,11 @@ public class StockSuspensionCollector {
                 .filter(StockInfo::isActiveAndOrdinary)
                 .map(StockInfo::getStockCode)
                 .toList();
+        if (stockCodes.isEmpty()) {
+            // 조회 대상이 비면 열린 정지 기록을 모두 닫게 되므로 그날은 기록하지 않는다.
+            log.warn("거래정지 종목 기록 생략: 조회 대상 종목이 없음 date={}", today);
+            return;
+        }
         StockSuspensionStatus status = tossStockListClient.fetchSuspensionStatus(stockCodes);
         suspensionService.record(status.suspended(), status.resumed(), Set.copyOf(stockCodes), today);
         log.info(

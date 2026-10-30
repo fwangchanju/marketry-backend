@@ -67,6 +67,7 @@ public enum ErrorCode {
     SECTOR_CIRCULAR_REFERENCE("해당 위치로 섹터 위치 변경이 불가능합니다."),
     SECTOR_HAS_SUB_SECTORS("하위 업종이 있어 삭제할 수 없습니다. 하위 업종을 먼저 정리해 주세요."),
     SECTOR_MOVE_COUNT_CHANGED("옮길 종목 수가 바뀌었습니다. 다시 확인해 주세요."),
+    SECTOR_CHANGED_CONCURRENTLY("다른 요청이 같은 업종을 바꾸고 있어 처리하지 못했습니다. 화면을 새로고침한 뒤 다시 시도해 주세요."),
     SECTOR_UNCLASSIFIED_MISSING("미분류 업종이 없어 종목을 옮길 수 없습니다."),
     SECTOR_PROTECTED("신규 상장·거래 정지·미분류는 삭제, 이름 변경, 이동이 불가능합니다."),
     STOCK_SUSPENDED_LOCKED("거래 정지 종목은 다른 업종으로 옮길 수 없습니다."),

@@ -72,4 +72,16 @@ class StockSuspensionCollectorTest {
         // 5거래일에 이른 정지 종목과 재개가 확인된 종목을 업종 분류 쪽에 알린다.
         verify(eventPublisher).publishEvent(new StockSuspensionSyncedEvent(Set.of("005930"), Set.of("000660")));
     }
+
+    @Test
+    void 조회_대상_종목이_없으면_토스를_부르지_않고_기록하지_않는다() {
+        when(calendar.isTradingDay(any(LocalDate.class))).thenReturn(true);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of());
+
+        collector.sync();
+
+        verify(tossStockListClient, never()).fetchSuspensionStatus(anyCollection());
+        verify(suspensionService, never()).record(any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any(Object.class));
+    }
 }

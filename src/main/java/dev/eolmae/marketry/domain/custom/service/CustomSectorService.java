@@ -159,7 +159,7 @@ public class CustomSectorService {
     /**
      * 업종을 삭제하고 담긴 종목 전부(비활성·화면에 없는 종목 포함)를 미분류로 옮긴다. 하위 업종이 있으면 삭제하지 않는다.
      * 미리보기에서 확인한 종목 수(expectedMoveCount)와 지금 옮길 종목 수를 비교해, 다르면 삭제하지 않고 다시 확인하게 한다.
-     * 업종 행과 담긴 배정 행을 먼저 잠가, 수를 센 뒤 동시 요청이 종목을 넣거나 빼지 못하게 한다.
+     * 업종 행과 담긴 배정 행을 먼저 잠가 동시 변경을 줄이고, 그래도 겹치면 외래키 위반이 409로 바뀌어 다시 시도하게 된다.
      */
     public void delete(Long sectorId, int expectedMoveCount) {
         Long userId = CurrentUser.requireId();
@@ -171,7 +171,7 @@ public class CustomSectorService {
             throw new ConflictException(ErrorCode.SECTOR_HAS_SUB_SECTORS, sectorId);
         }
 
-        // 잠금만 필요해 결과는 쓰지 않는다 — 이 업종으로 들어오는 배정은 FK 때문에 이 행의 잠금이 풀릴 때까지 기다린다.
+        // 잠금만 필요해 결과는 쓰지 않는다. 동시 요청을 완전히 막지는 못한다 — 외래키가 커밋 시점에 검사돼 진 쪽이 409(GlobalExceptionHandler)로 끝난다.
         customSectorRepository.findLockedByIdAndUserId(sectorId, userId);
         List<CustomStockSector> assignments =
                 customStockSectorRepository.findLockedByIdUserIdAndSectorId(userId, sectorId);

@@ -20,7 +20,7 @@ public interface CustomSectorRepository extends JpaRepository<CustomSector, Long
 
     Optional<CustomSector> findByIdAndUserId(Long id, Long userId);
 
-    /** 업종 행을 FOR UPDATE로 잠근다 — 이 업종으로 종목을 배정하는 동시 요청(FK가 업종 행에 공유 잠금을 건다)이 삭제가 끝날 때까지 기다린다. */
+    /** 업종 행을 FOR UPDATE로 잠근다. 외래키가 커밋 시점에 검사돼 동시 배정을 즉시 막지는 못하고, 겹치면 진 쪽이 외래키 위반으로 실패한다. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<CustomSector> findLockedByIdAndUserId(Long id, Long userId);
 
