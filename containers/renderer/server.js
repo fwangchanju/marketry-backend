@@ -18,6 +18,7 @@ const RECYCLE_AFTER_CAPTURES = 200
 const SHUTDOWN_GRACE_MS = 5000
 const CAPTURE_READY_TIMEOUT_MS = 30000
 const CAPTURE_TOKEN_HEADER = 'X-Capture-Token'
+const SHARED_MAP_CAPTURE_SELECTOR = "[data-captureid='map-mobile-capture']"
 
 // 죽은 Chromium이 남긴 SingletonLock 등이 재시작 후에도 남아 있지 않도록, 기동 시 한 번 지운다 —
 // process.exit(1) + restart: always는 컨테이너 파일시스템을 보존하므로 이 정리가 없으면 다음
@@ -135,8 +136,10 @@ async function handleCapture(path, selector, token, rowSelector) {
     for (let i = 0; i < sections.length; i++) {
       // 설정창 이동 버튼이 본문 경계에 걸쳐 있어 캡처 순간에는 설정창 전체를 숨긴다.
       let buffer
-      const useSharedMapCapture = selector === "[data-captureid='map-mobile-capture']"
-        && await sections[i].getAttribute('data-map-shared-capture') === 'true'
+      const captureUrl = new URL(path, 'http://localhost')
+      const useSharedMapCapture = selector === SHARED_MAP_CAPTURE_SELECTOR
+        && captureUrl.pathname.startsWith('/map/')
+        && captureUrl.searchParams.get('capture') === 'mobile'
       if (useSharedMapCapture) {
         await page.waitForFunction(() => typeof window.marketryCaptureMap === 'function', null, { timeout: CAPTURE_READY_TIMEOUT_MS })
         const dataUrl = await page.evaluate(() => window.marketryCaptureMap())
