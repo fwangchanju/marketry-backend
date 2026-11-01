@@ -271,7 +271,7 @@ config 문법 오류면 즉시 기동 실패하는 이진적 실패 모드라 �
 
 ### 로그 파일
 
-`prod` 프로파일에서만 파일로 남는다. 호스트의 `${LOG_DIR}`가 컨테이너의 `/app/logs`에 마운트된다.
+`prod` 프로파일에서만 파일로 남는다. 호스트의 `${LOG_DIR}`가 컨테이너의 `/app/logs`에 마운트된다. 맥미니 운영(`infra/prod/compose.yml`)은 호스트의 `/Users/chanju/Projects/marketry/logs`를 마운트한다(Colima mounts에 이 경로가 있어야 한다).
 
 | 파일 | 내용 | maxFileSize | maxHistory | totalSizeCap |
 |---|---|---|---|---|
