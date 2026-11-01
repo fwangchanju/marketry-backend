@@ -9,7 +9,7 @@ import java.util.Optional;
 public enum RenderTarget {
     // 홈 화면의 3:4 세로 판(툴바·시장 지도·그룹 등락률) — 캡션 값을 읽는 데 사용한다.
     HOME_MOBILE("/home?capture=mobile", "summary-capture"),
-    // 지도 페이지 모바일 캡처와 같은 3:5 판. 프론트가 capture=mobile일 때 렌더러가 공통 캡처 함수를 호출한다.
+    // 지도 페이지 모바일 캡처와 같은 9:16 판. 프론트가 capture=mobile일 때 렌더러가 공통 캡처 함수를 호출한다.
     MAP_MOBILE("/map/korea?capture=mobile", "map-mobile-capture");
 
     private static final String CAPTURE_ATTRIBUTE = "data-captureid";
