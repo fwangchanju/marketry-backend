@@ -25,6 +25,7 @@ public enum ErrorCode {
     KIWOOM_CONNECTION_FAILED("키움 API 연결에 실패했습니다."),
     KIWOOM_SERVER_ERROR("키움 API 서버 오류가 발생했습니다."),
     KIWOOM_RESPONSE_PARSE_FAILED("키움 API 응답 파싱에 실패했습니다."),
+    KIWOOM_NO_DATA("키움 API가 데이터를 반환하지 않았습니다."),
     KIWOOM_ERROR_RESPONSE("키움 API가 오류 응답을 반환했습니다."),
     KIWOOM_TOKEN_ISSUE_FAILED("키움 토큰 발급에 실패했습니다."),
 

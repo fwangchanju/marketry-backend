@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 가격 데이터가 있는 최신 3거래일은 전체 보존하고, 이전 거래일은 시장별 종가 시각의 종목 행만 남긴다.
+ * 최근 달력 기준 1개월은 전체 보존하고, 이전 거래일은 시장별 종가 시각의 종목 행만 남긴다.
  * 날짜별 실패를 격리하며 다음 실행에서 다시 처리한다.
  */
 @Slf4j
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SnapshotRetentionScheduler {
 
-    private static final int RETAINED_TRADING_DAYS = 3;
+    private static final int RETAINED_MONTHS = 1;
     private static final String KST_ZONE_ID = "Asia/Seoul";
 
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
@@ -32,7 +32,7 @@ public class SnapshotRetentionScheduler {
     }
 
     void cleanupSnapshots(LocalDate today) {
-        var dates = sectorPriceSnapshotService.findCleanupDates(today, RETAINED_TRADING_DAYS);
+        var dates = sectorPriceSnapshotService.findCleanupDates(today, RETAINED_MONTHS);
         log.info("스냅샷 정리 배치 시작: days={}", dates.size());
         for (LocalDate date : dates) {
             run("섹터가격스냅샷정리 " + date, () -> sectorPriceSnapshotService.cleanupSnapshotsForDate(date));

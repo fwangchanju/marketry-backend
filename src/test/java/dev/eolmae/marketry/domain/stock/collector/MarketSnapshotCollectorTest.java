@@ -2,6 +2,7 @@ package dev.eolmae.marketry.domain.stock.collector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
@@ -10,6 +11,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import dev.eolmae.marketry.common.enums.Market;
+import dev.eolmae.marketry.common.exception.BadRequestException;
+import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.domain.stock.client.KiwoomApiClient;
 import dev.eolmae.marketry.domain.stock.dto.SectorCurrentPriceRequest;
 import dev.eolmae.marketry.domain.stock.dto.SectorCurrentPriceResponse;
@@ -29,12 +32,19 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
 // transactionTemplate을 mock해 collectForMarket(실제 수집)이 돌지 않게 막고, 마켓 트랜잭션 직후의
 // 캐시 적재(warmSectorPriceCache, 결정 5) 부분만 따로 검증한다.
 class MarketSnapshotCollectorTest {
+
+    @Configuration
+    @EnableRetry
+    static class RetryConfiguration {}
 
     private final KiwoomApiClient kiwoomApiClient = Mockito.mock(KiwoomApiClient.class);
     private final StockInfoCacheService stockInfoCacheService = Mockito.mock(StockInfoCacheService.class);
@@ -53,6 +63,116 @@ class MarketSnapshotCollectorTest {
             sectorPriceSnapshotRepository,
             sectorPriceCacheService,
             transactionTemplate);
+
+    private AnnotationConfigApplicationContext retryContext() {
+        var context = new AnnotationConfigApplicationContext();
+        context.register(RetryConfiguration.class);
+        context.registerBean(MarketSnapshotCollector.class, () -> collector);
+        context.refresh();
+        return context;
+    }
+
+    @Test
+    void 수집이_실패하면_전체를_다시_시도한다() {
+        when(stockInfoCacheService.getCache())
+                .thenThrow(new IllegalStateException("일시 오류"))
+                .thenReturn(Map.of());
+        try (var context = retryContext()) {
+            context.getBean(MarketSnapshotCollector.class).collect(LocalDateTime.of(2026, 10, 30, 10, 0));
+        }
+        verify(stockInfoCacheService, Mockito.times(2)).getCache();
+        verify(transactionTemplate, Mockito.times(2)).executeWithoutResult(any());
+    }
+
+    @Test
+    void 수집이_계속_실패하면_다섯_번_시도하고_오류를_전달한다() {
+        when(stockInfoCacheService.getCache()).thenThrow(new IllegalStateException("지속 오류"));
+        try (var context = retryContext()) {
+            assertThatThrownBy(() -> context.getBean(MarketSnapshotCollector.class)
+                            .collect(LocalDateTime.of(2026, 10, 30, 10, 0)))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+        verify(stockInfoCacheService, Mockito.times(5)).getCache();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void 종목_가격_응답이_비면_전체_수집을_다섯_번_재시도하고_실패한다() {
+        doAnswer(invocation -> {
+                    Consumer<TransactionStatus> action = invocation.getArgument(0);
+                    action.accept(null);
+                    return null;
+                })
+                .when(transactionTemplate)
+                .executeWithoutResult(any());
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of());
+        var overview = new SectorCurrentPriceResponse(
+                "0", "정상", "1000", "2", "10", "0.1", "0", "0", "0", "0", "0", "0", "1", "0", "0", "0", "0", "0",
+                List.of());
+        when(kiwoomApiClient.postForSnapshot(
+                        any(SectorCurrentPriceRequest.class), eq(SectorCurrentPriceResponse.class)))
+                .thenReturn(overview);
+        when(kiwoomApiClient.postForSnapshot(any(SectorPriceListRequest.class), eq(SectorPriceListResponse.class)))
+                .thenReturn(new SectorPriceListResponse("0", "정상", List.of()));
+
+        try (var context = retryContext()) {
+            assertThatThrownBy(() -> context.getBean(MarketSnapshotCollector.class)
+                            .collect(LocalDateTime.of(2026, 10, 30, 10, 0)))
+                    .isInstanceOf(BadRequestException.class)
+                    .extracting("errorCode")
+                    .isEqualTo(ErrorCode.KIWOOM_NO_DATA);
+        }
+
+        verify(kiwoomApiClient, Mockito.times(5))
+                .postForSnapshot(any(SectorPriceListRequest.class), eq(SectorPriceListResponse.class));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void 두번째_시장에서_실패해도_재시도할때_첫번째_시장_중복_저장을_건너뛴다() {
+        doAnswer(invocation -> {
+                    Consumer<TransactionStatus> action = invocation.getArgument(0);
+                    action.accept(null);
+                    return null;
+                })
+                .when(transactionTemplate)
+                .executeWithoutResult(any());
+        StockInfo kospiStock = StockInfo.create(
+                "005930", "삼성전자", Market.KOSPI, "0", 1L, 6_000_000_000L, BigDecimal.valueOf(70_000), false);
+        StockInfo kosdaqStock = StockInfo.create(
+                "035720", "카카오", Market.KOSDAQ, "0", 1L, 400_000_000L, BigDecimal.valueOf(50_000), false);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of("005930", kospiStock, "035720", kosdaqStock));
+        var overview = new SectorCurrentPriceResponse(
+                "0", "정상", "1000", "2", "10", "0.1", "0", "0", "0", "0", "0", "0", "1", "0", "0", "0", "0", "0",
+                List.of());
+        when(kiwoomApiClient.postForSnapshot(
+                        any(SectorCurrentPriceRequest.class), eq(SectorCurrentPriceResponse.class)))
+                .thenReturn(overview)
+                .thenThrow(new IllegalStateException("두번째 시장 실패"))
+                .thenReturn(overview, overview);
+        when(kiwoomApiClient.postForSnapshot(any(SectorPriceListRequest.class), eq(SectorPriceListResponse.class)))
+                .thenReturn(new SectorPriceListResponse(
+                        "0",
+                        "정상",
+                        List.of(new SectorPriceListResponse.StockItem(
+                                "005930_AL", "삼성전자", "70100", "2", "100", "0.14"))))
+                .thenReturn(new SectorPriceListResponse(
+                        "0",
+                        "정상",
+                        List.of(new SectorPriceListResponse.StockItem(
+                                "035720_AL", "카카오", "50000", "2", "100", "0.20"))));
+        var time = LocalDateTime.of(2026, 10, 30, 10, 0);
+        when(marketOverviewSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(false, true);
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(false, true);
+        try (var context = retryContext()) {
+            context.getBean(MarketSnapshotCollector.class).collect(time);
+        }
+        verify(marketOverviewSnapshotRepository, Mockito.times(2)).save(any());
+        verify(kiwoomApiClient, Mockito.times(3))
+                .postForSnapshot(any(SectorCurrentPriceRequest.class), eq(SectorCurrentPriceResponse.class));
+    }
 
     @Test
     void collect_마켓별_트랜잭션_직후_그_마켓의_가격_캐시를_적재한다() {
@@ -126,13 +246,14 @@ class MarketSnapshotCollectorTest {
                 new SectorPriceListResponse.StockItem("900110_AL", "미확인종목", "1000", "2", "10", "1.0");
         var sectorPriceListResponse =
                 new SectorPriceListResponse("0", "정상", List.of(ordinaryItem, etfItem, unknownItem));
-        when(kiwoomApiClient.post(any(SectorPriceListRequest.class), eq(SectorPriceListResponse.class)))
+        when(kiwoomApiClient.postForSnapshot(any(SectorPriceListRequest.class), eq(SectorPriceListResponse.class)))
                 .thenReturn(sectorPriceListResponse);
 
         var sectorCurrentPriceResponse = new SectorCurrentPriceResponse(
                 "0", "정상", "1000", "2", "10", "0.1", "0", "0", "0", "0", "0", "0", "1", "0", "0", "0", "0", "0",
                 List.of());
-        when(kiwoomApiClient.post(any(SectorCurrentPriceRequest.class), eq(SectorCurrentPriceResponse.class)))
+        when(kiwoomApiClient.postForSnapshot(
+                        any(SectorCurrentPriceRequest.class), eq(SectorCurrentPriceResponse.class)))
                 .thenReturn(sectorCurrentPriceResponse);
 
         collector.collect(snapshotTime);

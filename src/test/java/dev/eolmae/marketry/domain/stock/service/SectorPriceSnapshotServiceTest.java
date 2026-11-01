@@ -220,18 +220,17 @@ class SectorPriceSnapshotServiceTest {
     }
 
     @Test
-    void 최근_세_거래일은_시각_개수와_관계없이_센_뒤_이전의_미정리_날짜만_선택한다() {
-        List<LocalDate> dates =
-                List.of(DATE, DATE.minusDays(1), DATE.minusDays(2), DATE.minusDays(3), DATE.minusDays(6));
-        when(repository.findTradingSnapshotDates(DATE)).thenReturn(dates);
-        when(repository.findMultipleSnapshotDates(dates.get(3))).thenReturn(List.of(dates.get(4), dates.get(3)));
-        assertThat(service.findCleanupDates(DATE, 3)).containsExactly(dates.get(4), dates.get(3));
+    void 한달_전_날짜는_보존하고_그_이전만_정리한다() {
+        LocalDate today = LocalDate.of(2026, 11, 1);
+        LocalDate lastCleanupDate = LocalDate.of(2026, 9, 30);
+        when(repository.findMultipleSnapshotDates(lastCleanupDate)).thenReturn(List.of(lastCleanupDate));
+        assertThat(service.findCleanupDates(today, 1)).containsExactly(lastCleanupDate);
     }
 
     @Test
-    void 가격_있는_거래일이_세개_이하면_정리하지_않는다() {
-        when(repository.findTradingSnapshotDates(DATE)).thenReturn(List.of(DATE, DATE.minusDays(1)));
-        assertThat(service.findCleanupDates(DATE, 3)).isEmpty();
-        verify(repository, never()).findMultipleSnapshotDates(any());
+    void 말일에는_달력상_한달_전을_기준으로_정리한다() {
+        LocalDate today = LocalDate.of(2026, 3, 31);
+        service.findCleanupDates(today, 1);
+        verify(repository).findMultipleSnapshotDates(LocalDate.of(2026, 2, 27));
     }
 }

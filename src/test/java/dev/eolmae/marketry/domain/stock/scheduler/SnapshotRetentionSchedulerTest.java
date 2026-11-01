@@ -17,9 +17,9 @@ class SnapshotRetentionSchedulerTest {
         var service = mock(SectorPriceSnapshotService.class);
         var publisher = mock(EscalationPublisher.class);
         LocalDate today = LocalDate.of(2026, 10, 10);
-        LocalDate first = LocalDate.of(2026, 10, 1);
-        LocalDate second = LocalDate.of(2026, 10, 2);
-        when(service.findCleanupDates(today, 3)).thenReturn(List.of(first, second));
+        LocalDate first = LocalDate.of(2026, 9, 1);
+        LocalDate second = LocalDate.of(2026, 9, 2);
+        when(service.findCleanupDates(today, 1)).thenReturn(List.of(first, second));
         doThrow(new RuntimeException("failure")).when(service).cleanupSnapshotsForDate(first);
         new SnapshotRetentionScheduler(service, publisher).cleanupSnapshots(today);
         verify(service).cleanupSnapshotsForDate(first);

@@ -16,7 +16,7 @@ const MAX_QUEUE_WAIT_MS = 30000
 const MAX_CONSECUTIVE_FAILURES = 3
 const RECYCLE_AFTER_CAPTURES = 200
 const SHUTDOWN_GRACE_MS = 5000
-const CAPTURE_READY_TIMEOUT_MS = 20000
+const CAPTURE_READY_TIMEOUT_MS = 30000
 const CAPTURE_TOKEN_HEADER = 'X-Capture-Token'
 
 // 죽은 Chromium이 남긴 SingletonLock 등이 재시작 후에도 남아 있지 않도록, 기동 시 한 번 지운다 —
@@ -134,10 +134,20 @@ async function handleCapture(path, selector, token, rowSelector) {
     const images = []
     for (let i = 0; i < sections.length; i++) {
       // 설정창 이동 버튼이 본문 경계에 걸쳐 있어 캡처 순간에는 설정창 전체를 숨긴다.
-      const buffer = await sections[i].screenshot({
-        type: 'png',
-        style: '[data-settings-sidebar-shell] { visibility: hidden !important; }',
-      })
+      let buffer
+      const useSharedMapCapture = selector === "[data-captureid='map-mobile-capture']"
+        && await sections[i].getAttribute('data-map-shared-capture') === 'true'
+      if (useSharedMapCapture) {
+        await page.waitForFunction(() => typeof window.marketryCaptureMap === 'function', null, { timeout: CAPTURE_READY_TIMEOUT_MS })
+        const dataUrl = await page.evaluate(() => window.marketryCaptureMap())
+        if (!dataUrl.startsWith('data:image/png;base64,')) throw new Error('지도 캡처 결과가 올바르지 않습니다')
+        buffer = Buffer.from(dataUrl.slice('data:image/png;base64,'.length), 'base64')
+      } else {
+        buffer = await sections[i].screenshot({
+          type: 'png',
+          style: '[data-settings-sidebar-shell] { visibility: hidden !important; }',
+        })
+      }
       images.push({ name: `section-${i}`, data: buffer.toString('base64') })
     }
 

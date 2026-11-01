@@ -93,6 +93,11 @@ public class KiwoomApiClient {
         return fetchAll(request, dataClass);
     }
 
+    /** 시장 스냅샷은 전체 수집 단위로 재시도하므로 개별 요청의 재시도는 적용하지 않는다. */
+    public <T extends KiwoomResponse> T postForSnapshot(KiwoomRequest request, Class<T> dataClass) {
+        return fetchAll(request, dataClass);
+    }
+
     @Recover
     public <T> T recoverFromRateLimit(KiwoomRateLimitException e, KiwoomRequest request, Class<T> dataClass) {
         log.warn("Kiwoom API rate limit 재시도 횟수 초과, 사이클 스킵: apiId={}", request.apiId());
