@@ -40,7 +40,7 @@ services:
       marketry-postgres:
         condition: service_healthy
     volumes:
-      - marketry-logs:/app/logs
+      - /Users/chanju/Projects/marketry/logs:/app/logs
     networks:
       - marketry-network
 
@@ -89,7 +89,6 @@ services:
 
 volumes:
   marketry-pgdata:
-  marketry-logs:
 
 networks:
   marketry-network:
