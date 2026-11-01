@@ -142,7 +142,7 @@ public class TreemapQueryService {
             ChangeRateMode basis,
             boolean includeSuspended) {
         List<Market> markets = marketQuery.toMarkets();
-        return resolveSnapshotTime(markets, snapshotTime)
+        return resolveSnapshotTime(markets, snapshotTime, basis)
                 .map(resolvedSnapshotTime ->
                         buildDefaultTreemap(markets, resolvedSnapshotTime, nxtOnly, basis, includeSuspended))
                 .orElseGet(TreemapResponse::empty);
@@ -253,7 +253,7 @@ public class TreemapQueryService {
             Long dataUserId,
             boolean includeSuspended) {
         List<Market> markets = marketQuery.toMarkets();
-        return resolveSnapshotTime(markets, snapshotTime)
+        return resolveSnapshotTime(markets, snapshotTime, basis)
                 .map(resolvedSnapshotTime ->
                         buildCustomTreemap(markets, resolvedSnapshotTime, dataUserId, nxtOnly, basis, includeSuspended))
                 .orElseGet(TreemapResponse::empty);
@@ -276,12 +276,13 @@ public class TreemapQueryService {
     /** snapshotTime이 없으면 지금처럼 markets 전부가 공통으로 가진 최신 시각을 쓴다(그 정의상 이미
      * 전부에 있는 시각이다). 있으면 그 시각을 그대로 쓰되, markets 전부에 정확히 그 시각이 있을 때만
      * 유효하다 — 하나라도 없으면 빈 응답이다. 가까운 시각으로 대체하지 않는다(결정 4). */
-    private Optional<LocalDateTime> resolveSnapshotTime(List<Market> markets, LocalDateTime snapshotTime) {
+    private Optional<LocalDateTime> resolveSnapshotTime(
+            List<Market> markets, LocalDateTime snapshotTime, ChangeRateMode basis) {
         if (snapshotTime == null) {
             return sectorPriceSnapshotService.findLatestCommonSnapshotTime(markets);
         }
-        // 그 날짜의 종가 데이터(KRX)가 있으면 현재가 데이터 없이도 그 날짜의 종가 지도를 그릴 수 있다.
-        if (closingPriceReader.hasOfficialClose(snapshotTime.toLocalDate())) {
+        // 종가 조회는 현재가 스냅샷이 없어도 공식 종가 데이터로 그릴 수 있다.
+        if (isOfficialCloseSnapshot(snapshotTime, basis)) {
             return Optional.of(snapshotTime);
         }
         boolean allMarketsHaveSnapshot =
@@ -817,13 +818,12 @@ public class TreemapQueryService {
     }
 
     /**
-     * 종목별 현재가·등락률·전일 종가. 그 날짜의 종가 데이터(stock_daily_price에 쌓는 키움 종가 요청 API 수집분)가 있는지 날짜만 확인해서
-     * 있으면 종가 데이터로, 없으면 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)로 세 값을 같은 출처에 맞춘다.
+     * 종목별 현재가·등락률·전일 종가. 종가 조회는 종가 데이터(stock_daily_price에 쌓는 키움 종가 요청 API 수집분)를 쓰고, 그 밖의
+     * 시각은 현재가 데이터(sector_price_snapshot에 쌓는 키움 현재가 요청 API 수집분)를 쓴다.
      *
      * <ul>
-     *   <li>종가 데이터가 있으면 현재가는 그날 종가, 전일 종가는 직전 거래일 종가, 등락률은 그 둘로 계산한다. 가격이나 전일 종가가 없거나
-     *       0 이하인 종목은 뺀다(0으로 나누지 않으며, 프런트가 제외 종목으로 다룬다). 종가 데이터에는 시간외 값이 없어 basis는 적용하지
-     *       않는다.
+     *   <li>종가 데이터가 있는 종가 조회는 현재가를 그날 종가, 전일 종가를 직전 거래일 종가로 두고 등락률을 둘로 계산한다. 가격이나 전일
+     *       종가가 없거나 0 이하인 종목은 뺀다(0으로 나누지 않으며, 프런트가 제외 종목으로 다룬다).
      *   <li>없으면 현재가·등락률은 현재가 데이터 값을 그대로 쓴다. 전일 종가는 요청 날짜가 오늘일 때만 현재가 − 변동액을 쓴다. 이
      *       등락률은 키움이 병합·분할 같은 기업행위까지 반영해 계산한 값이라 전일 종가도 같은 출처여야 현재가·전일 종가·등락률이 어긋나지
      *       않는다(종가 데이터의 직전 거래일 종가는 기업행위 전 값일 수 있다, 에이비온 203400). 오늘이 아닌 날짜는 직전 거래일 종가
@@ -836,13 +836,25 @@ public class TreemapQueryService {
             List<Market> markets, LocalDateTime snapshotTime, ChangeRateMode basis) {
         LocalDate date = snapshotTime.toLocalDate();
         ClosingPrices previous = closingPriceReader.previousClosingPricesFor(date);
-        if (closingPriceReader.hasOfficialClose(date)) {
+        if (isOfficialCloseSnapshot(snapshotTime, basis)) {
             return findOfficialClosePrices(date, snapshotTime, previous);
         }
         Map<String, CachedStockPrice> snapshotPrices =
                 applyBasis(findPriceByStockCode(markets, snapshotTime), snapshotTime, basis);
         return withLastPrices(
                 snapshotPrices, previous, date.equals(KstClock.now().toLocalDate()));
+    }
+
+    private boolean isOfficialCloseSnapshot(LocalDateTime snapshotTime, ChangeRateMode basis) {
+        LocalDate date = snapshotTime.toLocalDate();
+        if (basis == ChangeRateMode.AFTER_HOURS || closingPriceReader.hasOfficialClose(date) == false) {
+            return false;
+        }
+        CalendarDayTimes times = marketCalendarTimeService.resolve(date);
+        if (snapshotTime.isBefore(times.closingWindowStart()) || snapshotTime.isAfter(times.closingWindowEnd())) {
+            return false;
+        }
+        return true;
     }
 
     private Map<String, CachedStockPrice> findOfficialClosePrices(
