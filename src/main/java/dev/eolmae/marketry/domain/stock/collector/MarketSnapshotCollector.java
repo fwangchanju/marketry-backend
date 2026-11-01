@@ -2,6 +2,8 @@ package dev.eolmae.marketry.domain.stock.collector;
 
 import dev.eolmae.marketry.common.enums.Market;
 import dev.eolmae.marketry.common.enums.Zone;
+import dev.eolmae.marketry.common.exception.BadRequestException;
+import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.util.StockCode;
 import dev.eolmae.marketry.common.util.Strings;
 import dev.eolmae.marketry.domain.stock.client.KiwoomApiClient;
@@ -26,6 +28,8 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -50,6 +54,7 @@ public class MarketSnapshotCollector {
 
     // 마켓별로 독립된 트랜잭션. 하나 실패하면 그대로 예외를 던져서(catch 안 함) 이후 마켓은 시도하지 않고,
     // 호출부(CollectionScheduler.run())가 한 곳에서만 escalate한다.
+    @Retryable(retryFor = Exception.class, maxAttempts = 5, backoff = @Backoff(delay = 10000))
     public void collect(LocalDateTime snapshotTime) {
         Map<String, StockInfo> stockInfoCache = stockInfoCacheService.getCache();
 
@@ -81,12 +86,14 @@ public class MarketSnapshotCollector {
     }
 
     private void collectMarketOverview(Market market, String mrktTp, String indsCd, LocalDateTime snapshotTime) {
-        var request = new SectorCurrentPriceRequest(mrktTp, indsCd);
-        SectorCurrentPriceResponse response = kiwoomApiClient.post(request, SectorCurrentPriceResponse.class);
-
-        if (!marketOverviewSnapshotRepository.existsByMarketTypeAndSnapshotTime(market, snapshotTime)) {
-            marketOverviewSnapshotRepository.save(toMarketOverviewEntity(market, snapshotTime, response));
+        if (marketOverviewSnapshotRepository.existsByMarketTypeAndSnapshotTime(market, snapshotTime)) {
+            return;
         }
+
+        var request = new SectorCurrentPriceRequest(mrktTp, indsCd);
+        SectorCurrentPriceResponse response =
+                kiwoomApiClient.postForSnapshot(request, SectorCurrentPriceResponse.class);
+        marketOverviewSnapshotRepository.save(toMarketOverviewEntity(market, snapshotTime, response));
     }
 
     private static MarketOverviewSnapshot toMarketOverviewEntity(
@@ -114,27 +121,32 @@ public class MarketSnapshotCollector {
             LocalDateTime snapshotTime,
             Map<String, StockInfo> stockInfoCache) {
 
-        String stexTp = StexType.KRX_NXT.code(); // KRX+NXT 합산
-        var request = new SectorPriceListRequest(mrktTp, indsCd, stexTp);
-        SectorPriceListResponse response = kiwoomApiClient.post(request, SectorPriceListResponse.class);
-
-        if (response.items() == null || response.items().isEmpty()) {
+        if (sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(market, snapshotTime)) {
             return;
         }
 
-        if (!sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(market, snapshotTime)) {
-            List<SectorPriceSnapshot> entities = new ArrayList<>();
-            for (SectorPriceListResponse.StockItem item : response.items()) {
-                // 화면은 코스피·코스닥 주권만 쓰므로 ELW·ETF 등과 stock_info에 없는 신규
-                // 상장 종목은 저장하지 않는다
-                StockInfo stockInfo = stockInfoCache.get(StockCode.removeSuffix(item.stkCd()));
-                if (stockInfo == null || !StockMarketCode.isOrdinaryShare(stockInfo.getMarketCode())) {
-                    continue;
-                }
-                entities.add(toSectorPriceEntity(market, snapshotTime, item));
-            }
-            sectorPriceSnapshotRepository.saveAll(entities);
+        String stexTp = StexType.KRX_NXT.code(); // KRX+NXT 합산
+        var request = new SectorPriceListRequest(mrktTp, indsCd, stexTp);
+        SectorPriceListResponse response = kiwoomApiClient.postForSnapshot(request, SectorPriceListResponse.class);
+
+        if (response.items() == null || response.items().isEmpty()) {
+            throw new BadRequestException(ErrorCode.KIWOOM_NO_DATA, request.apiId(), market, snapshotTime);
         }
+
+        List<SectorPriceSnapshot> entities = new ArrayList<>();
+        for (SectorPriceListResponse.StockItem item : response.items()) {
+            // 화면은 코스피·코스닥 주권만 쓰므로 ELW·ETF 등과 stock_info에 없는 신규
+            // 상장 종목은 저장하지 않는다
+            StockInfo stockInfo = stockInfoCache.get(StockCode.removeSuffix(item.stkCd()));
+            if (stockInfo == null || !StockMarketCode.isOrdinaryShare(stockInfo.getMarketCode())) {
+                continue;
+            }
+            entities.add(toSectorPriceEntity(market, snapshotTime, item));
+        }
+        if (entities.isEmpty()) {
+            throw new BadRequestException(ErrorCode.KIWOOM_NO_DATA, request.apiId(), market, snapshotTime);
+        }
+        sectorPriceSnapshotRepository.saveAll(entities);
     }
 
     private static SectorPriceSnapshot toSectorPriceEntity(

@@ -1,13 +1,11 @@
 package dev.eolmae.marketry.domain.notification.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -108,6 +106,16 @@ class HomeReportSenderTest {
     }
 
     @Test
+    void 같은_날짜라도_요청시각보다_오래된_공통_스냅샷이면_보내지_않는다() {
+        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList()))
+                .thenReturn(Optional.of(DATA_TIME.minusMinutes(5)));
+
+        assertThat(sender.send(DATA_TIME)).isFalse();
+
+        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+    }
+
+    @Test
     void 일회성_발송은_최근_공통_스냅샷이_오늘이_아니어도_홈리포트를_보낸다() {
         LocalDateTime latestSnapshot = DATA_TIME.minusDays(1);
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList()))
@@ -125,7 +133,7 @@ class HomeReportSenderTest {
         verify(screenshotClient)
                 .captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR);
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
     }
 
     @Test
@@ -140,7 +148,7 @@ class HomeReportSenderTest {
 
     // 이미지에 그려진 그룹 등락률 값으로 캡션을 만들어야 이미지와 숫자가 어긋나지 않는다.
     @Test
-    void 시장_요약과_시장_지도_두_장을_이미지에서_읽은_값의_캡션과_함께_앨범으로_보낸다() {
+    void 시장_지도_한_장을_그룹_등락률_캡션과_함께_보낸다() {
         givenTodaySnapshot();
         givenSummaryCapture(ROWS);
         givenMapCapture();
@@ -148,7 +156,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME)).isTrue();
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91% / S7 +1.71%");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "헬스케어 +1.91% / S7 +1.71%");
         verify(treemapQueryService, never()).getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
@@ -169,7 +177,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "계산 캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "계산 캡션");
     }
 
     // 프리·애프터 마켓에는 화면이 NXT 종목만 보여 주므로, 서버 계산 캡션도 같은 종목으로 순위를 만든다.
@@ -187,7 +195,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
     }
 
     @Test
@@ -204,8 +212,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient)
-                .sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "헬스케어 +1.91% / S7 +1.71%\n#종가");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "헬스케어 +1.91% / S7 +1.71%\n#종가");
     }
 
     @Test
@@ -221,7 +228,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
     }
 
     @Test
@@ -241,7 +248,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
     }
 
     @Test
@@ -256,12 +263,12 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendMediaGroup("chat", List.of(SUMMARY_IMAGE, MAP_IMAGE), null);
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, null);
     }
 
-    // 새로 붙인 시장 지도 캡처가 실패해도 시장 요약은 나가야 한다 — 실패는 개발자 채널로 알린다.
+    // 시장 지도 캡처가 실패하면 발송하지 않고 개발자 채널에 알린다.
     @Test
-    void 시장_지도_캡처가_실패하면_시장_요약_한_장만_보내고_에스컬레이션한다() {
+    void 시장_지도_캡처가_실패하면_발송하지_않고_에스컬레이션한다() {
         givenTodaySnapshot();
         givenSummaryCapture(ROWS);
         EscalateException failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
@@ -273,19 +280,33 @@ class HomeReportSenderTest {
         sender.send(DATA_TIME);
 
         verify(escalationPublisher).report("홈리포트 모바일 지도 캡처", failure);
-        verify(telegramClient).sendPhoto("chat", SUMMARY_IMAGE, "캡션");
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
     @Test
-    void 시장_요약_캡처가_비어_있으면_에스컬레이션한다() {
+    void 시장_요약_캡처가_비어_있어도_시장_지도를_보낸다() {
         givenTodaySnapshot();
         when(screenshotClient.captureWithRows(anyString(), anyString(), anyString()))
                 .thenReturn(new CaptureResult(List.of(), List.of()));
+        givenMapCapture();
 
-        assertThatThrownBy(() -> sender.send(DATA_TIME)).isInstanceOf(EscalateException.class);
+        assertThat(sender.send(DATA_TIME)).isTrue();
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
-        verify(telegramClient, never()).sendPhoto(any(), any(), isNull());
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, null);
+    }
+
+    @Test
+    void 시장_요약_캡처와_캡션_계산이_실패해도_시장_지도를_보낸다() {
+        givenTodaySnapshot();
+        when(screenshotClient.captureWithRows(anyString(), anyString(), anyString()))
+                .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
+        when(treemapQueryService.getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean()))
+                .thenThrow(new IllegalStateException("캡션 계산 실패"));
+        givenMapCapture();
+
+        assertThat(sender.send(DATA_TIME)).isTrue();
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, null);
     }
 
     @Test

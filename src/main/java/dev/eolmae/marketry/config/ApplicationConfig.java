@@ -69,7 +69,7 @@ public class ApplicationConfig {
                 .build();
     }
 
-    // page.goto 최대 30초 + 캡처 대상 준비 대기 20초(containers/renderer/server.js)를 감안한 값.
+    // page.goto 최대 30초 + 캡처 대상 준비 대기 30초(containers/renderer/server.js)를 감안한 값.
     @Bean
     public RestClient rendererRestClient() {
         return RestClient.builder()

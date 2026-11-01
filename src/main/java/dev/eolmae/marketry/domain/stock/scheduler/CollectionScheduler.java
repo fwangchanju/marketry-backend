@@ -46,7 +46,7 @@ public class CollectionScheduler {
      * 날짜별 시간표의 전체 세션 시작부터 종료 정각까지 수집한다.
      * 수집 직후 텔레그램 발송을 매번 호출하되, 실제 발송 여부와 주기({@link TelegramSendSchedule#due})는
      * 여기서 한 곳에서만 게이팅한다(별도 스케줄로 분리하면 수집과 발송의 실행 순서를 보장할 수 없어, 같은 호출
-     * 안에서 순차 실행되도록 묶었다). 정기 발송은 시장 요약·시장 지도 이미지를 한 메시지로 보낸다.
+     * 안에서 순차 실행되도록 묶었다). 정기 발송은 시장 지도 이미지 한 장을 보낸다.
      */
     @Scheduled(
             cron = "0 0/${collect.interval-minutes} ${collect.start-hour}-${collect.end-hour} * * MON-FRI",

@@ -23,8 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * 시장 요약(홈 화면: 툴바·시장 지도·그룹 등락률)과 시장 지도(지도 페이지 모바일 캡처)를 3:4 세로 이미지 두 장으로 찍어 한 메시지(앨범)로 보낸다.
- * 캡션은 첫 이미지(시장 요약)에 그려진 그룹 등락률 막대 값을 그대로 읽어 만든다.
+ * 시장 지도를 모바일 캡처 한 장으로 보낸다. 캡션은 시장 요약 화면의 그룹 등락률을 읽어 만든다.
  */
 @Slf4j
 @Component
@@ -61,39 +60,47 @@ public class HomeReportSender {
     public boolean send(LocalDateTime dataTime) {
         if (sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .filter(time -> time.toLocalDate().equals(dataTime.toLocalDate()))
+                .filter(dataTime::equals)
                 .isEmpty()) {
-            log.warn("[홈리포트] 기준 날짜의 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
+            log.warn("[홈리포트] 기준 시각의 최신 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
             return false;
         }
         return sendReport(dataTime);
     }
 
     private boolean sendReport(LocalDateTime dataTime) {
-        // 두 이미지 모두 발송 시각에 맞는 등락률 기준(종가·별도)으로 찍는다.
+        // 캡션과 지도에 같은 등락률 기준(종가·별도)을 적용한다.
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
-        CaptureResult summary = screenshotClient.captureWithRows(
-                RenderTarget.HOME_MOBILE.path(basis), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
-        if (summary.images().isEmpty()) {
-            throw new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+        String caption = null;
+        try {
+            CaptureResult summary = screenshotClient.captureWithRows(
+                    RenderTarget.HOME_MOBILE.path(basis), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
+            if (!summary.images().isEmpty()) {
+                caption = sectorRankingTextBuilder.buildCaptionFromRenderedRows(summary.rows(), CAPTION_SECTOR_COUNT);
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "[홈리포트] 요약 캡처 실패로 서버 계산 캡션 사용 | context : {}|{}",
+                    dataTime,
+                    e.getClass().getSimpleName());
         }
-        String caption = sectorRankingTextBuilder.buildCaptionFromRenderedRows(summary.rows(), CAPTION_SECTOR_COUNT);
         if (caption == null) {
             log.warn("[홈리포트] 이미지에서 그룹 등락률 값을 읽지 못해 서버 계산 캡션으로 발송 | context : {}", dataTime);
-            caption = buildCaption(dataTime);
+            try {
+                caption = buildCaption(dataTime);
+            } catch (Exception e) {
+                log.warn("[홈리포트] 캡션 계산 실패로 캡션 없이 발송 | context : {}", dataTime, e);
+            }
         }
         caption = withBasisTag(caption, basis, dataTime);
 
         List<byte[]> mapImages = captureMapImages(basis);
         if (mapImages.isEmpty()) {
-            telegramClient.sendPhoto(
-                    telegramProperties.chatId(), summary.images().get(0), caption);
-            log.info("홈 리포트 발송 완료: 시장 요약 1장(시장 지도 캡처 실패)");
-            return true;
+            log.warn("[홈리포트] 시장 지도 캡처 실패로 발송 생략");
+            return false;
         }
-        telegramClient.sendMediaGroup(
-                telegramProperties.chatId(), List.of(summary.images().get(0), mapImages.get(0)), caption);
-        log.info("홈 리포트 발송 완료: 시장 요약·시장 지도 2장");
+        telegramClient.sendPhoto(telegramProperties.chatId(), mapImages.get(0), caption);
+        log.info("홈 리포트 발송 완료: 시장 지도 1장");
         return true;
     }
 
@@ -106,11 +113,14 @@ public class HomeReportSender {
         return caption == null || caption.isBlank() ? CLOSE_TAG : caption + "\n" + CLOSE_TAG;
     }
 
-    // 시장 지도 캡처가 실패해도 시장 요약은 보낸다 — 실패는 개발자 채널로 알리고 이미지 한 장으로 발송한다.
+    // 시장 지도 캡처 실패는 개발자 채널에 알린다.
     private List<byte[]> captureMapImages(Optional<RenderBasis> basis) {
         try {
             List<byte[]> images =
                     screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
+            if (images.isEmpty()) {
+                throw new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+            }
             escalationPublisher.resolve(MAP_CAPTURE_ERROR_SOURCE);
             return images;
         } catch (EscalateException e) {
