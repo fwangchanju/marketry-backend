@@ -1752,18 +1752,61 @@ class TreemapQueryServiceTest {
     }
 
     @Test
-    void 종가_데이터가_있는_날짜는_현재가_데이터_존재_확인_없이_조회하고_시간외_기준을_적용하지_않는다() {
+    void 종가_데이터만_있는_날짜는_구간_끝_시각에_공식_종가로_지도를_만든다() {
         LocalDateTime time = OFFICIAL_DAY.atTime(15, 40);
         StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.ONE);
         when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
         stubOfficialClose(Map.of("005930", BigDecimal.valueOf(120)), Map.of("005930", BigDecimal.valueOf(100)));
 
-        TreemapResponse response =
-                service.getDefaultTreemap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS);
+        TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, time, false, ChangeRateMode.DAILY);
 
         assertThat(response.items().get(0).items().get(0).changeRate()).isEqualByComparingTo("20");
         Mockito.verify(sectorPriceSnapshotRepository, Mockito.never())
                 .existsByMarketTypeAndSnapshotTime(ArgumentMatchers.any(), ArgumentMatchers.any());
+    }
+
+    @Test
+    void 종가_데이터가_있는_날짜의_20시는_누적_등락률에_현재가_스냅샷을_쓴다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(20, 0);
+        StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.ONE);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
+        stubOfficialClose(Map.of("005930", BigDecimal.valueOf(120)), Map.of("005930", BigDecimal.valueOf(100)));
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(true);
+        when(sectorPriceCacheService.getCache(Market.KOSPI, time))
+                .thenReturn(
+                        Map.of("005930", new CachedStockPrice(BigDecimal.valueOf(110), BigDecimal.valueOf(10), time)));
+
+        var item = service.getDefaultTreemap(MarketQuery.KOSPI, time, false, ChangeRateMode.DAILY)
+                .items()
+                .get(0)
+                .items()
+                .get(0);
+
+        assertThat(item.currentPrice()).isEqualByComparingTo("110");
+        assertThat(item.changeRate()).isEqualByComparingTo("10");
+    }
+
+    @Test
+    void 종가_데이터가_있는_날짜의_20시는_별도_등락률에_현재가와_공식_종가를_쓴다() {
+        LocalDateTime time = OFFICIAL_DAY.atTime(20, 0);
+        StockInfo stock = stockInfo("005930", "삼성전자", 10L, BigDecimal.ONE);
+        when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
+        stubOfficialClose(Map.of("005930", BigDecimal.valueOf(120)), Map.of("005930", BigDecimal.valueOf(100)));
+        when(sectorPriceSnapshotRepository.existsByMarketTypeAndSnapshotTime(Market.KOSPI, time))
+                .thenReturn(true);
+        when(sectorPriceCacheService.getCache(Market.KOSPI, time))
+                .thenReturn(
+                        Map.of("005930", new CachedStockPrice(BigDecimal.valueOf(110), BigDecimal.valueOf(10), time)));
+
+        var item = service.getDefaultTreemap(MarketQuery.KOSPI, time, false, ChangeRateMode.AFTER_HOURS)
+                .items()
+                .get(0)
+                .items()
+                .get(0);
+
+        assertThat(item.currentPrice()).isEqualByComparingTo("110");
+        assertThat(item.changeRate()).isEqualByComparingTo("-8.3333");
     }
 
     @Test
