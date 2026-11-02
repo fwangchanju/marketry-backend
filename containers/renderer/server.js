@@ -131,6 +131,14 @@ async function handleCapture(path, selector, token, rowSelector) {
     // (고정 딜레이로 "다 그려졌겠지" 추측하던 방식 대체).
     await page.waitForSelector(`${selector}[data-capture-ready="true"]`, { timeout: CAPTURE_READY_TIMEOUT_MS })
 
+    // 캡처 대상의 레이아웃이 준비됐어도 웹폰트는 아직 로딩 중일 수 있다. 정기 발송처럼
+    // 렌더러가 막 재시작된 직후에는 fallback 폰트 폭으로 말줄임이 계산되어 텍스트가 잘릴 수 있다.
+    // 현재 페이지에서 사용 중인 폰트 로딩과 두 프레임의 재배치를 기다린 뒤 캡처한다.
+    await page.evaluate(async () => {
+      await document.fonts.ready
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    })
+
     const sections = await page.$$(selector)
     const images = []
     for (let i = 0; i < sections.length; i++) {
