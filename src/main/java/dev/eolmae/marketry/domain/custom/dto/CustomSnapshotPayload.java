@@ -4,6 +4,7 @@ import dev.eolmae.marketry.domain.custom.enums.ColorLabel;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public record CustomSnapshotPayload(
         int snapshotVersion,
@@ -14,7 +15,7 @@ public record CustomSnapshotPayload(
         List<ValueTierThreshold> valueTierThresholds,
         Map<String, Object> preferences) {
 
-    public record Sector(Long id, Long parentId, String name, int depth, boolean excluded) {}
+    public record Sector(Long id, Long parentId, String name, int depth, boolean excluded, UUID stableKey) {}
 
     public record StockAssignment(String stockCode, Long sectorId) {}
 

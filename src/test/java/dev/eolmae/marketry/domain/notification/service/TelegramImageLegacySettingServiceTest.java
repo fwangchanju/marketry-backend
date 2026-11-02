@@ -13,8 +13,8 @@ import dev.eolmae.marketry.domain.custom.repository.UserPreferenceRepository;
 import dev.eolmae.marketry.domain.custom.service.CustomValueTierThresholdService;
 import dev.eolmae.marketry.domain.notification.properties.MarketryProperties;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -28,10 +28,12 @@ class TelegramImageLegacySettingServiceTest {
     @Test
     void 렌더러_소유자_설정과_발행된_업종_제외_경로를_읽는다() {
         UserPreference owner = UserPreference.createEmpty(7L);
-        owner.overwrite("{\"heatmap.boxSizeMarketCapRatio\":45}");
+        UUID stableKey = UUID.fromString("b8993daa-26f1-4c1d-b09c-a2b03b2d4709");
+        owner.overwrite("{\"heatmap.boxSizeMarketCapRatio\":45,\"heatmap.profile.marketry.sectorFilterEnabled\":false,"
+                + "\"heatmap.profile.marketry.excludedSectorKeys\":[\"" + stableKey + "\"]}");
         CustomSector parent = CustomSector.createParent(8L, "금융");
         ReflectionTestUtils.setField(parent, "id", 10L);
-        CustomSector child = CustomSector.createChild(8L, "지주", parent);
+        CustomSector child = CustomSector.createChild(8L, "지주", parent, stableKey);
         ReflectionTestUtils.setField(child, "id", 11L);
         child.exclude();
         when(preferences.findById(7L)).thenReturn(Optional.of(owner));
@@ -40,8 +42,11 @@ class TelegramImageLegacySettingServiceTest {
 
         TelegramImageLegacySettingService.Response response = service.find();
 
-        assertThat(response.preferences()).isEqualTo(Map.of("heatmap.boxSizeMarketCapRatio", 45));
-        assertThat(response.excludedSectors()).containsExactly(List.of(11L, "금융 > 지주"));
+        assertThat(response.preferences())
+                .containsEntry("heatmap.boxSizeMarketCapRatio", 45)
+                .containsEntry("heatmap.sectorFilterEnabled", false)
+                .containsEntry("heatmap.excludedSectorKeys", List.of(stableKey.toString()));
+        assertThat(response.excludedSectors()).containsExactly(List.of(stableKey.toString(), "금융 > 지주"));
         assertThat(response.tiers()).extracting(CustomValueTierItem::label).containsExactly("대형주");
     }
 }

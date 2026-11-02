@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.Getter;
 
 @Table(name = "custom_sector")
@@ -28,6 +29,9 @@ public class CustomSector {
 
     @Column(name = "snapshot_id")
     private Long snapshotId;
+
+    @Column(name = "stable_key", nullable = false, updatable = false)
+    private UUID stableKey;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
@@ -65,9 +69,14 @@ public class CustomSector {
     }
 
     public static CustomSector createParent(Long userId, String name) {
+        return createParent(userId, name, UUID.randomUUID());
+    }
+
+    public static CustomSector createParent(Long userId, String name, UUID stableKey) {
         var entity = new CustomSector();
         entity.userId = userId;
         entity.name = name;
+        entity.stableKey = stableKey == null ? UUID.randomUUID() : stableKey;
         entity.parentId = null;
         entity.depth = 0;
         entity.isExcluded = false;
@@ -78,9 +87,14 @@ public class CustomSector {
     }
 
     public static CustomSector createChild(Long userId, String name, CustomSector parent) {
+        return createChild(userId, name, parent, UUID.randomUUID());
+    }
+
+    public static CustomSector createChild(Long userId, String name, CustomSector parent, UUID stableKey) {
         var entity = new CustomSector();
         entity.userId = userId;
         entity.name = name;
+        entity.stableKey = stableKey == null ? UUID.randomUUID() : stableKey;
         entity.parentId = parent.id;
         entity.depth = parent.depth + 1;
         entity.isExcluded = false;

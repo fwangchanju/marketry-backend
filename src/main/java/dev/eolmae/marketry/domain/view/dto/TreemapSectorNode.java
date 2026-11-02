@@ -9,11 +9,22 @@ public record TreemapSectorNode(
         boolean isExcluded,
         BigDecimal totalMarketValue,
         List<TreemapSectorNode> children,
-        List<TreemapItem> items) {
+        List<TreemapItem> items,
+        String stableKey) {
+
+    public TreemapSectorNode(
+            Long sectorId,
+            String sectorName,
+            boolean isExcluded,
+            BigDecimal totalMarketValue,
+            List<TreemapSectorNode> children,
+            List<TreemapItem> items) {
+        this(sectorId, sectorName, isExcluded, totalMarketValue, children, items, null);
+    }
 
     // 기본 마켓맵 노드용 — exclude 대상 아님, 변화율 미계산, 자식 없음(1뎁스).
     public static TreemapSectorNode leaf(
             Long sectorId, String sectorName, BigDecimal totalMarketValue, List<TreemapItem> items) {
-        return new TreemapSectorNode(sectorId, sectorName, false, totalMarketValue, List.of(), items);
+        return new TreemapSectorNode(sectorId, sectorName, false, totalMarketValue, List.of(), items, null);
     }
 }

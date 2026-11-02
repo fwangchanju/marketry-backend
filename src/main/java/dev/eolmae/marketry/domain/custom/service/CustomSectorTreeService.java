@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CustomSectorTreeService {
 
-    private static final int SNAPSHOT_VERSION = 2;
+    private static final int SNAPSHOT_VERSION = 3;
+    private static final int LEGACY_SNAPSHOT_VERSION = 2;
 
     private final CustomSectorRepository customSectorRepository;
     private final CustomStockSectorRepository customStockSectorRepository;
@@ -54,7 +56,12 @@ public class CustomSectorTreeService {
         List<CustomSnapshotPayload.Sector> sectors = customSectorRepository.findAllByUserId(userId).stream()
                 .sorted(java.util.Comparator.comparing(CustomSector::getId))
                 .map(sector -> new CustomSnapshotPayload.Sector(
-                        sector.getId(), sector.getParentId(), sector.getName(), sector.getDepth(), sector.isExcluded()))
+                        sector.getId(),
+                        sector.getParentId(),
+                        sector.getName(),
+                        sector.getDepth(),
+                        sector.isExcluded(),
+                        sector.getStableKey()))
                 .toList();
         List<CustomSnapshotPayload.StockAssignment> assignments =
                 customStockSectorRepository.findAllByIdUserId(userId).stream()
@@ -91,7 +98,7 @@ public class CustomSectorTreeService {
             if (root == null
                     || !root.isObject()
                     || !root.has("snapshotVersion")
-                    || root.path("snapshotVersion").asInt() != SNAPSHOT_VERSION) {
+                    || !isSupportedSnapshotVersion(root.path("snapshotVersion").asInt())) {
                 throw new BadRequestException(ErrorCode.SNAPSHOT_FORMAT_UNSUPPORTED);
             }
             return objectMapper.readValue(snapshotJson, new TypeReference<>() {});
@@ -107,7 +114,7 @@ public class CustomSectorTreeService {
             JsonNode root = objectMapper.readTree(snapshotJson);
             return root != null
                     && root.isObject()
-                    && root.path("snapshotVersion").asInt() == SNAPSHOT_VERSION;
+                    && isSupportedSnapshotVersion(root.path("snapshotVersion").asInt());
         } catch (JsonProcessingException e) {
             return false;
         }
@@ -166,9 +173,10 @@ public class CustomSectorTreeService {
                 throw new BadRequestException(ErrorCode.SECTOR_TREE_PARSE_FAILED);
             }
             for (CustomSnapshotPayload.Sector sector : ready) {
+                UUID stableKey = sector.stableKey() == null ? UUID.randomUUID() : sector.stableKey();
                 CustomSector entity = sector.parentId() == null
-                        ? CustomSector.createParent(userId, sector.name())
-                        : CustomSector.createChild(userId, sector.name(), restored.get(sector.parentId()));
+                        ? CustomSector.createParent(userId, sector.name(), stableKey)
+                        : CustomSector.createChild(userId, sector.name(), restored.get(sector.parentId()), stableKey);
                 if (sector.excluded()) {
                     entity.exclude();
                 }
@@ -178,6 +186,10 @@ public class CustomSectorTreeService {
             }
         }
         return restored;
+    }
+
+    private static boolean isSupportedSnapshotVersion(int version) {
+        return version == SNAPSHOT_VERSION || version == LEGACY_SNAPSHOT_VERSION;
     }
 
     private void validateSnapshot(CustomSnapshotPayload snapshot) {
