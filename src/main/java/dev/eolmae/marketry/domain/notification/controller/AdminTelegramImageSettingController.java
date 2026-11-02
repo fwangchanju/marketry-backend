@@ -1,5 +1,6 @@
 package dev.eolmae.marketry.domain.notification.controller;
 
+import dev.eolmae.marketry.domain.notification.service.TelegramImageLegacySettingService;
 import dev.eolmae.marketry.domain.notification.service.TelegramImageSettingService;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminTelegramImageSettingController {
     private final TelegramImageSettingService service;
+    private final TelegramImageLegacySettingService legacyService;
+
+    @GetMapping("/legacy")
+    public ResponseEntity<TelegramImageLegacySettingService.Response> legacy() {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(legacyService.find());
+    }
 
     @GetMapping
     public ResponseEntity<TelegramImageSettingService.Response> find() {
