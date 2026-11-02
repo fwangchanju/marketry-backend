@@ -30,21 +30,22 @@ public class TelegramImageLegacySettingService {
             "heatmap.tierRangeMaxIndex",
             "heatmap.tierRangeMinValue",
             "heatmap.tierRangeMaxValue",
-            "heatmap.sectorFilterEnabled",
-            "heatmap.sectorLevelEnabled",
-            "heatmap.selectedMaxDepth",
-            "heatmap.activeDepthMetric",
-            "heatmap.depthMetricEnabled",
-            "heatmap.depthMetricMinIndex",
-            "heatmap.depthMetricMaxIndex",
+            "heatmap.profile.marketry.sectorFilterEnabled",
+            "heatmap.profile.marketry.sectorLevelEnabled",
+            "heatmap.profile.marketry.selectedMaxDepth",
+            "heatmap.profile.marketry.activeDepthMetric",
+            "heatmap.profile.marketry.depthMetricEnabled",
+            "heatmap.profile.marketry.depthMetricMinIndex",
+            "heatmap.profile.marketry.depthMetricMaxIndex",
             "heatmap.boxSizeMarketCapRatio",
             "heatmap.stockLabelModeIndex",
             "heatmap.stockLabelEnabled",
             "heatmap.decimalPlacesIndex",
             "heatmap.strongIndustryColor",
-            "heatmap.topPickDepth",
-            "heatmap.topPickCount",
-            "heatmap.topPickEnabled");
+            "heatmap.profile.marketry.topPickDepth",
+            "heatmap.profile.marketry.topPickCount",
+            "heatmap.profile.marketry.topPickEnabled",
+            "heatmap.profile.marketry.excludedSectorKeys");
     private final UserPreferenceRepository preferences;
     private final CustomSectorRepository sectors;
     private final CustomValueTierThresholdService tiers;
@@ -67,8 +68,16 @@ public class TelegramImageLegacySettingService {
         List<CustomSector> all = publishedId == null ? List.of() : sectors.findAllByUserId(publishedId);
         Map<Long, CustomSector> byId = new HashMap<>();
         all.forEach(sector -> byId.put(sector.getId(), sector));
+        Object configuredKeys = stored.get("heatmap.profile.marketry.excludedSectorKeys");
+        Set<String> excludedKeys = configuredKeys instanceof List<?> list
+                ? list.stream()
+                        .filter(String.class::isInstance)
+                        .map(String.class::cast)
+                        .collect(java.util.stream.Collectors.toSet())
+                : Set.of();
         List<List<Object>> excluded = all.stream()
-                .filter(CustomSector::isExcluded)
+                .filter(sector -> excludedKeys.contains(sector.getStableKey().toString())
+                        || (!(configuredKeys instanceof List<?>) && sector.isExcluded()))
                 .map(sector -> {
                     List<String> names = new ArrayList<>();
                     CustomSector current = sector;
@@ -77,14 +86,19 @@ public class TelegramImageLegacySettingService {
                         current = byId.get(current.getParentId());
                     }
                     Collections.reverse(names);
-                    return List.<Object>of(sector.getId(), String.join(" > ", names));
+                    return List.<Object>of(sector.getStableKey().toString(), String.join(" > ", names));
                 })
                 .toList();
         List<CustomValueTierItem> ownerTiers =
                 ownerId == null ? tiers.getDefaultValueTiers() : tiers.getValueTiers(ownerId);
         Map<String, Object> imagePreferences = new HashMap<>();
         IMAGE_KEYS.forEach(key -> {
-            if (stored.containsKey(key)) imagePreferences.put(key, stored.get(key));
+            if (stored.containsKey(key))
+                imagePreferences.put(
+                        key.startsWith("heatmap.profile.marketry.")
+                                ? "heatmap." + key.substring("heatmap.profile.marketry.".length())
+                                : key,
+                        stored.get(key));
         });
         return new Response(imagePreferences, excluded, ownerTiers);
     }

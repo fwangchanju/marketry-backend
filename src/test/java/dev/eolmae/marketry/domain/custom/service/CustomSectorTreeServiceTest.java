@@ -84,7 +84,8 @@ class CustomSectorTreeServiceTest {
         String json = service.serializeCurrentSnapshot(USER_ID);
         CustomSnapshotPayload snapshot = objectMapper.readValue(json, CustomSnapshotPayload.class);
 
-        assertThat(snapshot.snapshotVersion()).isEqualTo(2);
+        assertThat(snapshot.snapshotVersion()).isEqualTo(3);
+        assertThat(snapshot.sectors().getFirst().stableKey()).isNotNull();
         assertThat(snapshot.sectors())
                 .extracting(CustomSnapshotPayload.Sector::id, CustomSnapshotPayload.Sector::parentId)
                 .containsExactly(
@@ -100,10 +101,12 @@ class CustomSectorTreeServiceTest {
     }
 
     @Test
-    void old_snapshot_버전은_현재_형식으로_인정하지_않고_복원도_거부한다() {
+    void 버전1_snapshot은_복원할_수_없고_버전2는_호환한다() {
         String legacySnapshot = "{\"snapshotVersion\":1,\"sectors\":[]}";
 
         assertThat(service.isCurrentSnapshotFormat(legacySnapshot)).isFalse();
+        assertThat(service.isCurrentSnapshotFormat("{\"snapshotVersion\":2,\"sectors\":[]}"))
+                .isTrue();
         assertThatThrownBy(() -> service.parseSnapshot(legacySnapshot)).isInstanceOf(BadRequestException.class);
     }
 
@@ -111,7 +114,7 @@ class CustomSectorTreeServiceTest {
     void restore_섹터_삭제를_flush한_뒤에_섹터를_저장한다() throws Exception {
         CustomSnapshotPayload snapshot = new CustomSnapshotPayload(
                 2,
-                List.of(new CustomSnapshotPayload.Sector(10L, null, "산업", 0, false)),
+                List.of(new CustomSnapshotPayload.Sector(10L, null, "산업", 0, false, null)),
                 List.of(),
                 List.of(),
                 List.of(),

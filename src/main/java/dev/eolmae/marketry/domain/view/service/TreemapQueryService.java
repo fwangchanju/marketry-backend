@@ -528,7 +528,8 @@ public class TreemapQueryService {
                         node.isExcluded(),
                         node.totalMarketValue(),
                         withoutExcludedSectors(node.children()),
-                        node.items()))
+                        node.items(),
+                        node.stableKey()))
                 .toList();
     }
 
@@ -814,7 +815,13 @@ public class TreemapQueryService {
         BigDecimal childrenValue =
                 children.stream().map(TreemapSectorNode::totalMarketValue).reduce(BigDecimal.ZERO, BigDecimal::add);
         return new TreemapSectorNode(
-                sector.getId(), sector.getName(), sector.isExcluded(), itemsValue.add(childrenValue), children, items);
+                sector.getId(),
+                sector.getName(),
+                sector.isExcluded(),
+                itemsValue.add(childrenValue),
+                children,
+                items,
+                sector.getStableKey().toString());
     }
 
     /**
