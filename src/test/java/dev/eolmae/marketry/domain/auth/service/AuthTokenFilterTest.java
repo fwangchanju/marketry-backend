@@ -43,7 +43,7 @@ class AuthTokenFilterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/custom/preferences", "/api/auth/session"})
+    @ValueSource(strings = {"/api/custom/preferences", "/api/map/telegram-image-setting", "/api/auth/session"})
     void validCaptureTokenAuthenticatesGetRequestsAsAReadOnlyUser(String path) throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
                 .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER));
@@ -88,6 +88,7 @@ class AuthTokenFilterTest {
     @ValueSource(
             strings = {
                 "/api/admin/watch-stocks",
+                "/api/admin/telegram-image-setting",
             })
     void captureTokenRejectsAdminRoutes(String path) throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
