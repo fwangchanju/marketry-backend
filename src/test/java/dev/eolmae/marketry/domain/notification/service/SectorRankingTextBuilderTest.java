@@ -79,7 +79,17 @@ class SectorRankingTextBuilderTest {
 
         String text = builder.buildMapCaption(topSectors);
 
-        assertThat(text).isEqualTo("반도체 +1.35%\n제약 +1.20%");
+        assertThat(text).isEqualTo("반도체 +1.4%\n제약 +1.2%");
+    }
+
+    @Test
+    void buildMapCaption_반올림해도_작은_등락의_방향을_표시한다() {
+        List<TopSectorItem> topSectors = List.of(
+                new TopSectorItem("상승", new BigDecimal("0.04")),
+                new TopSectorItem("보합", BigDecimal.ZERO),
+                new TopSectorItem("하락", new BigDecimal("-0.04")));
+
+        assertThat(builder.buildMapCaption(topSectors)).isEqualTo("상승 +0.0%\n보합 0.0%\n하락 -0.0%");
     }
 
     @Test

@@ -81,7 +81,10 @@ public class SectorRankingTextBuilder {
 
     // 등락률(now) 기준일 때는 단위가 %다 — formatTopSectorDelta와 값의 의미 자체가 다르다.
     private String formatTopSectorChangeRate(TopSectorItem top) {
-        return top.sectorName() + " " + formatPercent(top.changeRate());
+        BigDecimal value = top.changeRate();
+        BigDecimal rounded = value.setScale(1, RoundingMode.HALF_UP);
+        String sign = value.signum() > 0 ? "+" : value.signum() < 0 && rounded.signum() == 0 ? "-" : "";
+        return top.sectorName() + " " + sign + rounded.toPlainString() + "%";
     }
 
     private String buildHeader(Market market, BigDecimal indexChangeRate) {
