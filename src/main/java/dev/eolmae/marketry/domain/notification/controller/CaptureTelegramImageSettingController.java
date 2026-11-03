@@ -20,7 +20,7 @@ public class CaptureTelegramImageSettingController {
     @GetMapping
     public ResponseEntity<TelegramImageSettingService.Response> find(
             @RequestHeader(value = "X-Capture-Token", required = false) String token) {
-        var legacy = token == null ? null : service.find();
+        var legacy = token == null ? null : service.findForCapture();
         TelegramImageSettingService.Response response = token == null || legacy == null
                 ? new TelegramImageSettingService.Response(null, null)
                 : new TelegramImageSettingService.Response(
