@@ -8,6 +8,7 @@ import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.domain.custom.dto.CustomValueTierItem;
 import dev.eolmae.marketry.domain.custom.entity.CustomSector;
 import dev.eolmae.marketry.domain.custom.repository.CustomSectorRepository;
+import dev.eolmae.marketry.domain.custom.repository.DefaultPreferenceRepository;
 import dev.eolmae.marketry.domain.custom.repository.UserPreferenceRepository;
 import dev.eolmae.marketry.domain.custom.service.CustomValueTierThresholdService;
 import dev.eolmae.marketry.domain.notification.properties.MarketryProperties;
@@ -30,6 +31,10 @@ public class TelegramImageLegacySettingService {
             "heatmap.tierRangeMaxIndex",
             "heatmap.tierRangeMinValue",
             "heatmap.tierRangeMaxValue",
+            "heatmap.profile.marketry.tierRangeMinIndex",
+            "heatmap.profile.marketry.tierRangeMaxIndex",
+            "heatmap.profile.marketry.tierRangeMinValue",
+            "heatmap.profile.marketry.tierRangeMaxValue",
             "heatmap.profile.marketry.sectorFilterEnabled",
             "heatmap.profile.marketry.sectorLevelEnabled",
             "heatmap.profile.marketry.selectedMaxDepth",
@@ -38,15 +43,21 @@ public class TelegramImageLegacySettingService {
             "heatmap.profile.marketry.depthMetricMinIndex",
             "heatmap.profile.marketry.depthMetricMaxIndex",
             "heatmap.boxSizeMarketCapRatio",
+            "heatmap.profile.marketry.boxSizeMarketCapRatio",
             "heatmap.stockLabelModeIndex",
+            "heatmap.profile.marketry.stockLabelModeIndex",
             "heatmap.stockLabelEnabled",
+            "heatmap.profile.marketry.stockLabelEnabled",
             "heatmap.decimalPlacesIndex",
+            "heatmap.profile.marketry.decimalPlacesIndex",
             "heatmap.strongIndustryColor",
+            "heatmap.profile.marketry.strongIndustryColor",
             "heatmap.profile.marketry.topPickDepth",
             "heatmap.profile.marketry.topPickCount",
             "heatmap.profile.marketry.topPickEnabled",
             "heatmap.profile.marketry.excludedSectorKeys");
     private final UserPreferenceRepository preferences;
+    private final DefaultPreferenceRepository defaultPreferences;
     private final CustomSectorRepository sectors;
     private final CustomValueTierThresholdService tiers;
     private final MarketryProperties properties;
@@ -57,18 +68,39 @@ public class TelegramImageLegacySettingService {
 
     @Transactional(readOnly = true)
     public Response find() {
+        return find(false);
+    }
+
+    /** 텔레그램 렌더러에는 소유자 개인값을 섞지 않고 MARKETRY 기본값만 제공한다. */
+    @Transactional(readOnly = true)
+    public Response findForCapture() {
+        return find(true);
+    }
+
+    private Response find(boolean useDefaults) {
         Long ownerId = properties.ownerUserId();
         Long publishedId = properties.publishedUserId();
-        Map<String, Object> stored = ownerId == null
+        Map<String, Object> stored = useDefaults || ownerId == null
                 ? Map.of()
                 : preferences
                         .findById(ownerId)
                         .map(preference -> parse(preference.getPayload()))
                         .orElseGet(Map::of);
+        Map<String, Object> defaultPayload = useDefaults
+                ? defaultPreferences
+                        .findById(1L)
+                        .map(preference -> parse(preference.getPayload()))
+                        .orElseGet(Map::of)
+                : Map.of();
+        Map<String, Object> marketryDefaults = defaultPayload.get("marketry") instanceof Map<?, ?> map
+                ? objectMapper.convertValue(map, new TypeReference<>() {})
+                : Map.of();
         List<CustomSector> all = publishedId == null ? List.of() : sectors.findAllByUserId(publishedId);
         Map<Long, CustomSector> byId = new HashMap<>();
         all.forEach(sector -> byId.put(sector.getId(), sector));
-        Object configuredKeys = stored.get("heatmap.profile.marketry.excludedSectorKeys");
+        Object configuredKeys = useDefaults
+                ? marketryDefaults.get("excludedSectorKeys")
+                : stored.get("heatmap.profile.marketry.excludedSectorKeys");
         Set<String> excludedKeys = configuredKeys instanceof List<?> list
                 ? list.stream()
                         .filter(String.class::isInstance)
@@ -92,14 +124,22 @@ public class TelegramImageLegacySettingService {
         List<CustomValueTierItem> ownerTiers =
                 ownerId == null ? tiers.getDefaultValueTiers() : tiers.getValueTiers(ownerId);
         Map<String, Object> imagePreferences = new HashMap<>();
-        IMAGE_KEYS.forEach(key -> {
-            if (stored.containsKey(key))
-                imagePreferences.put(
-                        key.startsWith("heatmap.profile.marketry.")
-                                ? "heatmap." + key.substring("heatmap.profile.marketry.".length())
-                                : key,
-                        stored.get(key));
-        });
+        if (useDefaults) {
+            marketryDefaults.forEach((key, value) -> {
+                String profileKey = "heatmap.profile.marketry." + key;
+                if (!IMAGE_KEYS.contains(profileKey) || "excludedSectorKeys".equals(key)) return;
+                imagePreferences.put("heatmap." + key, value);
+            });
+        } else {
+            IMAGE_KEYS.forEach(key -> {
+                if (stored.containsKey(key))
+                    imagePreferences.put(
+                            key.startsWith("heatmap.profile.marketry.")
+                                    ? "heatmap." + key.substring("heatmap.profile.marketry.".length())
+                                    : key,
+                            stored.get(key));
+            });
+        }
         return new Response(imagePreferences, excluded, ownerTiers);
     }
 

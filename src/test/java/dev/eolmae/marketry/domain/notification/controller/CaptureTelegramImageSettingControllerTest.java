@@ -17,14 +17,14 @@ class CaptureTelegramImageSettingControllerTest {
     @Test
     void 일반_화면에는_발송_설정이_노출되지_않는다() {
         assertThat(controller.find(null).getBody().values()).isNull();
-        verify(service, never()).find();
+        verify(service, never()).findForCapture();
     }
 
     @Test
     void 검증된_캡처_토큰_요청은_저장값을_받는다() {
         TelegramImageLegacySettingService.Response setting = new TelegramImageLegacySettingService.Response(
                 Map.of("heatmap.boxSizeMarketCapRatio", 70), java.util.List.of(), java.util.List.of());
-        when(service.find()).thenReturn(setting);
+        when(service.findForCapture()).thenReturn(setting);
         assertThat(controller.find("capture-token").getBody().values())
                 .isEqualTo(Map.of("preferences", setting.preferences(), "excludedSectors", setting.excludedSectors()));
     }
