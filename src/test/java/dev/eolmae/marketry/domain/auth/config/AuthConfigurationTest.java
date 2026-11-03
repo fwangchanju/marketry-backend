@@ -178,6 +178,28 @@ class AuthConfigurationTest {
         }
     }
 
+    @Test
+    void 기본값은_누구나_조회할_수_있고_저장은_관리자만_허용한다() throws Exception {
+        try (AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
+            FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
+            AppJwtService appJwtService = context.getBean(AppJwtService.class);
+            String userToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(1L, Role.USER));
+            String adminToken = appJwtService.issueAccessToken(new AuthenticatedUserPrincipal(2L, Role.ADMIN));
+
+            assertThat(statusOf(filterChainProxy, "GET", "/api/default-preferences", null))
+                    .isEqualTo(200);
+            assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/default-preferences", userToken))
+                    .isEqualTo(200);
+            assertThat(statusOfWithToken(filterChainProxy, "PUT", "/api/admin/default-preferences", null))
+                    .isEqualTo(401);
+            assertThat(statusOfWithToken(filterChainProxy, "PUT", "/api/admin/default-preferences", userToken))
+                    .isEqualTo(403);
+            assertThat(statusOfWithToken(filterChainProxy, "PUT", "/api/admin/default-preferences", adminToken))
+                    .isEqualTo(200);
+        }
+    }
+
     // 비로그인은 401, 일반 회원은 403, 관리자만 통과(여기서는 뒤 필터가 없어 200)해야 한다.
     private void assertOnlyAdminAllowed(String method, String path) throws Exception {
         try (AnnotationConfigApplicationContext context =
