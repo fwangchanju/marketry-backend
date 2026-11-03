@@ -23,7 +23,13 @@ class AdminApiLocationTest {
     // 일반 회원·비로그인에게 열려 있다고 확인한 주소 묶음이다. 새 컨트롤러가 여기에 없으면 이 테스트가 실패한다 —
     // 관리자용이면 /api/admin/ 아래로 옮기고, 일반 공개용이면 보안 규칙(AuthConfiguration)을 확인한 뒤 여기에 추가한다.
     private static final Set<String> KNOWN_NON_ADMIN_PREFIXES = Set.of(
-            "/api/auth", "/api/profile", "/api/map", "/api/custom", "/api/banners", "/api/metrics/client-events");
+            "/api/auth",
+            "/api/profile",
+            "/api/map",
+            "/api/custom",
+            "/api/banners",
+            "/api/default-preferences",
+            "/api/metrics/client-events");
 
     // 시세·요약 조회처럼 /api 바로 아래에 개별 주소를 두는 컨트롤러는 "/api" 그대로일 때만 인정한다(/api/xxx로 시작한다고 모두 통과시키지 않는다).
     private static final String ROOT_API = "/api";
