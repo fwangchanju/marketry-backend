@@ -115,6 +115,23 @@ async function handleCapture(path, selector, token, rowSelector) {
   const page = await acquirePage()
 
   try {
+    const captureUrl = new URL(path, 'http://localhost')
+    const useSharedMapCapture = selector === SHARED_MAP_CAPTURE_SELECTOR
+      && captureUrl.pathname.startsWith('/map/')
+      && captureUrl.searchParams.get('capture') === 'mobile'
+
+    // 앱의 모바일 캡처는 Chrome 기기 배율 2에서 DOM을 래스터화한다.
+    // Telegram 렌더러도 같은 기기 배율로 그리되, CSS viewport와 프론트의 2560px 출력 scale은 유지한다.
+    if (useSharedMapCapture) {
+      const cdp = await page.context().newCDPSession(page)
+      await cdp.send('Emulation.setDeviceMetricsOverride', {
+        width: 1920,
+        height: 1080,
+        deviceScaleFactor: 2,
+        mobile: false,
+      })
+    }
+
     if (CAPTURE_USER && CAPTURE_PASS) {
       const credentials = Buffer.from(`${CAPTURE_USER}:${CAPTURE_PASS}`).toString('base64')
       await page.setExtraHTTPHeaders({ Authorization: `Basic ${credentials}` })
@@ -144,10 +161,6 @@ async function handleCapture(path, selector, token, rowSelector) {
     for (let i = 0; i < sections.length; i++) {
       // 설정창 이동 버튼이 본문 경계에 걸쳐 있어 캡처 순간에는 설정창 전체를 숨긴다.
       let buffer
-      const captureUrl = new URL(path, 'http://localhost')
-      const useSharedMapCapture = selector === SHARED_MAP_CAPTURE_SELECTOR
-        && captureUrl.pathname.startsWith('/map/')
-        && captureUrl.searchParams.get('capture') === 'mobile'
       if (useSharedMapCapture) {
         await page.waitForFunction(() => typeof window.marketryCaptureMap === 'function', null, { timeout: CAPTURE_READY_TIMEOUT_MS })
         const dataUrl = await page.evaluate(() => window.marketryCaptureMap())
