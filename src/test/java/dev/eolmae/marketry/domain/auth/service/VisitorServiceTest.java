@@ -15,7 +15,12 @@ import dev.eolmae.marketry.domain.auth.properties.AuthProperties;
 import dev.eolmae.marketry.domain.auth.repository.VisitorDailyRepository;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource;
+import org.springframework.transaction.interceptor.TransactionInterceptor;
 
 class VisitorServiceTest {
 
@@ -37,6 +42,26 @@ class VisitorServiceTest {
             request.addHeader("User-Agent", userAgent);
         }
         return request;
+    }
+
+    @Test
+    void 방문_기록_정리는_트랜잭션에서_실행한다() {
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+        TransactionStatus status = mock(TransactionStatus.class);
+        org.mockito.Mockito.when(transactionManager.getTransaction(any())).thenReturn(status);
+        ProxyFactory factory = new ProxyFactory(service);
+        TransactionInterceptor interceptor = new TransactionInterceptor();
+        interceptor.setTransactionManager(transactionManager);
+        interceptor.setTransactionAttributeSource(new AnnotationTransactionAttributeSource());
+        factory.addAdvice(interceptor);
+        VisitorService transactionalService = (VisitorService) factory.getProxy();
+
+        transactionalService.purgeOlderThan(180);
+
+        var order = org.mockito.Mockito.inOrder(transactionManager, repository);
+        order.verify(transactionManager).getTransaction(any());
+        order.verify(repository).deleteVisitedBefore(any());
+        order.verify(transactionManager).commit(status);
     }
 
     @Test
