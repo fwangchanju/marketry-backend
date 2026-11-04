@@ -210,6 +210,17 @@ class OverseasClassificationCategoryServiceTest {
     }
 
     @Test
+    void 다른_상위_분류나_다른_단계에_있는_이름도_쓸_수_없다() {
+        var retail = category(1, null, "경기 소비재");
+        var retailMiddle = category(2, 1L, "소매");
+        var staples = category(3, null, "필수 소비재");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(retail, retailMiddle, staples));
+        assertThatThrownBy(() -> service.create("JAPAN", 3L, "소매")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.create("JAPAN", 1L, "필수 소비재")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.rename("JAPAN", 3, "소매")).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
     void 국내_전용_보호_이름은_쓸_수_없다() {
         assertThatThrownBy(() -> service.create("JAPAN", null, "신규 상장")).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> service.rename("JAPAN", 1, " 거래 정지 ")).isInstanceOf(BadRequestException.class);
