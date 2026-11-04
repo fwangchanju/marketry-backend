@@ -42,7 +42,7 @@ public class OverseasClassificationCategoryService {
             OverseasClassificationCategory parent = find(all, parentId);
             if (isUnclassified(parent) || path(all, parent).size() > MAX_DEPTH) invalid();
         }
-        ensureUnique(all, parentId, normalized, null);
+        ensureUnique(all, normalized, null);
         OverseasClassificationCategory category =
                 categories.save(OverseasClassificationCategory.create(market, parentId, normalized));
         return new Category(category.getId(), category.getParentId(), category.getName());
@@ -54,7 +54,7 @@ public class OverseasClassificationCategoryService {
         String normalized = normalizeName(name);
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
-        ensureUnique(all, category.getParentId(), normalized, id);
+        ensureUnique(all, normalized, id);
         if (isUnclassified(category)) invalid();
         List<String> path = path(all, category);
         for (OverseasStockClassification stock : stocks.findAllByIdMarket(market)) {
@@ -79,7 +79,6 @@ public class OverseasClassificationCategoryService {
                 && (isUnclassified(target)
                         || isSelfOrDescendant(all, target, id)
                         || targetPath.size() + height(all, id) > MAX_DEPTH)) invalid();
-        ensureUnique(all, parentId, category.getName(), id);
         List<String> path = path(all, category);
         for (OverseasStockClassification stock : stocks.findAllByIdMarket(market)) {
             if (!isUnder(stock, path)) continue;
@@ -182,11 +181,12 @@ public class OverseasClassificationCategoryService {
                 .orElseThrow(() -> new BadRequestException(ErrorCode.INVALID_INPUT));
     }
 
-    private void ensureUnique(List<OverseasClassificationCategory> all, Long parent, String name, Long excludedId) {
+    // 지도가 분류를 이름으로 찾으므로 이름은 단계와 상위 분류에 상관없이 시장 안에서 하나뿐이어야 한다.
+    private void ensureUnique(List<OverseasClassificationCategory> all, String name, Long excludedId) {
         if (all.stream()
-                .anyMatch(category -> Objects.equals(category.getParentId(), parent)
-                        && category.getName().equalsIgnoreCase(name)
-                        && !Objects.equals(category.getId(), excludedId))) invalid();
+                .anyMatch(category ->
+                        category.getName().equalsIgnoreCase(name) && !Objects.equals(category.getId(), excludedId)))
+            invalid();
     }
 
     private String normalizeName(String name) {
