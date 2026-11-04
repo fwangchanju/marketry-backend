@@ -1,81 +1,52 @@
 package dev.eolmae.marketry.domain.notification.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 import dev.eolmae.marketry.common.event.EscalationEvent;
 import dev.eolmae.marketry.common.exception.ErrorCode;
 import dev.eolmae.marketry.common.exception.EscalateException;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
 
 class EscalationPublisherTest {
-
-    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
-    private final EscalationPublisher publisher = new EscalationPublisher(eventPublisher);
-    private static final LocalDate TODAY = LocalDate.of(2026, 10, 29);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
+    private final EscalationPublisher publisher = new EscalationPublisher(events);
+    private static final LocalDateTime FIRST = LocalDateTime.of(2026, 11, 4, 8, 10);
 
     @Test
-    void 같은_오류는_세_번까지_알리고_세_번째에만_채널_메시지를_만든다() {
-        EscalateException failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
-
-        publisher.report(failure, TODAY);
-        publisher.report(failure, TODAY);
-        publisher.report(failure, TODAY);
-        publisher.report(failure, TODAY);
-
-        ArgumentCaptor<EscalationEvent> eventCaptor = ArgumentCaptor.forClass(EscalationEvent.class);
-        verify(eventPublisher, times(3)).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getAllValues().get(0).message())
-                .contains("[SCREENSHOT_CAPTURE_FAILED]", "1회차")
-                .doesNotContain("오류 알림 중단");
-        assertThat(eventCaptor.getAllValues().get(0).channelMessage()).isNull();
-        assertThat(eventCaptor.getAllValues().get(1).message()).contains("2회차");
-        assertThat(eventCaptor.getAllValues().get(1).channelMessage()).isNull();
-        assertThat(eventCaptor.getAllValues().get(2).message()).contains("3회차", "같은 오류 3회차 발생으로 오류 알림 중단");
-        assertThat(eventCaptor.getAllValues().get(2).channelMessage()).isEqualTo("⚠️ 스크린샷 캡처 실패. 3회차.\n봇 메시지 확인할 것.");
+    void 봇은_매번_받고_채널은_하루_세번째에_시각과_함께_한번_받는다() {
+        var failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+        publisher.report(failure, FIRST);
+        publisher.resolve("map-capture");
+        publisher.report(
+                new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED, new RuntimeException("다른 원인")),
+                FIRST.plusMinutes(10));
+        publisher.report(failure, FIRST.plusMinutes(25));
+        publisher.report(failure, FIRST.plusMinutes(30));
+        var captured = ArgumentCaptor.forClass(EscalationEvent.class);
+        verify(events, times(4)).publishEvent(captured.capture());
+        assertThat(captured.getAllValues())
+                .extracting(EscalationEvent::message)
+                .allSatisfy(message -> assertThat(message).contains("SCREENSHOT_CAPTURE_FAILED"));
+        assertThat(captured.getAllValues().get(2).channelMessage())
+                .isEqualTo("⚠️ 스크린샷 캡처 실패. 오늘 3회 발생.\n발생 시각: 08:10, 08:20, 08:35");
+        assertThat(captured.getAllValues().get(3).channelMessage()).isNull();
     }
 
     @Test
-    void 오류_종류가_다르면_회차를_각각_센다() {
-        publisher.report(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED), TODAY);
-        publisher.report(new EscalateException(ErrorCode.IMAGE_STITCH_FAILED), TODAY);
-
-        ArgumentCaptor<EscalationEvent> eventCaptor = ArgumentCaptor.forClass(EscalationEvent.class);
-        verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getAllValues().get(0).message()).contains("1회차");
-        assertThat(eventCaptor.getAllValues().get(1).message()).contains("1회차");
-    }
-
-    @Test
-    void 날짜가_바뀌면_같은_오류의_회차를_초기화한다() {
-        EscalateException failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
-        publisher.report(failure, TODAY);
-        publisher.report(failure, TODAY.plusDays(1));
-
-        ArgumentCaptor<EscalationEvent> eventCaptor = ArgumentCaptor.forClass(EscalationEvent.class);
-        verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getAllValues())
+    void 오류_종류와_날짜별로_별도_집계한다() {
+        var capture = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+        var stitch = new EscalateException(ErrorCode.IMAGE_STITCH_FAILED);
+        publisher.report(capture, FIRST);
+        publisher.report(stitch, FIRST);
+        publisher.report(capture, FIRST.plusDays(1));
+        var captured = ArgumentCaptor.forClass(EscalationEvent.class);
+        verify(events, times(3)).publishEvent(captured.capture());
+        assertThat(captured.getAllValues())
                 .extracting(EscalationEvent::message)
                 .allSatisfy(message -> assertThat(message).contains("1회차"));
-    }
-
-    @Test
-    void 해당_작업이_성공하면_연속_오류_횟수를_초기화한다() {
-        EscalateException failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
-        publisher.report("map-capture", failure, TODAY);
-        publisher.report("map-capture", failure, TODAY);
-        publisher.resolve("map-capture");
-        publisher.report("map-capture", failure, TODAY);
-
-        ArgumentCaptor<EscalationEvent> eventCaptor = ArgumentCaptor.forClass(EscalationEvent.class);
-        verify(eventPublisher, times(3)).publishEvent(eventCaptor.capture());
-        assertThat(eventCaptor.getAllValues().get(0).message()).contains("1회차");
-        assertThat(eventCaptor.getAllValues().get(1).message()).contains("2회차");
-        assertThat(eventCaptor.getAllValues().get(2).message()).contains("1회차").doesNotContain("3회차");
     }
 }

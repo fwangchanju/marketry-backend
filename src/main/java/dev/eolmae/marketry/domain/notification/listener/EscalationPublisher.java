@@ -7,6 +7,10 @@ import dev.eolmae.marketry.common.event.EscalationEvent;
 import dev.eolmae.marketry.common.exception.EscalateException;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -31,22 +35,19 @@ public class EscalationPublisher {
     private LocalDate occurrenceDate;
 
     public synchronized void report(EscalateException e) {
-        report(e.createLogMessage() + e.getCauseMessage(), e, LocalDate.now(Zone.KST.zoneId()));
+        report(e, LocalDateTime.now(Zone.KST.zoneId()));
     }
 
     public synchronized void report(String source, EscalateException e) {
-        report(source, e, LocalDate.now(Zone.KST.zoneId()));
+        report(e);
     }
 
     public synchronized void resolve(String source) {
-        failureBySource.invalidate(source);
+        // 일일 집계는 성공 후에도 유지한다.
     }
 
-    synchronized void report(EscalateException e, LocalDate today) {
-        report(e.createLogMessage() + e.getCauseMessage(), e, today);
-    }
-
-    synchronized void report(String source, EscalateException e, LocalDate today) {
+    synchronized void report(EscalateException e, LocalDateTime now) {
+        LocalDate today = now.toLocalDate();
         String logMessage = e.createLogMessage();
         log.error(logMessage, e);
 
@@ -55,31 +56,29 @@ public class EscalationPublisher {
             failureBySource.invalidateAll();
         }
 
-        String errorKey = logMessage + e.getCauseMessage();
-        FailureState previousFailure = failureBySource.getIfPresent(source);
-        int occurrence = previousFailure != null && previousFailure.errorKey().equals(errorKey)
-                ? previousFailure.occurrence() + 1
-                : 1;
-        failureBySource.put(source, new FailureState(errorKey, occurrence));
-        if (occurrence > MAX_NOTIFICATIONS_PER_ERROR) {
-            log.warn("[동일 오류 알림 억제] | 오류 코드 : {} | 발생일 : {} | source : {}", e.getErrorCode(), today, source);
-            return;
-        }
+        String errorKey = e.getErrorCode().name();
+        FailureState previous = failureBySource.getIfPresent(errorKey);
+        List<LocalDateTime> failures = previous == null ? new ArrayList<>() : previous.times();
+        if (failures.size() < MAX_NOTIFICATIONS_PER_ERROR) failures.add(now);
+        int occurrence = previous == null ? 1 : previous.count() + 1;
+        failureBySource.put(errorKey, new FailureState(occurrence, failures));
 
         String summary = e.getMessage().replace("에 실패했습니다.", " 실패.");
         String notification = "[" + e.getErrorCode().name() + "]\n⚠️ " + summary + " " + occurrence + "회차.";
         String causeMessage = e.getCauseMessage();
-        if (occurrence == MAX_NOTIFICATIONS_PER_ERROR) {
-            notification += "\n같은 오류 3회차 발생으로 오류 알림 중단";
-        }
         if (causeMessage.isBlank() == false) {
             notification += "\n" + causeMessage;
         }
 
-        String channelMessage =
-                occurrence == MAX_NOTIFICATIONS_PER_ERROR ? "⚠️ " + summary + " 3회차.\n봇 메시지 확인할 것." : null;
+        String channelMessage = null;
+        if (occurrence == MAX_NOTIFICATIONS_PER_ERROR) {
+            String times = failures.stream()
+                    .map(time -> time.format(DateTimeFormatter.ofPattern("HH:mm")))
+                    .collect(java.util.stream.Collectors.joining(", "));
+            channelMessage = "⚠️ " + summary + " 오늘 3회 발생.\n발생 시각: " + times;
+        }
         eventPublisher.publishEvent(new EscalationEvent(notification, channelMessage));
     }
 
-    private record FailureState(String errorKey, int occurrence) {}
+    private record FailureState(int count, List<LocalDateTime> times) {}
 }
