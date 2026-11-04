@@ -16,6 +16,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 비회원 방문자 집계. 로그인하지 않고 들어온 사람을 하루에 한 번만 센다.
@@ -66,6 +67,7 @@ public class VisitorService {
     }
 
     /** 보관 기간이 지난 방문 기록을 지운다. */
+    @Transactional
     public int purgeOlderThan(int retentionDays) {
         return visitorDailyRepository.deleteVisitedBefore(
                 LocalDate.now(Zone.KST.zoneId()).minusDays(retentionDays));
