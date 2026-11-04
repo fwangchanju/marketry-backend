@@ -148,7 +148,10 @@ public class OverseasClassificationCategoryService {
 
     private String normalizeName(String name) {
         if (name == null || name.isBlank() || name.trim().length() > 12) invalid();
-        return name.trim();
+        String normalized = name.trim();
+        // 국내 전용 보호 이름이다. 화면이 이 이름을 잠그므로 해외 분류에서는 만들지 못하게 한다.
+        if ("신규 상장".equals(normalized) || "거래 정지".equals(normalized)) invalid();
+        return normalized;
     }
 
     private void validateMarket(String market) {

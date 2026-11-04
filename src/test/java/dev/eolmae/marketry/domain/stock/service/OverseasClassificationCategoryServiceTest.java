@@ -106,6 +106,13 @@ class OverseasClassificationCategoryServiceTest {
     }
 
     @Test
+    void 국내_전용_보호_이름은_쓸_수_없다() {
+        assertThatThrownBy(() -> service.create("JAPAN", null, "신규 상장")).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.rename("JAPAN", 1, " 거래 정지 ")).isInstanceOf(BadRequestException.class);
+        verify(categories, org.mockito.Mockito.never()).save(any());
+    }
+
+    @Test
     void 미분류에는_하위_업종을_만들_수_없다() {
         var unclassified = category(1, null, "미분류");
         when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(unclassified));
