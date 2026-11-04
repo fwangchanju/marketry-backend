@@ -22,7 +22,8 @@ public class OverseasStockClassificationService {
         return repository.findAllByIdMarket(market).stream()
                 .collect(Collectors.toMap(
                         entry -> entry.getId().getStockCode(),
-                        entry -> new Classification(entry.getSectorName(), entry.getIndustryName())));
+                        entry -> new Classification(
+                                entry.getSectorName(), entry.getIndustryName(), entry.getSubIndustryName())));
     }
 
     @Transactional
@@ -30,7 +31,7 @@ public class OverseasStockClassificationService {
         validateMarket(market);
         if (stockCode == null
                 || !stockCode.matches("[0-9][0-9A-Z]{3}")
-                || !("sector".equals(field) || "industry".equals(field))) {
+                || !("sector".equals(field) || "industry".equals(field) || "subIndustry".equals(field))) {
             throw new BadRequestException(ErrorCode.INVALID_INPUT);
         }
         String normalized = value == null || value.isBlank() ? null : value.trim();
@@ -39,7 +40,8 @@ public class OverseasStockClassificationService {
         OverseasStockClassification entry =
                 repository.findById(id).orElseGet(() -> OverseasStockClassification.create(id));
         if ("sector".equals(field)) entry.updateSector(normalized);
-        else entry.updateIndustry(normalized);
+        else if ("industry".equals(field)) entry.updateIndustry(normalized);
+        else entry.updateSubIndustry(normalized);
         repository.save(entry);
     }
 
@@ -47,5 +49,5 @@ public class OverseasStockClassificationService {
         if (!"JAPAN".equals(market)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
     }
 
-    public record Classification(String sector, String industry) {}
+    public record Classification(String sector, String industry, String subIndustry) {}
 }

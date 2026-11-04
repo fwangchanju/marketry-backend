@@ -63,12 +63,116 @@ class OverseasClassificationCategoryServiceTest {
     }
 
     @Test
-    void 삼단계_생성과_중복_분류를_거부한다() {
+    void 사단계_생성과_중복_분류를_거부한다() {
         var sector = category(1, null, "기술");
         var industry = category(2, 1L, "반도체");
-        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, industry));
-        assertThatThrownBy(() -> service.create("JAPAN", 2L, "제조")).isInstanceOf(BadRequestException.class);
+        var sub = category(3, 2L, "메모리");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, industry, sub));
+        assertThatThrownBy(() -> service.create("JAPAN", 3L, "제조")).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> service.create("JAPAN", 1L, "반도체")).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 소분류를_지정하면_세_단계를_함께_저장한다() {
+        var sector = category(1, null, "금융");
+        var middle = category(2, 1L, "보험");
+        var sub = category(3, 2L, "생명 보험");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, middle, sub));
+        var id = new OverseasStockClassificationId("JAPAN", "8750");
+        var stock = OverseasStockClassification.create(id);
+        when(stocks.findById(id)).thenReturn(Optional.of(stock));
+        service.assign("JAPAN", List.of("8750"), 3);
+        assertThat(stock.getSectorName()).isEqualTo("금융");
+        assertThat(stock.getIndustryName()).isEqualTo("보험");
+        assertThat(stock.getSubIndustryName()).isEqualTo("생명 보험");
+    }
+
+    @Test
+    void 중분류를_다시_지정하면_소분류를_비운다() {
+        var sector = category(1, null, "금융");
+        var middle = category(2, 1L, "보험");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, middle));
+        var id = new OverseasStockClassificationId("JAPAN", "8750");
+        var stock = OverseasStockClassification.create(id);
+        stock.updateSector("금융");
+        stock.updateIndustry("보험");
+        stock.updateSubIndustry("생명 보험");
+        when(stocks.findById(id)).thenReturn(Optional.of(stock));
+        service.assign("JAPAN", List.of("8750"), 2);
+        assertThat(stock.getIndustryName()).isEqualTo("보험");
+        assertThat(stock.getSubIndustryName()).isNull();
+    }
+
+    @Test
+    void 중분류_이름을_바꾸면_소분류는_유지한다() {
+        var sector = category(1, null, "금융");
+        var middle = category(2, 1L, "보험");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, middle));
+        var stock = OverseasStockClassification.create(new OverseasStockClassificationId("JAPAN", "8750"));
+        stock.updateSector("금융");
+        stock.updateIndustry("보험");
+        stock.updateSubIndustry("생명 보험");
+        var other = OverseasStockClassification.create(new OverseasStockClassificationId("JAPAN", "8306"));
+        other.updateSector("금융");
+        other.updateIndustry("은행");
+        when(stocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(stock, other));
+        service.rename("JAPAN", 2, "보험사");
+        assertThat(stock.getIndustryName()).isEqualTo("보험사");
+        assertThat(stock.getSubIndustryName()).isEqualTo("생명 보험");
+        assertThat(other.getIndustryName()).isEqualTo("은행");
+    }
+
+    @Test
+    void 소분류를_다른_중분류로_옮기면_종목의_경로도_바뀐다() {
+        var sector = category(1, null, "금융");
+        var oldMiddle = category(2, 1L, "보험");
+        var sub = category(3, 2L, "생명 보험");
+        var otherSector = category(4, null, "기타");
+        var newMiddle = category(5, 4L, "복합");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, oldMiddle, sub, otherSector, newMiddle));
+        var stock = OverseasStockClassification.create(new OverseasStockClassificationId("JAPAN", "8750"));
+        stock.updateSector("금융");
+        stock.updateIndustry("보험");
+        stock.updateSubIndustry("생명 보험");
+        when(stocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(stock));
+        service.move("JAPAN", 3, 5L);
+        assertThat(stock.getSectorName()).isEqualTo("기타");
+        assertThat(stock.getIndustryName()).isEqualTo("복합");
+        assertThat(stock.getSubIndustryName()).isEqualTo("생명 보험");
+        verify(sub).reparent(5L);
+    }
+
+    @Test
+    void 옮긴_뒤_세_단계를_넘으면_거부한다() {
+        var first = category(1, null, "금융");
+        var middle = category(2, 1L, "보험");
+        var sub = category(3, 2L, "생명 보험");
+        var other = category(4, null, "기타");
+        var otherMiddle = category(5, 4L, "복합");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(first, middle, sub, other, otherMiddle));
+        assertThatThrownBy(() -> service.move("JAPAN", 2, 5L)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.move("JAPAN", 1, 3L)).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 소분류를_삭제하면_해당_종목만_미분류로_옮긴다() {
+        var sector = category(1, null, "금융");
+        var middle = category(2, 1L, "보험");
+        var sub = category(3, 2L, "생명 보험");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, middle, sub));
+        var life = OverseasStockClassification.create(new OverseasStockClassificationId("JAPAN", "8750"));
+        life.updateSector("금융");
+        life.updateIndustry("보험");
+        life.updateSubIndustry("생명 보험");
+        var insurance = OverseasStockClassification.create(new OverseasStockClassificationId("JAPAN", "8766"));
+        insurance.updateSector("금융");
+        insurance.updateIndustry("보험");
+        when(stocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(life, insurance));
+        service.delete("JAPAN", 3, 1);
+        assertThat(life.getSectorName()).isEqualTo("미분류");
+        assertThat(life.getIndustryName()).isNull();
+        assertThat(life.getSubIndustryName()).isNull();
+        assertThat(insurance.getIndustryName()).isEqualTo("보험");
     }
 
     @Test
