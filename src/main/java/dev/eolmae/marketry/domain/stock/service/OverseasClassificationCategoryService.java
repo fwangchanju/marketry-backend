@@ -7,7 +7,10 @@ import dev.eolmae.marketry.domain.stock.entity.OverseasStockClassification;
 import dev.eolmae.marketry.domain.stock.entity.OverseasStockClassificationId;
 import dev.eolmae.marketry.domain.stock.repository.OverseasClassificationCategoryRepository;
 import dev.eolmae.marketry.domain.stock.repository.OverseasStockClassificationRepository;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class OverseasClassificationCategoryService {
+    private static final String UNCLASSIFIED = "미분류";
+    private static final int LEVELS = 3;
+    private static final int MAX_DEPTH = LEVELS - 1;
+
     private final OverseasClassificationCategoryRepository categories;
     private final OverseasStockClassificationRepository stocks;
 
@@ -33,7 +40,7 @@ public class OverseasClassificationCategoryService {
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         if (parentId != null) {
             OverseasClassificationCategory parent = find(all, parentId);
-            if (parent.getParentId() != null || "미분류".equals(parent.getName())) invalid();
+            if (isUnclassified(parent) || path(all, parent).size() > MAX_DEPTH) invalid();
         }
         ensureUnique(all, parentId, normalized, null);
         OverseasClassificationCategory category =
@@ -48,15 +55,13 @@ public class OverseasClassificationCategoryService {
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
         ensureUnique(all, category.getParentId(), normalized, id);
-        if (category.getParentId() == null && "미분류".equals(category.getName())) invalid();
-        String oldName = category.getName();
-        String sector = category.getParentId() == null
-                ? oldName
-                : find(all, category.getParentId()).getName();
+        if (isUnclassified(category)) invalid();
+        List<String> path = path(all, category);
         for (OverseasStockClassification stock : stocks.findAllByIdMarket(market)) {
-            if (!sector.equals(stock.getSectorName())) continue;
-            if (category.getParentId() == null) stock.updateSector(normalized);
-            else if (oldName.equals(stock.getIndustryName())) stock.updateIndustry(normalized);
+            if (!isUnder(stock, path)) continue;
+            List<String> next = new ArrayList<>(values(stock));
+            next.set(path.size() - 1, normalized);
+            apply(stock, next);
         }
         category.rename(normalized);
     }
@@ -66,23 +71,22 @@ public class OverseasClassificationCategoryService {
         validateMarket(market);
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
-        if ("미분류".equals(category.getName()) && category.getParentId() == null) invalid();
-        if (java.util.Objects.equals(category.getParentId(), parentId)) return;
+        if (isUnclassified(category)) invalid();
+        if (Objects.equals(category.getParentId(), parentId)) return;
         OverseasClassificationCategory target = parentId == null ? null : find(all, parentId);
+        List<String> targetPath = target == null ? List.of() : path(all, target);
         if (target != null
-                && (target.getParentId() != null
-                        || "미분류".equals(target.getName())
-                        || target.getId().equals(id)
-                        || all.stream().anyMatch(item -> java.util.Objects.equals(item.getParentId(), id)))) invalid();
+                && (isUnclassified(target)
+                        || isSelfOrDescendant(all, target, id)
+                        || targetPath.size() + height(all, id) > MAX_DEPTH)) invalid();
         ensureUnique(all, parentId, category.getName(), id);
-        String previousSector = category.getParentId() == null
-                ? category.getName()
-                : find(all, category.getParentId()).getName();
+        List<String> path = path(all, category);
         for (OverseasStockClassification stock : stocks.findAllByIdMarket(market)) {
-            if (!previousSector.equals(stock.getSectorName())) continue;
-            if (category.getParentId() != null && !category.getName().equals(stock.getIndustryName())) continue;
-            stock.updateSector(target == null ? category.getName() : target.getName());
-            stock.updateIndustry(target == null ? null : category.getName());
+            if (!isUnder(stock, path)) continue;
+            List<String> next = new ArrayList<>(targetPath);
+            next.add(category.getName());
+            next.addAll(values(stock).subList(path.size(), LEVELS));
+            apply(stock, next);
         }
         category.reparent(parentId);
     }
@@ -92,24 +96,21 @@ public class OverseasClassificationCategoryService {
         validateMarket(market);
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
-        if (("미분류".equals(category.getName()) && category.getParentId() == null)
-                || all.stream().anyMatch(item -> java.util.Objects.equals(item.getParentId(), id))) invalid();
-        String sector = category.getParentId() == null
-                ? category.getName()
-                : find(all, category.getParentId()).getName();
+        if (isUnclassified(category) || all.stream().anyMatch(item -> Objects.equals(item.getParentId(), id))) {
+            invalid();
+        }
+        List<String> path = path(all, category);
         List<OverseasStockClassification> affected = stocks.findAllByIdMarket(market).stream()
-                .filter(stock -> sector.equals(stock.getSectorName()))
-                .filter(stock ->
-                        category.getParentId() == null || category.getName().equals(stock.getIndustryName()))
+                .filter(stock -> isUnder(stock, path))
                 .toList();
         if (affected.size() != expectedMoveCount) invalid();
         for (OverseasStockClassification stock : affected) {
-            stock.updateSector("미분류");
-            stock.updateIndustry(null);
+            apply(stock, List.of(UNCLASSIFIED));
         }
         categories.delete(category);
     }
 
+    // 국내 종목 표와 같다. 고른 분류까지만 남고 그 아래 단계는 비워진다.
     @Transactional
     public void assign(String market, List<String> codes, long categoryId) {
         validateMarket(market);
@@ -118,18 +119,60 @@ public class OverseasClassificationCategoryService {
                 || codes.size() > 1000
                 || codes.stream().anyMatch(code -> code == null || !code.matches("[0-9][0-9A-Z]{3}"))) invalid();
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
-        OverseasClassificationCategory category = find(all, categoryId);
-        OverseasClassificationCategory sector =
-                category.getParentId() == null ? category : find(all, category.getParentId());
+        List<String> path = path(all, find(all, categoryId));
         for (String code : codes.stream().distinct().toList()) {
             OverseasStockClassificationId id = new OverseasStockClassificationId(market, code);
             OverseasStockClassification stock =
                     stocks.findById(id).orElseGet(() -> OverseasStockClassification.create(id));
-            if (!sector.getName().equals(stock.getSectorName())) stock.updateIndustry(null);
-            stock.updateSector(sector.getName());
-            if (category.getParentId() != null) stock.updateIndustry(category.getName());
+            apply(stock, path);
             stocks.save(stock);
         }
+    }
+
+    private List<String> path(List<OverseasClassificationCategory> all, OverseasClassificationCategory category) {
+        List<String> path = new ArrayList<>();
+        for (OverseasClassificationCategory current = category;
+                current != null;
+                current = current.getParentId() == null ? null : find(all, current.getParentId())) {
+            path.addFirst(current.getName());
+        }
+        return path;
+    }
+
+    private int height(List<OverseasClassificationCategory> all, long id) {
+        return all.stream()
+                .filter(item -> Objects.equals(item.getParentId(), id))
+                .mapToInt(item -> height(all, item.getId()) + 1)
+                .max()
+                .orElse(0);
+    }
+
+    private boolean isSelfOrDescendant(
+            List<OverseasClassificationCategory> all, OverseasClassificationCategory category, long id) {
+        for (OverseasClassificationCategory current = category;
+                current != null;
+                current = current.getParentId() == null ? null : find(all, current.getParentId())) {
+            if (current.getId().equals(id)) return true;
+        }
+        return false;
+    }
+
+    private boolean isUnclassified(OverseasClassificationCategory category) {
+        return category.getParentId() == null && UNCLASSIFIED.equals(category.getName());
+    }
+
+    private List<String> values(OverseasStockClassification stock) {
+        return Arrays.asList(stock.getSectorName(), stock.getIndustryName(), stock.getSubIndustryName());
+    }
+
+    private boolean isUnder(OverseasStockClassification stock, List<String> path) {
+        return values(stock).subList(0, path.size()).equals(path);
+    }
+
+    private void apply(OverseasStockClassification stock, List<String> path) {
+        stock.updateSector(path.get(0));
+        stock.updateIndustry(path.size() > 1 ? path.get(1) : null);
+        stock.updateSubIndustry(path.size() > 2 ? path.get(2) : null);
     }
 
     private OverseasClassificationCategory find(List<OverseasClassificationCategory> all, long id) {
@@ -141,9 +184,9 @@ public class OverseasClassificationCategoryService {
 
     private void ensureUnique(List<OverseasClassificationCategory> all, Long parent, String name, Long excludedId) {
         if (all.stream()
-                .anyMatch(category -> java.util.Objects.equals(category.getParentId(), parent)
+                .anyMatch(category -> Objects.equals(category.getParentId(), parent)
                         && category.getName().equalsIgnoreCase(name)
-                        && !java.util.Objects.equals(category.getId(), excludedId))) invalid();
+                        && !Objects.equals(category.getId(), excludedId))) invalid();
     }
 
     private String normalizeName(String name) {

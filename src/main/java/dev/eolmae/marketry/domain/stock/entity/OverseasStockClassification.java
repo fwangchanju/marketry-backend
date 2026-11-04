@@ -19,6 +19,9 @@ public class OverseasStockClassification {
     @Column(length = 12)
     private String industryName;
 
+    @Column(length = 12)
+    private String subIndustryName;
+
     protected OverseasStockClassification() {}
 
     public static OverseasStockClassification create(OverseasStockClassificationId id) {
@@ -33,5 +36,9 @@ public class OverseasStockClassification {
 
     public void updateIndustry(String industryName) {
         this.industryName = industryName;
+    }
+
+    public void updateSubIndustry(String subIndustryName) {
+        this.subIndustryName = subIndustryName;
     }
 }
