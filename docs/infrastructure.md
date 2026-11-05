@@ -178,7 +178,7 @@ DB만 OrbStack 컨테이너로 띄우고 백엔드와 프론트는 손으로 띄
 `auth.dev-login.enabled=true`, `scheduling.enabled=false`로 뜬다. 텔레그램과 키움 키는 개발 환경에 두지
 않는다.
 
-`deploy`가 매일 백업 직후 개발용 스냅샷을 만들어 `/Users/Shared/marketry-dev-snapshot/`에 둔다. 개발 계정은
+`deploy`가 매일 백업 직후 개발용 스냅샷을 만들어 `/Users/chanju/Projects/MARKETRY/db-dump/`에 둔다. 개발 계정은
 읽기만 한다. 스냅샷은 `users` 이메일을 가리고 `user_refresh_token`은 `--exclude-table-data`로 행만 뺀다.
 테이블까지 빼면 엔티티 검증과 dev-login이 깨진다. `users`를 통째로 빼는 안은 커스텀 테이블의 외래키가
 깨져서 접었다.
