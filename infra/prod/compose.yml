@@ -40,7 +40,8 @@ services:
       marketry-postgres:
         condition: service_healthy
     volumes:
-      - /Users/chanju/Projects/marketry/logs:/app/logs
+      # 호스트 폴더 공유가 VM에서 쓰기 거부되면 앱이 뜨지 못한다. VM 안 볼륨에 둔다.
+      - marketry-app-logs:/app/logs
     networks:
       - marketry-network
 
@@ -89,6 +90,7 @@ services:
 
 volumes:
   marketry-pgdata:
+  marketry-app-logs:
 
 networks:
   marketry-network:
