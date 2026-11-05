@@ -90,7 +90,7 @@ make_snapshot() {
   local tmp="$SNAPSHOT_DIR/latest.dump.tmp"
 
   mkdir -p "$SNAPSHOT_DIR" || return 1
-  chmod 755 "$SNAPSHOT_DIR"
+  chmod 755 "$SNAPSHOT_DIR" || return 1
 
   log "개발용 스냅샷 시작"
   drop_snapshot_db || return 1
@@ -129,8 +129,12 @@ SQL
     drop_snapshot_db || true
     return 1
   fi
-  chmod 644 "$tmp"
-  mv "$tmp" "$SNAPSHOT_DIR/latest.dump"
+  if ! chmod 644 "$tmp" || ! mv "$tmp" "$SNAPSHOT_DIR/latest.dump"; then
+    log "오류: 개발용 스냅샷 파일 교체 실패"
+    rm -f "$tmp"
+    drop_snapshot_db || true
+    return 1
+  fi
 
   drop_snapshot_db || true
   log "개발용 스냅샷 완료: $SNAPSHOT_DIR/latest.dump"
