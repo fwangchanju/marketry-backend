@@ -1,6 +1,6 @@
 # MARKETRY backend 진입점
 
-작업을 시작하기 전에 공통 원본 `/Users/chanju/Projects/marketry/AGENTS.md`를 실제로 읽고 아래 전용 규칙을 이어서 읽는다. 이 위치에서는 `../AGENTS.md`다. 상위 문서의 자동 로딩을 가정하지 않는다.
+작업을 시작하기 전에 공통 원본 `/Users/chanju/Projects/MARKETRY/AGENTS.md`를 실제로 읽고 아래 전용 규칙을 이어서 읽는다. 이 위치에서는 `../AGENTS.md`다. 상위 문서의 자동 로딩을 가정하지 않는다.
 공통 검증·커밋·PR·CI·배포 절차는 공통 원본을 따른다. 다른 저장소까지 작업하면 그 저장소의 `AGENTS.md`도 읽는다. 공통 원본이 없는 환경이면 확인하지 못했다고 알리고 임의의 옛 경로로 대체하지 않는다.
 
 ## 로컬 검증 실패 처리
