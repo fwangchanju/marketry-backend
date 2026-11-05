@@ -50,11 +50,12 @@
    sudo launchctl bootstrap system /Library/LaunchDaemons/kr.co.marketry.backup.plist
    ```
 
-7. 개발용 스냅샷 폴더를 만든다. `deploy`가 쓰고 개발 계정은 읽기만 한다.
+7. 개발용 스냅샷 폴더를 만든다. `deploy`가 쓰고 개발 계정은 읽기만 한다. 상위 폴더가 개발 계정 소유라 `deploy`는 직접 만들 수 없다. 관리자 계정에서 만들고 소유자를 `deploy`로 넘긴다.
 
    ```sh
-   mkdir -p /Users/Shared/marketry-dev-snapshot
-   chmod 755 /Users/Shared/marketry-dev-snapshot
+   sudo mkdir -p /Users/chanju/Projects/MARKETRY/db-dump
+   sudo chown deploy /Users/chanju/Projects/MARKETRY/db-dump
+   sudo chmod 755 /Users/chanju/Projects/MARKETRY/db-dump
    ```
 
 8. 이관 당일 첫 기동은 사용자가 손으로 한다. 먼저 PostgreSQL만 띄우고 기존 앱 중지와 DB 덤프·복원을 진행한다.

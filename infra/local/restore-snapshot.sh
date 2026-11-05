@@ -4,7 +4,7 @@
 # 로컬 DB에 쌓아 둔 데이터와 웹에서 바꾼 설정은 모두 사라진다. 브랜치에만 있는 마이그레이션은 다음 bootRun 때 Flyway가 적용한다.
 set -euo pipefail
 
-SNAPSHOT="${SNAPSHOT_FILE:-/Users/Shared/marketry-dev-snapshot/latest.dump}"
+SNAPSHOT="${SNAPSHOT_FILE:-/Users/chanju/Projects/MARKETRY/db-dump/latest.dump}"
 DB_NAME="marketry_db"
 DB_USER="marketry"
 

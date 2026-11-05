@@ -12,7 +12,7 @@ export DOCKER_HOST="unix:///Users/deploy/.colima/default/docker.sock"
 ENV_FILE="${MARKETRY_ENV_FILE:-$HOME/Projects/marketry/env/marketry.env}"
 DAILY_DIR="$HOME/Projects/marketry/backups/daily"
 KEEP_DAYS=7
-SNAPSHOT_DIR="/Users/Shared/marketry-dev-snapshot"
+SNAPSHOT_DIR="/Users/chanju/Projects/MARKETRY/db-dump"
 SNAPSHOT_DB="marketry_snapshot"
 RCLONE_BIN="$HOME/Optional/bin/rclone"
 
