@@ -113,20 +113,34 @@ public class HomeReportSender {
         return caption == null || caption.isBlank() ? CLOSE_TAG : caption + "\n" + CLOSE_TAG;
     }
 
-    // 시장 지도 캡처 실패는 개발자 채널에 알린다.
+    // 시장 지도 캡처 실패는 개발자 채널에 알린다. 한 번 실패는 곧바로 다시 찍어 보고, 또 실패할 때만 알린다.
     private List<byte[]> captureMapImages(Optional<RenderBasis> basis) {
         try {
-            List<byte[]> images =
-                    screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
-            if (images.isEmpty()) {
-                throw new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
-            }
+            List<byte[]> images = captureMapWithRetry(basis);
             escalationPublisher.resolve(MAP_CAPTURE_ERROR_SOURCE);
             return images;
         } catch (EscalateException e) {
             escalationPublisher.report(MAP_CAPTURE_ERROR_SOURCE, e);
             return List.of();
         }
+    }
+
+    private List<byte[]> captureMapWithRetry(Optional<RenderBasis> basis) {
+        try {
+            return captureMap(basis);
+        } catch (EscalateException e) {
+            log.warn("[홈리포트] 시장 지도 캡처 실패, 1회 다시 시도 | cause={}", e.getCauseMessage());
+            return captureMap(basis);
+        }
+    }
+
+    private List<byte[]> captureMap(Optional<RenderBasis> basis) {
+        List<byte[]> images =
+                screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
+        if (images.isEmpty()) {
+            throw new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+        }
+        return images;
     }
 
     /**

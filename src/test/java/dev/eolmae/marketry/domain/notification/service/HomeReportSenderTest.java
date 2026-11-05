@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -279,9 +280,45 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
+        verify(screenshotClient, times(2))
+                .capture(RenderTarget.MAP_MOBILE.path(Optional.empty()), RenderTarget.MAP_MOBILE.selector());
         verify(escalationPublisher).report("홈리포트 모바일 지도 캡처", failure);
         verify(telegramClient, never()).sendPhoto(any(), any(), any());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
+    }
+
+    @Test
+    void 시장_지도_캡처가_한_번_실패해도_다시_찍어_성공하면_알리지_않고_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        when(screenshotClient.capture(
+                        RenderTarget.MAP_MOBILE.path(Optional.empty()), RenderTarget.MAP_MOBILE.selector()))
+                .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED))
+                .thenReturn(List.of(MAP_IMAGE));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.send(DATA_TIME);
+
+        verify(screenshotClient, times(2))
+                .capture(RenderTarget.MAP_MOBILE.path(Optional.empty()), RenderTarget.MAP_MOBILE.selector());
+        verify(escalationPublisher, never()).report(any(), any());
+        verify(telegramClient).sendPhoto(any(), eq(MAP_IMAGE), any());
+    }
+
+    @Test
+    void 시장_지도_캡처가_비어_있어도_한_번_다시_찍는다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        when(screenshotClient.capture(
+                        RenderTarget.MAP_MOBILE.path(Optional.empty()), RenderTarget.MAP_MOBILE.selector()))
+                .thenReturn(List.of())
+                .thenReturn(List.of(MAP_IMAGE));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.send(DATA_TIME);
+
+        verify(escalationPublisher, never()).report(any(), any());
+        verify(telegramClient).sendPhoto(any(), eq(MAP_IMAGE), any());
     }
 
     @Test

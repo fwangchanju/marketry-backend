@@ -17,6 +17,7 @@ const MAX_CONSECUTIVE_FAILURES = 3
 const RECYCLE_AFTER_CAPTURES = 200
 const SHUTDOWN_GRACE_MS = 5000
 const CAPTURE_READY_TIMEOUT_MS = 30000
+const CAPTURE_STATE_MAX_LENGTH = 400
 const CAPTURE_TOKEN_HEADER = 'X-Capture-Token'
 const SHARED_MAP_CAPTURE_SELECTOR = "[data-captureid='map-mobile-capture']"
 
@@ -111,10 +112,65 @@ app.post('/capture', (req, res) => {
   )
 })
 
+// 준비 표식을 끝내 못 받았을 때 어느 단계에서 멈췄는지 알 수 있도록 API 호출과 페이지 오류를 모은다.
+// 주소는 경로만 남긴다. 토큰이 든 헤더와 쿼리는 기록하지 않는다.
+function trackPageActivity(page, sameOrigin) {
+  const pending = new Map()
+  const failed = []
+  const pageErrors = []
+  const apiPath = (request) => {
+    const url = new URL(request.url())
+    return url.origin === sameOrigin && url.pathname.startsWith('/api/') ? url.pathname : null
+  }
+  page.on('request', (request) => {
+    const path = apiPath(request)
+    if (path) pending.set(request, path)
+  })
+  page.on('requestfinished', async (request) => {
+    const path = pending.get(request)
+    pending.delete(request)
+    if (!path) return
+    const response = await request.response().catch(() => null)
+    if (response && response.status() >= 400) failed.push(`${path} ${response.status()}`)
+  })
+  page.on('requestfailed', (request) => {
+    const path = pending.get(request)
+    pending.delete(request)
+    if (path) failed.push(`${path} 연결 실패`)
+  })
+  page.on('pageerror', (error) => pageErrors.push(String(error.message).split('\n')[0].slice(0, 80)))
+  return { pending, failed, pageErrors }
+}
+
+async function describeCaptureState(page, selector, activity) {
+  const screen = await withTimeout(
+    page.evaluate((targetSelector) => {
+      const target = document.querySelector(targetSelector)
+      const layouts = [...document.querySelectorAll('[data-heatmap-layout-ready]')].map(
+        (el) => `${el.getAttribute('data-heatmap-layout-ready')}:${el.clientWidth}x${el.clientHeight}`,
+      )
+      return {
+        target: target ? `있음 ready=${target.getAttribute('data-capture-ready')}` : '없음',
+        layouts: layouts.join(',') || '없음',
+      }
+    }, selector),
+    CLEANUP_TIMEOUT_MS,
+  )
+  const parts = [
+    `틀 ${screen?.target ?? '확인 불가'}`,
+    `배치 ${screen?.layouts ?? '확인 불가'}`,
+    `API 실패 ${activity.failed.join(', ') || '없음'}`,
+    `API 대기 ${[...activity.pending.values()].join(', ') || '없음'}`,
+    `페이지 오류 ${activity.pageErrors.join(', ') || '없음'}`,
+  ]
+  return parts.join(' / ').slice(0, CAPTURE_STATE_MAX_LENGTH)
+}
+
 async function handleCapture(path, selector, token, rowSelector) {
   const page = await acquirePage()
 
   try {
+    const activity = trackPageActivity(page, new URL(BASE_URL).origin)
     const captureUrl = new URL(path, 'http://localhost')
     const useSharedMapCapture = selector === SHARED_MAP_CAPTURE_SELECTOR
       && captureUrl.pathname.startsWith('/map/')
@@ -146,7 +202,12 @@ async function handleCapture(path, selector, token, rowSelector) {
     await page.goto(BASE_URL + path, { waitUntil: 'domcontentloaded', timeout: 30000 })
     // 프론트가 데이터 로딩을 마치고 캡처 대상 엘리먼트에 data-capture-ready="true"를 붙이면 그때 캡처한다
     // (고정 딜레이로 "다 그려졌겠지" 추측하던 방식 대체).
-    await page.waitForSelector(`${selector}[data-capture-ready="true"]`, { timeout: CAPTURE_READY_TIMEOUT_MS })
+    try {
+      await page.waitForSelector(`${selector}[data-capture-ready="true"]`, { timeout: CAPTURE_READY_TIMEOUT_MS })
+    } catch (err) {
+      err.message = `${err.message}\n[캡처 상태] ${await describeCaptureState(page, selector, activity)}`
+      throw err
+    }
 
     // 캡처 대상의 레이아웃이 준비됐어도 웹폰트는 아직 로딩 중일 수 있다. 정기 발송처럼
     // 렌더러가 막 재시작된 직후에는 fallback 폰트 폭으로 말줄임이 계산되어 텍스트가 잘릴 수 있다.
