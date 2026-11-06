@@ -273,6 +273,8 @@ config 문법 오류면 즉시 기동 실패하는 이진적 실패 모드라 �
 
 `prod` 프로파일에서만 파일로 남는다. 호스트의 `${LOG_DIR}`가 컨테이너의 `/app/logs`에 마운트된다. 맥미니 운영(`infra/prod/compose.yml`)은 Colima VM 안의 `marketry-app-logs` 볼륨에 쓴다. 호스트 폴더 공유는 2026-11-06 VM에서 쓰기가 거부되어 앱이 기동하지 못해 뺐다.
 
+맥미니의 현재 파일 로그는 개발 계정의 `MARKETRY/logs`에 나타나지 않는다. 에이전트는 GitHub Actions Release에서 `server=macmini`, `target=diagnostics`를 실행해 앱과 upstream 상태 및 정해진 수집 로그를 확인한다. 이 진단은 파일 로그 전체나 텔레그램 이미지 발송 성공을 보여주지 않는다. 그 밖의 파일 내용이 필요하면 운영 담당자의 별도 확인이 필요하다.
+
 | 파일 | 내용 | maxFileSize | maxHistory | totalSizeCap |
 |---|---|---|---|---|
 | `application.log` | 전부 (INFO 이상) | 100MB | 7 | 1GB |

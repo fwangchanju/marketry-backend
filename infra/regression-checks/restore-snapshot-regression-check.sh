@@ -102,3 +102,62 @@ run
 ! grep -q '^완료$' "$test_root/out"
 echo 'PASS: 복원 실패를 성공으로 기록하지 않음'
 echo '6개 개발 스냅샷 복원 회귀 검사 통과'
+
+# 기본 경로가 서로 달라지면 별도로 지정한 SNAPSHOT_FILE 테스트만으로는 발견할 수 없다.
+backup="$repo/infra/prod/backup.sh"
+backup_dir=$(sed -n 's/^SNAPSHOT_DIR="\(.*\)"$/\1/p' "$backup")
+restore_path=$(sed -n 's/^SNAPSHOT="${SNAPSHOT_FILE:-\(.*\)}"$/\1/p' "$script")
+[ -n "$backup_dir" ] && [ "$restore_path" = "$backup_dir/latest.dump" ]
+echo 'PASS: 백업과 복원의 기본 스냅샷 경로가 일치'
+
+# 운영 경로·Docker를 사용하지 않고 스냅샷 생성 함수의 실패 처리를 검사한다.
+awk '/^make_snapshot\(\) \{/{copy=1} copy{print} copy && /^\}$/{exit}' "$backup" > "$test_root/snapshot-function.sh"
+[ -s "$test_root/snapshot-function.sh" ]
+source "$test_root/snapshot-function.sh"
+SNAPSHOT_DIR="$test_root/snapshot-dir"
+SNAPSHOT_DB=mock_snapshot
+mkdir -p "$SNAPSHOT_DIR"
+log() { printf '%s\n' "$*"; }
+drop_snapshot_db() { printf 'drop\n' >> "$test_root/drops"; }
+docker() {
+  case "$*" in
+    *pg_dump*) printf 'mock archive\n' ;;
+    *pg_restore*|*psql*) cat > /dev/null ;;
+    *) echo '예상하지 못한 Docker 명령' >&2; return 1 ;;
+  esac
+}
+chmod() {
+  if [ "${FAIL_DIR_CHMOD:-0}" = 1 ] && [ "$1" = 755 ]; then return 1; fi
+  if [ "${FAIL_CHMOD:-0}" = 1 ] && [ "$1" = 644 ]; then return 1; fi
+  command chmod "$@"
+}
+mv() {
+  if [ "${FAIL_MV:-0}" = 1 ]; then return 1; fi
+  command mv "$@"
+}
+for failure in none directory chmod mv; do
+  printf 'old archive\n' > "$SNAPSHOT_DIR/latest.dump"
+  : > "$test_root/drops"
+  unset FAIL_DIR_CHMOD FAIL_CHMOD FAIL_MV
+  [ "$failure" != directory ] || export FAIL_DIR_CHMOD=1
+  [ "$failure" != chmod ] || export FAIL_CHMOD=1
+  [ "$failure" != mv ] || export FAIL_MV=1
+  status=0
+  make_snapshot > "$test_root/snapshot-out" 2>&1 || status=$?
+  if [ "$failure" = none ]; then
+    [ "$status" = 0 ]
+    grep -q '^개발용 스냅샷 완료:' "$test_root/snapshot-out"
+    grep -q '^mock archive$' "$SNAPSHOT_DIR/latest.dump"
+  else
+    [ "$status" != 0 ]
+    ! grep -q '^개발용 스냅샷 완료:' "$test_root/snapshot-out"
+    grep -q '^old archive$' "$SNAPSHOT_DIR/latest.dump"
+    [ ! -e "$SNAPSHOT_DIR/latest.dump.tmp" ]
+  fi
+  if [ "$failure" = directory ]; then
+    [ ! -s "$test_root/drops" ]
+  else
+    [ "$(wc -l < "$test_root/drops" | tr -d ' ')" = 2 ]
+  fi
+  echo "PASS: 스냅샷 파일 교체 $failure"
+done
