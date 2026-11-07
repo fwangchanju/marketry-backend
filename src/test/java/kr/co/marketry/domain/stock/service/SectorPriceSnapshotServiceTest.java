@@ -220,17 +220,9 @@ class SectorPriceSnapshotServiceTest {
     }
 
     @Test
-    void 한달_전_날짜는_보존하고_그_이전만_정리한다() {
-        LocalDate today = LocalDate.of(2026, 11, 1);
-        LocalDate lastCleanupDate = LocalDate.of(2026, 9, 30);
-        when(repository.findMultipleSnapshotDates(lastCleanupDate)).thenReturn(List.of(lastCleanupDate));
-        assertThat(service.findCleanupDates(today, 1)).containsExactly(lastCleanupDate);
-    }
-
-    @Test
-    void 말일에는_달력상_한달_전을_기준으로_정리한다() {
-        LocalDate today = LocalDate.of(2026, 3, 31);
-        service.findCleanupDates(today, 1);
-        verify(repository).findMultipleSnapshotDates(LocalDate.of(2026, 2, 27));
+    void 최근_거래일_10개를_남기고_그_앞_날짜를_정리한다() {
+        // 달력 행이 없으면 평일을 거래일로 본다. 11/9(월) 앞의 평일 10개는 10/26까지다.
+        service.findCleanupDates(LocalDate.of(2026, 11, 9), 10);
+        verify(repository).findMultipleSnapshotDates(LocalDate.of(2026, 10, 25));
     }
 }
