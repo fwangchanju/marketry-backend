@@ -19,9 +19,11 @@ class SnapshotRetentionSchedulerTest {
         LocalDate today = LocalDate.of(2026, 10, 10);
         LocalDate first = LocalDate.of(2026, 9, 1);
         LocalDate second = LocalDate.of(2026, 9, 2);
-        when(service.findCleanupDates(today, 1)).thenReturn(List.of(first, second));
+        when(service.findCleanupDates(today, 10)).thenReturn(List.of(first, second));
         doThrow(new RuntimeException("failure")).when(service).cleanupSnapshotsForDate(first);
-        new SnapshotRetentionScheduler(service, publisher).cleanupSnapshots(today);
+        new SnapshotRetentionScheduler(
+                        service, mock(kr.co.marketry.domain.stock.service.JapanQuoteRetentionService.class), publisher)
+                .cleanupSnapshots(today);
         verify(service).cleanupSnapshotsForDate(first);
         verify(service).cleanupSnapshotsForDate(second);
         verify(publisher).report(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());

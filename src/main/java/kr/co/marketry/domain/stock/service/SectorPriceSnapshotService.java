@@ -123,10 +123,20 @@ public class SectorPriceSnapshotService {
         return closingTimes;
     }
 
-    /** 기준일에서 달력 개월 수를 뺀 날짜부터 보존한다. 실패한 오래된 날짜는 다음 실행에서 다시 포함된다. */
-    public List<LocalDate> findCleanupDates(LocalDate today, int retainedMonths) {
-        LocalDate lastCleanupDate = today.minusMonths(retainedMonths).minusDays(1);
-        return sectorPriceSnapshotRepository.findMultipleSnapshotDates(lastCleanupDate);
+    /**
+     * 오늘 앞의 최근 거래일 retainedTradingDays개는 5분 시세를 그대로 두고, 그 앞 날짜를 정리 대상으로 고른다. 실패한 오래된 날짜는 다음 실행에서
+     * 다시 포함된다. 거래일을 찾지 못하면 아무것도 지우지 않는다.
+     */
+    public List<LocalDate> findCleanupDates(LocalDate today, int retainedTradingDays) {
+        LocalDate oldestRetained = today;
+        for (int count = 0; count < retainedTradingDays; count++) {
+            Optional<LocalDate> previous = marketCalendarTimeService.findPreviousTradingDay(oldestRetained);
+            if (previous.isEmpty()) {
+                return List.of();
+            }
+            oldestRetained = previous.get();
+        }
+        return sectorPriceSnapshotRepository.findMultipleSnapshotDates(oldestRetained.minusDays(1));
     }
 
     public List<MarketSnapshotTime> findClosingMarketSnapshotTimes(LocalDate date) {

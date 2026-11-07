@@ -5,6 +5,7 @@ import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.notification.listener.EscalationPublisher;
+import kr.co.marketry.domain.stock.service.JapanQuoteRetentionService;
 import kr.co.marketry.domain.stock.service.SectorPriceSnapshotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,10 +21,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SnapshotRetentionScheduler {
 
-    private static final int RETAINED_MONTHS = 1;
+    // 5분 시세를 그대로 두는 최근 거래일 수. 그 앞 날짜는 종가 시점만 남긴다. 한국과 일본이 같다.
+    private static final int RETAINED_TRADING_DAYS = 10;
     private static final String KST_ZONE_ID = "Asia/Seoul";
 
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
+    private final JapanQuoteRetentionService japanQuoteRetentionService;
     private final EscalationPublisher escalationPublisher;
 
     @Scheduled(cron = "0 0 4 * * *", zone = KST_ZONE_ID)
@@ -32,11 +35,12 @@ public class SnapshotRetentionScheduler {
     }
 
     void cleanupSnapshots(LocalDate today) {
-        var dates = sectorPriceSnapshotService.findCleanupDates(today, RETAINED_MONTHS);
+        var dates = sectorPriceSnapshotService.findCleanupDates(today, RETAINED_TRADING_DAYS);
         log.info("스냅샷 정리 배치 시작: days={}", dates.size());
         for (LocalDate date : dates) {
             run("섹터가격스냅샷정리 " + date, () -> sectorPriceSnapshotService.cleanupSnapshotsForDate(date));
         }
+        run("일본시세정리", () -> japanQuoteRetentionService.cleanup(RETAINED_TRADING_DAYS));
         log.info("스냅샷 정리 배치 종료");
     }
 
