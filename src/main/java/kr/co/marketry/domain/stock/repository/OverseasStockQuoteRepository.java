@@ -9,6 +9,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface OverseasStockQuoteRepository
         extends JpaRepository<OverseasStockQuote, OverseasStockQuoteId>, OverseasStockQuoteRepositoryCustom {
+    List<OverseasStockQuote> findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(
+            String market, String stockCode, LocalDateTime snapshotTime);
+
     List<OverseasStockQuote> findAllByIdMarketAndIdSnapshotTime(String market, LocalDateTime snapshotTime);
 
     Optional<OverseasStockQuote> findFirstByIdMarketOrderByIdSnapshotTimeDesc(String market);
