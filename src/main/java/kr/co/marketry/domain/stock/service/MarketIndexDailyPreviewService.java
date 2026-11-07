@@ -6,11 +6,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
 import kr.co.marketry.domain.stock.client.KiwoomApiClient;
+import kr.co.marketry.domain.stock.client.StockDailyPriceClient;
+import kr.co.marketry.domain.stock.enums.ExchangeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-// 키움 업종일봉(ka20006)으로 지수의 과거 값을 어디까지 받을 수 있는지 조회만 한다. DB에 쓰지 않는다.
+// 키움 업종일봉(ka20006)과 종목 일봉(ka11081)을 어디까지 받을 수 있는지 조회만 한다. DB에 쓰지 않는다.
 @Service
 @RequiredArgsConstructor
 public class MarketIndexDailyPreviewService {
@@ -21,21 +24,27 @@ public class MarketIndexDailyPreviewService {
     private static final Map<String, String> INDEX_CODES = Map.of("KOSPI", "001", "KOSDAQ", "101");
 
     private final KiwoomApiClient apiClient;
+    private final StockDailyPriceClient stockClient;
 
     public List<IndexPreview> preview(LocalDate from, LocalDate to) {
         return INDEX_CODES.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .map(entry -> previewOne(entry.getKey(), entry.getValue(), from, to))
+                .map(entry -> previewOne(entry.getKey(), base -> fetch(entry.getValue(), base), from, to))
                 .toList();
     }
 
-    private IndexPreview previewOne(String market, String code, LocalDate from, LocalDate to) {
+    public IndexPreview previewStock(String stockCode, LocalDate from, LocalDate to) {
+        return previewOne(stockCode, base -> stockClient.fetchFirstPage(stockCode, ExchangeType.KRX, base), from, to);
+    }
+
+    private IndexPreview previewOne(
+            String market, Function<LocalDate, List<Map<String, Object>>> fetcher, LocalDate from, LocalDate to) {
         TreeMap<String, Map<String, Object>> byDate = new TreeMap<>();
         LocalDate base = to;
         int calls = 0;
         int firstPageRows = 0;
         while (calls < MAX_CALLS && base.isBefore(from) == false) {
-            List<Map<String, Object>> rows = fetch(code, base);
+            List<Map<String, Object>> rows = fetcher.apply(base);
             calls++;
             if (calls == 1) {
                 firstPageRows = rows.size();
