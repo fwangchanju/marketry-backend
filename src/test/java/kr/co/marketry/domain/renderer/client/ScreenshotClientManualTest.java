@@ -17,7 +17,7 @@ import org.springframework.web.client.RestClient;
  * Spring 컨텍스트 없이 ScreenshotClient만 직접 구성해서 실제 RENDERER_URL에 네트워크로 접근하므로,
  * 배포 후 렌더러가 정상 동작하는지 확인할 때만 실행한다.
  *
- * 실행 조건: RENDERER_URL 환경변수(없으면 기본값 http://market-monitor-renderer:3000 사용) —
+ * 실행 조건: RENDERER_URL 환경변수(없으면 기본값 http://marketry-renderer:3000 사용) —
  * 렌더러 컨테이너가 그 주소로 실제 접근 가능해야 한다.
  * 실행 명령: ./gradlew manualTest --tests "*.ScreenshotClientManualTest" -i
  */
@@ -26,7 +26,7 @@ class ScreenshotClientManualTest {
 
     @Test
     void capturesNonEmptyImages() {
-        String rendererUrl = System.getenv().getOrDefault("RENDERER_URL", "http://market-monitor-renderer:3000");
+        String rendererUrl = System.getenv().getOrDefault("RENDERER_URL", "http://marketry-renderer:3000");
         var client = new ScreenshotClient(
                 new RendererProperties(rendererUrl, false),
                 new MarketryProperties(rendererUrl, 999999L, 900000L),

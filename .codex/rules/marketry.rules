@@ -31,5 +31,5 @@ prefix_rule(
     pattern = [["docker", "docker-compose"]],
     decision = "prompt",
     justification = "Confirm an isolated local Docker daemon and local Compose project; production Docker is forbidden.",
-    match = ["docker compose -p market-monitor-local up -d"],
+    match = ["docker compose -p marketry-local up -d"],
 )

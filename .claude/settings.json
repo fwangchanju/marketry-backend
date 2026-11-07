@@ -14,9 +14,6 @@
       "Read(infra/.env)",
       "Edit(infra/.env)",
       "Write(infra/.env)",
-      "Read(//d/git/market-monitor/market-monitor-backend/infra/.env)",
-      "Edit(//d/git/market-monitor/market-monitor-backend/infra/.env)",
-      "Write(//d/git/market-monitor/market-monitor-backend/infra/.env)",
       "Bash(*.env*)"
     ],
     "ask": [
