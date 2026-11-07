@@ -9,7 +9,7 @@
 ### 최상위
 
 ```
-dev.eolmae.marketry/
+kr.co.marketry/
  ├─ MarketryApplication        메인 클래스만
  ├─ config/    앱 전역 Spring 배선(@Configuration 빈)
  ├─ handler/   앱 전역 예외 처리(@RestControllerAdvice)

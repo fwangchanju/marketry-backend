@@ -1,0 +1,103 @@
+package kr.co.marketry.domain.notification.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+import kr.co.marketry.common.enums.Market;
+import kr.co.marketry.common.util.MarketLabels;
+import kr.co.marketry.domain.view.dto.SectorRankingSummary;
+import kr.co.marketry.domain.view.dto.TopSectorItem;
+import org.springframework.stereotype.Component;
+
+// 섹터 등락률 TOP2 랭킹 텍스트 조립 — 랭킹 확정(필터·정렬·TOP2)은 전부 TreemapQueryService가
+// 끝낸 뒤 넘겨주므로, 여기는 헤더 조립과 퍼센트 포맷만 한다. 조회 의존성은 없다.
+@Component
+public class SectorRankingTextBuilder {
+
+    private static final ObjectMapper ROW_MAPPER = new ObjectMapper();
+    // 텔레그램 캡션은 상위 업종을 한 줄에 하나씩 표시한다.
+    private static final String CAPTION_LINE_SEPARATOR = "\n";
+
+    /** summaries가 담고 있는 마켓 각각을 "#코스피 +x.xx%\n섹터 +x.xx%\n\n#코스닥 +x.xx%\n.." 형태로
+     * 이어붙인다(헤더 옆 퍼센트는 그 마켓 지수의 등락률). 데이터 없는 마켓은 summaries에 이미 없는 상태라
+     * 자동으로 텍스트에서도 빠진다. 헤더("Custom Sector" 등)는 안 붙이므로 호출부가 자기 맥락에 맞는
+     * 헤더를 붙여 쓴다. */
+    public String buildRankingText(List<SectorRankingSummary> summaries) {
+        return summaries.stream()
+                .map(summary -> buildHeader(summary.market(), summary.indexChangeRate()) + "\n"
+                        + summary.topSectors().stream()
+                                .map(this::formatTopSectorDelta)
+                                .collect(Collectors.joining("\n")))
+                .collect(Collectors.joining("\n\n"));
+    }
+
+    /** 홈 발송 캡션 — 두 마켓을 합친 전체 기준 상위 업종을 "업종 등락률" 한 줄씩 보여준다. 헤더와 마켓 구분 줄은 안 붙인다.
+     * 단위는 등락률(now) 그대로라 %다(변화율 %p가 아님). */
+    public String buildMapCaption(List<TopSectorItem> topSectors) {
+        return topSectors.stream()
+                .map(this::formatTopSectorChangeRate)
+                .collect(Collectors.joining(CAPTION_LINE_SEPARATOR));
+    }
+
+    /** 이미지에 그려진 그룹 등락률 막대의 값(렌더러가 같은 화면에서 읽은 행 JSON: {"name":"헬스케어","value":"+1.91"})으로 캡션을 만든다 —
+     * 이미지와 숫자가 어긋날 수 없다. 등락률이 가장 높은 상위 count개를 "업종 등락률" 한 줄씩으로 만든다. 행이 count개보다 적거나
+     * 읽을 수 없는 값이 있으면 null이라 호출부가 서버 계산 캡션으로 넘어간다. */
+    public String buildCaptionFromRenderedRows(List<String> rows, int count) {
+        try {
+            List<RenderedRow> parsed = rows.stream().map(this::parseRow).toList();
+            if (parsed.size() < count) {
+                return null;
+            }
+            return parsed.stream()
+                    .sorted(Comparator.comparing(RenderedRow::value).reversed())
+                    .limit(count)
+                    .map(row -> row.name() + " " + row.valueLabel() + "%")
+                    .collect(Collectors.joining(CAPTION_LINE_SEPARATOR));
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private RenderedRow parseRow(String json) {
+        try {
+            JsonNode node = ROW_MAPPER.readTree(json);
+            String label = node.get("value").asText();
+            return new RenderedRow(node.get("name").asText(), label, new BigDecimal(label));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("읽을 수 없는 행: " + json, e);
+        }
+    }
+
+    private record RenderedRow(String name, String valueLabel, BigDecimal value) {}
+
+    // TopSectorItem.changeRate는 "N분 전 대비 변화"라 단위가 %가 아니라 %p다.
+    private String formatTopSectorDelta(TopSectorItem top) {
+        return top.sectorName() + " " + formatPercent(top.changeRate()) + "p";
+    }
+
+    // 등락률(now) 기준일 때는 단위가 %다 — formatTopSectorDelta와 값의 의미 자체가 다르다.
+    private String formatTopSectorChangeRate(TopSectorItem top) {
+        BigDecimal value = top.changeRate();
+        BigDecimal rounded = value.setScale(1, RoundingMode.HALF_UP);
+        String sign = value.signum() > 0 ? "+" : value.signum() < 0 && rounded.signum() == 0 ? "-" : "";
+        return top.sectorName() + " " + sign + rounded.toPlainString() + "%";
+    }
+
+    private String buildHeader(Market market, BigDecimal indexChangeRate) {
+        String header = "#" + MarketLabels.toKorean(market);
+        if (indexChangeRate != null) {
+            header += " " + formatPercent(indexChangeRate);
+        }
+        return header;
+    }
+
+    private String formatPercent(BigDecimal value) {
+        BigDecimal rounded = value.setScale(2, RoundingMode.HALF_UP);
+        String sign = rounded.signum() > 0 ? "+" : "";
+        return sign + rounded.toPlainString() + "%";
+    }
+}
