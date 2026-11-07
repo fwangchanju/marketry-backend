@@ -38,4 +38,30 @@ class YahooFinanceQuoteClientTest {
     private static YahooChartResponse response(YahooChartResponse.Meta meta) {
         return new YahooChartResponse(new YahooChartResponse.Chart(List.of(new YahooChartResponse.Result(meta))));
     }
+
+    @Test
+    void 시가총액은_가장_최근_값을_쓴다() {
+        var body = java.util.Map.<String, Object>of(
+                "timeseries",
+                java.util.Map.of(
+                        "result",
+                        java.util.List.of(java.util.Map.of(
+                                "trailingMarketCap",
+                                java.util.List.of(
+                                        java.util.Map.of(
+                                                "asOfDate",
+                                                "2026-07-31",
+                                                "reportedValue",
+                                                java.util.Map.of("raw", 100)),
+                                        java.util.Map.of(
+                                                "asOfDate",
+                                                "2026-11-06",
+                                                "reportedValue",
+                                                java.util.Map.of("raw", 200)))))));
+
+        var value = YahooFinanceQuoteClient.toMarketValue("7203", body);
+
+        org.assertj.core.api.Assertions.assertThat(value.date()).isEqualTo(java.time.LocalDate.of(2026, 11, 6));
+        org.assertj.core.api.Assertions.assertThat(value.value()).isEqualByComparingTo("200");
+    }
 }

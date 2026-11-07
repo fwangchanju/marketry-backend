@@ -28,6 +28,10 @@ public class OverseasStockQuote {
 
     protected OverseasStockQuote() {}
 
+    public void changeMarketValue(BigDecimal totalMarketValue) {
+        this.totalMarketValue = totalMarketValue;
+    }
+
     public static OverseasStockQuote create(
             OverseasStockQuoteId id,
             BigDecimal currentPrice,
