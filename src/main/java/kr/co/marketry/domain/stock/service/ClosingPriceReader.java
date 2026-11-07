@@ -1,5 +1,6 @@
 package kr.co.marketry.domain.stock.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 import kr.co.marketry.common.util.KstClock;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ClosingPriceReader {
+
+    private static final int CALENDAR_TRUSTED_DAYS = 14;
 
     private final ClosingPriceCacheService closingPriceCacheService;
     private final StockDailyPriceService stockDailyPriceService;
@@ -32,8 +35,25 @@ public class ClosingPriceReader {
     public ClosingPrices previousClosingPricesFor(LocalDate date) {
         return marketCalendarTimeService
                 .findPreviousTradingDay(date)
-                .map(previous -> closingPricesFor(previous, date))
+                .map(previous -> closingPricesFor(actualPreviousDay(previous, date), date))
                 .orElseGet(() -> new ClosingPrices(date, Map.of()));
+    }
+
+    /** 그 날짜 일봉의 기준가(종가 − 전일 대비). 분할일에도 등락률이 맞다. */
+    public Map<String, BigDecimal> basePricesFor(LocalDate date) {
+        return stockDailyPriceService.findKrxBasePrices(date);
+    }
+
+    /**
+     * 달력이 없는 옛 날짜는 평일 판정이 휴장일을 고를 수 있어, 그 날에 일봉이 없으면 일봉이 있는 가장 가까운 앞 날짜를 쓴다. 최근 날짜는
+     * 일봉이 아직 수집되지 않았을 수 있어 그대로 둔다.
+     */
+    private LocalDate actualPreviousDay(LocalDate previous, LocalDate date) {
+        if (date.isAfter(KstClock.now().toLocalDate().minusDays(CALENDAR_TRUSTED_DAYS))
+                || stockDailyPriceService.existsKrxPrice(previous)) {
+            return previous;
+        }
+        return stockDailyPriceService.findLatestKrxDateBefore(date).orElse(previous);
     }
 
     /** 그 날짜의 종가 데이터(KRX)가 있고 거래일이면 종가 데이터가 종가의 기준이다. 존재 여부만 날짜 단위로 확인한다. */

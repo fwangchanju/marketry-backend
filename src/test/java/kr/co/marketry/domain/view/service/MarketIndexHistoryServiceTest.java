@@ -22,7 +22,50 @@ class MarketIndexHistoryServiceTest {
     private static final LocalDate DATE = MONTH.atDay(1);
     private final MarketOverviewSnapshotRepository repository = mock(MarketOverviewSnapshotRepository.class);
     private final MarketCalendarTimeService calendar = mock(MarketCalendarTimeService.class);
-    private final MarketIndexHistoryService service = new MarketIndexHistoryService(repository, calendar);
+    private final kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository dailyIndexes =
+            mock(kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository.class);
+    private final MarketIndexHistoryService service = new MarketIndexHistoryService(repository, calendar, dailyIndexes);
+
+    private static kr.co.marketry.domain.stock.entity.MarketIndexDaily daily(
+            String market, LocalDate date, String close) {
+        var value = new java.math.BigDecimal(close);
+        return kr.co.marketry.domain.stock.entity.MarketIndexDaily.create(
+                market, date, value, value, value, value, 1, 5L, date.atStartOfDay());
+    }
+
+    @Test
+    void 시장_요약이_없는_날짜는_지수_일봉으로_채우고_닛케이는_뺀다() {
+        givenSnapshots(List.of());
+        when(calendar.resolveAll(anyCollection())).thenReturn(Map.of());
+        when(dailyIndexes.findByIdTradeDateBetweenOrderByIdTradeDateAsc(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of(
+                        daily("KOSPI", DATE.minusDays(1), "100"),
+                        daily("NIKKEI225", DATE, "999"),
+                        daily("KOSPI", DATE, "110")));
+
+        var result = service.getClosingHistory(MONTH);
+
+        assertThat(result).singleElement().satisfies(item -> {
+            assertThat(item.market()).isEqualTo(Market.KOSPI);
+            assertThat(item.indexValue()).isEqualByComparingTo("110");
+            assertThat(item.changeValue()).isEqualByComparingTo("10");
+            assertThat(item.changeRate()).isEqualByComparingTo("10");
+            assertThat(item.snapshotTime().toLocalDate()).isEqualTo(DATE);
+        });
+    }
+
+    @Test
+    void 시장_요약이_있는_날짜는_일봉으로_덮지_않는다() {
+        givenSnapshots(List.of(snapshot(Market.KOSPI, 15, 35, "100")));
+        when(calendar.resolveAll(anyCollection())).thenReturn(Map.of(DATE, times(15, 30, 15, 40)));
+        when(dailyIndexes.findByIdTradeDateBetweenOrderByIdTradeDateAsc(
+                        org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(List.of(daily("KOSPI", DATE.minusDays(1), "90"), daily("KOSPI", DATE, "95")));
+
+        assertThat(service.getClosingHistory(MONTH)).singleElement().satisfies(item -> assertThat(item.indexValue())
+                .isEqualByComparingTo("100"));
+    }
 
     @Test
     void 지도와_수집_시각이_달라도_마켓별_종가_확정_구간의_마지막_지수를_반환한다() {

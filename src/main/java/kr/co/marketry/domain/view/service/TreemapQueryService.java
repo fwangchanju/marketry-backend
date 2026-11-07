@@ -872,8 +872,12 @@ public class TreemapQueryService {
                 .priceByStockCode()
                 .forEach((stockCode, close) ->
                         closes.put(stockCode, new CachedStockPrice(close, BigDecimal.ZERO, snapshotTime)));
+        // 전일 대비로 구한 기준가가 있으면 그 값을 쓴다. 전날 종가와 나누면 분할일 등락률이 -98%처럼 나온다.
+        Map<String, BigDecimal> basePrices = new HashMap<>(previous.priceByStockCode());
+        basePrices.putAll(closingPriceReader.basePricesFor(date));
+        ClosingPrices base = new ClosingPrices(previous.baseDate(), basePrices);
         // 전일 종가 대비 등락률 계산식과 기준가 없음·0 제외 규칙은 시간외 등락률과 같다.
-        return withLastPrices(AfterHoursChangeRates.apply(closes, previous), previous, false);
+        return withLastPrices(AfterHoursChangeRates.apply(closes, base), base, false);
     }
 
     /**

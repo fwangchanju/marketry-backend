@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -114,6 +115,19 @@ public class StockDailyPriceService {
     @Transactional(readOnly = true)
     public Map<String, BigDecimal> findKrxClosePrices(LocalDate date) {
         return repository.findByExchangeTypeAndTradeDate(ExchangeType.KRX, date).stream()
+                .filter(price -> price.closePrice().signum() > 0)
+                .collect(Collectors.toUnmodifiableMap(DailyClosePrice::stockCode, DailyClosePrice::closePrice));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<LocalDate> findLatestKrxDateBefore(LocalDate date) {
+        return repository.findLatestTradeDateBefore(ExchangeType.KRX, date);
+    }
+
+    /** 그 날짜의 기준가(종가 − 전일 대비). 전일 대비가 없는 종목은 빠진다. */
+    @Transactional(readOnly = true)
+    public Map<String, BigDecimal> findKrxBasePrices(LocalDate date) {
+        return repository.findBasePrices(ExchangeType.KRX, date).stream()
                 .filter(price -> price.closePrice().signum() > 0)
                 .collect(Collectors.toUnmodifiableMap(DailyClosePrice::stockCode, DailyClosePrice::closePrice));
     }

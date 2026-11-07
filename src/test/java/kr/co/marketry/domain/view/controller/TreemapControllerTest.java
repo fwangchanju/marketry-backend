@@ -38,6 +38,7 @@ class TreemapControllerTest {
     private final MarketNoticeService marketNoticeService = mock(MarketNoticeService.class);
     private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TreemapController(
                     treemapQueryService,
+                    mock(kr.co.marketry.domain.stock.service.PriceAdjustmentService.class),
                     mock(CustomSectorService.class),
                     mock(CustomScaleService.class),
                     mock(CustomValueTierThresholdService.class),

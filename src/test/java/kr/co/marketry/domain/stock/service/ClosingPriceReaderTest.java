@@ -93,4 +93,22 @@ class ClosingPriceReaderTest {
 
         assertThat(reader.previousClosingPricesFor(TODAY).priceByStockCode()).isEmpty();
     }
+
+    @Test
+    void 옛_날짜의_전_거래일이_일봉_없는_휴장일이면_일봉이_있는_앞_날짜를_쓴다() {
+        LocalDate date = LocalDate.of(2021, 5, 6);
+        LocalDate holiday = LocalDate.of(2021, 5, 5);
+        LocalDate previous = LocalDate.of(2021, 5, 4);
+        when(calendars.findPreviousTradingDay(date)).thenReturn(java.util.Optional.of(holiday));
+        when(dailyPrices.existsKrxPrice(holiday)).thenReturn(false);
+        when(dailyPrices.findLatestKrxDateBefore(date)).thenReturn(java.util.Optional.of(previous));
+        when(dailyPrices.existsKrxPrice(previous)).thenReturn(true);
+        when(calendars.isTradingDay(previous)).thenReturn(true);
+        when(dailyPrices.findKrxClosePrices(previous)).thenReturn(Map.of("005930", BigDecimal.TEN));
+
+        ClosingPrices prices = reader.previousClosingPricesFor(date);
+
+        assertThat(prices.baseDate()).isEqualTo(previous);
+        assertThat(prices.priceByStockCode()).containsEntry("005930", BigDecimal.TEN);
+    }
 }
