@@ -8,7 +8,7 @@ services:
       - "127.0.0.1:${LOCAL_NGINX_PORT:-18080}:80"
     volumes:
       - type: bind
-        source: ${LOCAL_FRONTEND_DIST:-../../../marketry-frontend/dist}
+        source: ${LOCAL_FRONTEND_DIST:-../../../frontend/dist}
         target: /usr/share/nginx/html
         read_only: true
         bind:
