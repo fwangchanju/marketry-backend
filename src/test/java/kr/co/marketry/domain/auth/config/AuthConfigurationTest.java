@@ -80,6 +80,16 @@ class AuthConfigurationTest {
     }
 
     @Test
+    void 일본_조회는_비로그인을_막는다() throws Exception {
+        try (AnnotationConfigApplicationContext context =
+                new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
+            FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
+            assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/japan/quotes", null))
+                    .isEqualTo(401);
+        }
+    }
+
+    @Test
     void 회원_목록은_관리자만_조회한다() throws Exception {
         try (AnnotationConfigApplicationContext context =
                 new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
