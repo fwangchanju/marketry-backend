@@ -10,11 +10,14 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import kr.co.marketry.domain.stock.client.KiwoomApiClient;
+import kr.co.marketry.domain.stock.client.StockDailyPriceClient;
+import kr.co.marketry.domain.stock.enums.ExchangeType;
 import org.junit.jupiter.api.Test;
 
 class MarketIndexDailyPreviewServiceTest {
     private final KiwoomApiClient client = mock(KiwoomApiClient.class);
-    private final MarketIndexDailyPreviewService service = new MarketIndexDailyPreviewService(client);
+    private final StockDailyPriceClient stockClient = mock(StockDailyPriceClient.class);
+    private final MarketIndexDailyPreviewService service = new MarketIndexDailyPreviewService(client, stockClient);
 
     private static Map<String, Object> page(String... dates) {
         return Map.of(
@@ -42,5 +45,18 @@ class MarketIndexDailyPreviewServiceTest {
         assertThat(kospi.oldest()).isEqualTo("20261104");
         assertThat(kospi.newest()).isEqualTo("20261106");
         assertThat(kospi.calls()).isEqualTo(3);
+    }
+
+    @Test
+    void 종목_일봉도_빈_응답까지_이어_받는다() {
+        when(stockClient.fetchFirstPage(eq("005930"), eq(ExchangeType.KRX), eq(LocalDate.of(2026, 11, 6))))
+                .thenReturn(List.of(Map.of("dt", "20261106"), Map.of("dt", "20261105")));
+        when(stockClient.fetchFirstPage(eq("005930"), eq(ExchangeType.KRX), eq(LocalDate.of(2026, 11, 4))))
+                .thenReturn(List.of());
+
+        var result = service.previewStock("005930", LocalDate.of(1990, 1, 1), LocalDate.of(2026, 11, 6));
+
+        assertThat(result.oldest()).isEqualTo("20261105");
+        assertThat(result.days()).isEqualTo(2);
     }
 }

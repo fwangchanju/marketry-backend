@@ -23,4 +23,12 @@ public class AdminMarketIndexPreviewController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return service.preview(from, to);
     }
+
+    @GetMapping("/stock")
+    public IndexPreview previewStock(
+            @RequestParam String code,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return service.previewStock(code, from, to);
+    }
 }
