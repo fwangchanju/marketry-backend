@@ -7,7 +7,7 @@ plugins {
 	id 'org.openrewrite.rewrite' version '7.34.0'
 }
 
-group = 'dev.eolmae'
+group = 'kr.co'
 version = '0.0.1-SNAPSHOT'
 description = 'marketry'
 
@@ -163,7 +163,7 @@ tasks.register('kiwoomProxyCheckJar', org.springframework.boot.gradle.tasks.bund
 	group = 'verification'
 	description = '사용자가 맥미니에서 실행할 독립 키움 프록시 검사 프로그램을 만든다.'
 	dependsOn tasks.named('testClasses')
-	mainClass = 'dev.eolmae.marketry.domain.stock.client.KiwoomProxyCheck'
+	mainClass = 'kr.co.marketry.domain.stock.client.KiwoomProxyCheck'
 	targetJavaVersion = JavaVersion.VERSION_21
 	includeTools = false
 	archiveFileName = 'kiwoom-proxy-check.jar'
@@ -174,7 +174,7 @@ rewrite {
 	activeRecipe('org.openrewrite.java.migrate.UpgradeToJava21')
 	activeRecipe('org.openrewrite.staticanalysis.CommonStaticAnalysis')
 	// rewrite.yml 로 custom style 정의, import 와일드카드 병합 차단
-	activeStyle('dev.eolmae.NoWildcardImports')
+	activeStyle('kr.co.NoWildcardImports')
 }
 
 spotless {

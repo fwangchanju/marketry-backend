@@ -18,7 +18,7 @@
         </appender>
 
         <appender name="EXCEPTION_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-            <filter class="dev.eolmae.marketry.common.logging.ThrowableFilter" />
+            <filter class="kr.co.marketry.common.logging.ThrowableFilter" />
             <file>logs/exception.log</file>
             <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
                 <fileNamePattern>logs/exception.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
