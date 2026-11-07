@@ -1,15 +1,18 @@
 package kr.co.marketry.domain.view.controller;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.custom.dto.CustomScaleResponse;
 import kr.co.marketry.domain.custom.dto.CustomValueTierItem;
 import kr.co.marketry.domain.custom.service.CustomScaleService;
 import kr.co.marketry.domain.custom.service.CustomSectorService;
 import kr.co.marketry.domain.custom.service.CustomValueTierThresholdService;
+import kr.co.marketry.domain.stock.service.PriceAdjustmentService;
 import kr.co.marketry.domain.view.dto.MarketNoticeResponse;
 import kr.co.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import kr.co.marketry.domain.view.dto.StockCatalogItem;
@@ -38,6 +41,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TreemapController {
 
     private final TreemapQueryService treemapQueryService;
+    private final PriceAdjustmentService priceAdjustmentService;
     private final CustomSectorService customSectorService;
     private final CustomScaleService customScaleService;
     private final CustomValueTierThresholdService customValueTierThresholdService;
@@ -86,6 +90,13 @@ public class TreemapController {
     }
 
     /** from(포함하지 않음)~to(포함) 사이의 거래일 수 — 날짜는 yyyy-MM-dd. */
+    @GetMapping("/price-adjustments")
+    public Map<String, BigDecimal> getPriceAdjustments(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return priceAdjustmentService.factorsBetween(from, to);
+    }
+
     @GetMapping("/trading-day-gap")
     public TradingDayGapResponse getTradingDayGap(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

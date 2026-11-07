@@ -236,9 +236,14 @@ public class HistoryBackfillService {
     }
 
     private void waitForQuietTime() throws InterruptedException {
-        while (isQuietTime(LocalDateTime.now(clock)) == false) {
+        while (isQuietTime(now()) == false) {
             pause(QUIET_RECHECK);
         }
+    }
+
+    // 테스트가 시각을 고정할 수 있게 따로 둔다.
+    LocalDateTime now() {
+        return LocalDateTime.now(clock);
     }
 
     void pause(Duration duration) throws InterruptedException {

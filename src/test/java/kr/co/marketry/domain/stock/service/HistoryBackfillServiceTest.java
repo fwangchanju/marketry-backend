@@ -37,6 +37,11 @@ class HistoryBackfillServiceTest {
                     progress) {
                 @Override
                 void pause(Duration duration) {}
+
+                @Override
+                LocalDateTime now() {
+                    return LocalDate.of(2026, 11, 7).atTime(10, 0);
+                }
             };
 
     private static Map<String, Object> row(String date) {
