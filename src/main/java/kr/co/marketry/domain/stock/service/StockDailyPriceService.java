@@ -69,6 +69,42 @@ public class StockDailyPriceService {
         return new SaveResult(added.size(), skipped);
     }
 
+    /** 과거 데이터 받기용. 없는 날짜는 넣고, 있는 날짜는 가격을 그대로 둔 채 전일 대비와 수정 사유만 채운다. */
+    @Transactional(timeout = 30)
+    public SaveResult saveHistoryPage(List<StockDailyPrice> prices) {
+        if (prices.isEmpty()) {
+            return new SaveResult(0, 0);
+        }
+        var first = prices.getFirst();
+        var startDate = prices.stream()
+                .map(StockDailyPrice::getTradeDate)
+                .min(LocalDate::compareTo)
+                .orElseThrow();
+        var endDate = prices.stream()
+                .map(StockDailyPrice::getTradeDate)
+                .max(LocalDate::compareTo)
+                .orElseThrow();
+        var existing = repository
+                .findByStockCodeAndExchangeTypeAndTradeDateBetween(
+                        first.getStockCode(), first.getExchangeType(), startDate, endDate)
+                .stream()
+                .collect(Collectors.toMap(StockDailyPrice::getTradeDate, Function.identity()));
+        List<StockDailyPrice> added = new ArrayList<>();
+        int updated = 0;
+        for (var price : prices) {
+            var stored = existing.get(price.getTradeDate());
+            if (stored == null) {
+                added.add(price);
+            } else {
+                stored.applyAdjustment(price.getChangeValue(), price.getAdjustType(), price.getAdjustRate());
+                updated++;
+            }
+        }
+        repository.saveAll(added);
+        repository.flush();
+        return new SaveResult(added.size(), updated);
+    }
+
     @Transactional(readOnly = true)
     public boolean existsKrxPrice(LocalDate date) {
         return repository.existsByExchangeTypeAndTradeDate(ExchangeType.KRX, date);

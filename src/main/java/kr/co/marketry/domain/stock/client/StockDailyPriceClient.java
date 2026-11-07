@@ -80,7 +80,7 @@ public class StockDailyPriceClient {
                 if (volume < 0) {
                     throw invalid("음수 거래량");
                 }
-                prices.add(StockDailyPrice.create(
+                StockDailyPrice price = StockDailyPrice.create(
                         stockCode,
                         exchange,
                         date,
@@ -89,7 +89,10 @@ public class StockDailyPriceClient {
                         parsePrice(row, "low_pric"),
                         parsePrice(row, "cur_prc"),
                         volume,
-                        collectedAt));
+                        collectedAt);
+                price.applyAdjustment(
+                        parseSigned(row, "pred_pre"), parseText(row, "upd_stkpc_tp"), parseSigned(row, "upd_rt"));
+                prices.add(price);
             } catch (NumberFormatException | ArithmeticException | java.time.DateTimeException e) {
                 throw invalid("일봉 숫자 또는 날짜");
             }
@@ -108,6 +111,19 @@ public class StockDailyPriceClient {
             throw invalid("가격 정밀도 초과");
         }
         return price;
+    }
+
+    // 부호가 뜻을 가지는 값. 응답에 없거나 비어 있으면 값이 없는 것으로 둔다.
+    private BigDecimal parseSigned(Map<String, Object> row, String field) {
+        String value = parseText(row, field);
+        return value == null ? null : new BigDecimal(value.replace(",", ""));
+    }
+
+    private String parseText(Map<String, Object> row, String field) {
+        Object value = row.get(field);
+        return value == null || String.valueOf(value).isBlank()
+                ? null
+                : String.valueOf(value).trim();
     }
 
     private BadRequestException invalid(String context) {

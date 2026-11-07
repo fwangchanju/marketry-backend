@@ -59,6 +59,17 @@ public class StockDailyPrice {
     @Column(nullable = false)
     private long volume;
 
+    // 키움 전일 대비. 분할일에는 분할을 반영한 값이라 기간 등락률을 이어서 계산할 수 있다.
+    @Column(precision = 19, scale = 4)
+    private BigDecimal changeValue;
+
+    // 키움 수정 사유 코드와 수정 비율. 평소에는 비어 있다.
+    @Column(length = 10)
+    private String adjustType;
+
+    @Column(precision = 9, scale = 4)
+    private BigDecimal adjustRate;
+
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
@@ -85,6 +96,12 @@ public class StockDailyPrice {
         entity.volume = volume;
         entity.createdAt = collectedAt;
         return entity;
+    }
+
+    public void applyAdjustment(BigDecimal changeValue, String adjustType, BigDecimal adjustRate) {
+        this.changeValue = changeValue;
+        this.adjustType = adjustType;
+        this.adjustRate = adjustRate;
     }
 
     public boolean hasSamePrices(StockDailyPrice other) {
