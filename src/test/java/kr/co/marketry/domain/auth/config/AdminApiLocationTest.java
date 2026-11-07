@@ -27,6 +27,7 @@ class AdminApiLocationTest {
             "/api/profile",
             "/api/map",
             "/api/custom",
+            "/api/japan",
             "/api/banners",
             "/api/default-preferences",
             "/api/metrics/client-events");
