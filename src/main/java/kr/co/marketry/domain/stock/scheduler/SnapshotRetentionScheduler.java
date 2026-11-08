@@ -13,7 +13,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 최근 달력 기준 1개월은 전체 보존하고, 이전 거래일은 시장별 종가 시각의 종목 행만 남긴다.
+ * 최근 5거래일의 5분 시세를 보존하고, 이전 거래일은 시장별 종가 시각의 종목 행만 남긴다.
  * 날짜별 실패를 격리하며 다음 실행에서 다시 처리한다.
  */
 @Slf4j
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 public class SnapshotRetentionScheduler {
 
     // 5분 시세를 그대로 두는 최근 거래일 수. 그 앞 날짜는 종가 시점만 남긴다. 한국과 일본이 같다.
-    private static final int RETAINED_TRADING_DAYS = 10;
+    private static final int RETAINED_TRADING_DAYS = 5;
     private static final String KST_ZONE_ID = "Asia/Seoul";
 
     private final SectorPriceSnapshotService sectorPriceSnapshotService;

@@ -26,6 +26,16 @@ class JapanQuoteRetentionServiceTest {
     }
 
     @Test
+    void 일본은_휴장일을_건너뛰고_시세가_있는_최근_5일을_보존한다() {
+        var dates = List.of(
+                LocalDate.of(2026, 10, 29), LocalDate.of(2026, 10, 30),
+                LocalDate.of(2026, 11, 2), LocalDate.of(2026, 11, 4),
+                LocalDate.of(2026, 11, 5), LocalDate.of(2026, 11, 6));
+
+        assertThat(JapanQuoteRetentionService.cleanupDates(dates, 5)).containsExactly(LocalDate.of(2026, 10, 29));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void 오래된_날은_마지막_시세만_남기고_한_건뿐인_날은_건드리지_않는다() {
         var repository = mock(OverseasStockQuoteRepository.class);
