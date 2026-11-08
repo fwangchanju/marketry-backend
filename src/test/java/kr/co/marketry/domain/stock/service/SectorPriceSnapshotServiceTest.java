@@ -225,4 +225,11 @@ class SectorPriceSnapshotServiceTest {
         service.findCleanupDates(LocalDate.of(2026, 11, 9), 10);
         verify(repository).findMultipleSnapshotDates(LocalDate.of(2026, 10, 25));
     }
+
+    @Test
+    void 최근_거래일_5개를_남기고_그_앞_날짜를_정리한다() {
+        // 11/9 앞의 다섯 평일은 11/2~11/6이다.
+        service.findCleanupDates(LocalDate.of(2026, 11, 9), 5);
+        verify(repository).findMultipleSnapshotDates(LocalDate.of(2026, 11, 1));
+    }
 }
