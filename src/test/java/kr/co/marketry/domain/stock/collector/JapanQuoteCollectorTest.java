@@ -10,9 +10,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -158,6 +160,32 @@ class JapanQuoteCollectorTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(savedHaltedStock.getId().getSnapshotTime()).isEqualTo(result.snapshotTime());
+    }
+
+    @Test
+    void 개장_측정은_당일_시세가_아닌_종목만_다시_조회하고_90퍼센트_도달_시각을_기록한다() {
+        List<OverseasStockQuote> last = new ArrayList<>();
+        for (int index = 0; index < 10; index++) {
+            last.add(lastQuote("A" + index, "1000.00", "1000000"));
+        }
+        givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
+        for (int index = 0; index < 8; index++) {
+            when(client.fetchTokyoQuote("A" + index)).thenReturn(quote("1100", "1000", MARKET_TIME));
+        }
+        when(client.fetchTokyoQuote("A8"))
+                .thenReturn(quote("1000", "1000", Instant.parse("2026-11-06T06:30:00Z")))
+                .thenReturn(quote("1100", "1000", MARKET_TIME));
+        when(client.fetchTokyoQuote("A9")).thenReturn(quote("1000", "1000", Instant.parse("2026-11-06T06:30:00Z")));
+        Clock clock = Clock.fixed(Instant.parse("2026-11-09T00:17:00Z"), ZoneId.of("Asia/Seoul"));
+        JapanQuoteCollector measurementCollector = new JapanQuoteCollector(client, repository, duration -> {}, clock);
+
+        JapanQuoteCollector.OpeningMeasurement result = measurementCollector.measureOpeningFreshness();
+
+        assertThat(result.todayQuoteCount()).isEqualTo(9);
+        assertThat(result.thresholdReachedAt()).isEqualTo(LocalDateTime.of(2026, 11, 9, 9, 17));
+        assertThat(result.requestCount()).isEqualTo(12);
+        assertThat(result.reason()).isNull();
+        verify(repository, never()).saveAll(any());
     }
 
     private void givenLastQuotes(OverseasStockQuote... quotes) {
