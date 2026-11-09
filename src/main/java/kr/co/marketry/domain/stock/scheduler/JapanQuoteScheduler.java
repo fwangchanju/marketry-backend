@@ -21,8 +21,28 @@ public class JapanQuoteScheduler {
     private final JapanQuoteCollector collector;
 
     @Scheduled(cron = "${japan-quote.cron:0 3/5 9-15 * * MON-FRI}", zone = "Asia/Seoul")
-    public void collect() {
+    public synchronized void collect() {
         collect(KstClock.now());
+    }
+
+    /** Yahoo의 첫 당일 시세 제공 시각을 09:15부터 정규 수집 직전까지 한 번 측정한다. */
+    @Scheduled(cron = "0 15 9 * * MON-FRI", zone = "Asia/Seoul")
+    public synchronized void measureOpeningFreshness() {
+        try {
+            JapanQuoteCollector.OpeningMeasurement result = collector.measureOpeningFreshness();
+            log.info(
+                    "[일본시세] 개장 시세 측정: 시작={}, 종료={}, 오늘 시세={}/{}, 요청={}, 첫 오늘 시세={}, 90% 도달={}, 결과={}",
+                    result.startedAt(),
+                    result.finishedAt(),
+                    result.todayQuoteCount(),
+                    result.totalCount(),
+                    result.requestCount(),
+                    result.firstTodayQuoteAt(),
+                    result.thresholdReachedAt(),
+                    result.reason() == null ? "도달" : result.reason());
+        } catch (RuntimeException failure) {
+            log.warn("[일본시세] 개장 시세 측정 실패", failure);
+        }
     }
 
     void collect(LocalDateTime now) {
