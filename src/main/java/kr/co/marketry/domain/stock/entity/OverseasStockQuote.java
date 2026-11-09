@@ -26,10 +26,17 @@ public class OverseasStockQuote {
     @Column(nullable = false, precision = 20, scale = 0)
     private BigDecimal totalMarketValue;
 
+    @Column(name = "close_verified")
+    private Boolean closeVerified;
+
     protected OverseasStockQuote() {}
 
     public void changeMarketValue(BigDecimal totalMarketValue) {
         this.totalMarketValue = totalMarketValue;
+    }
+
+    public void markCloseVerified() {
+        this.closeVerified = true;
     }
 
     public static OverseasStockQuote create(

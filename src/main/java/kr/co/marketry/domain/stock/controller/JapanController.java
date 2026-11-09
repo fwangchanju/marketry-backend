@@ -1,5 +1,6 @@
 package kr.co.marketry.domain.stock.controller;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,14 @@ public class JapanController {
     public List<LocalDateTime> findSnapshotTimes(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         requireSpecial(principal);
         return quoteService.findSnapshotTimes(MARKET);
+    }
+
+    @GetMapping("/quotes/previous-trading-day")
+    public LocalDate findPreviousTradingDay(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        requireSpecial(principal);
+        return quoteService.findPreviousTradingDay(MARKET, date);
     }
 
     @GetMapping("/classifications")
