@@ -37,6 +37,7 @@ class OverseasStockQuoteServiceTest {
         assertThat(snapshot.snapshotTime()).isEqualTo(CLOSE);
         assertThat(snapshot.quotes()).hasSize(1);
         assertThat(snapshot.quotes().getFirst().changeRate()).isEqualByComparingTo("-0.75");
+        assertThat(snapshot.quotes().getFirst().closeVerified()).isNull();
     }
 
     @Test
@@ -44,6 +45,17 @@ class OverseasStockQuoteServiceTest {
         LocalDateTime earlier = CLOSE.minusDays(1);
         when(repository.findAllByIdMarketAndIdSnapshotTime("JAPAN", earlier)).thenReturn(List.of(quote(earlier)));
         assertThat(service.findQuotes("JAPAN", earlier).snapshotTime()).isEqualTo(earlier);
+    }
+
+    @Test
+    void 야후_종가_검증_여부를_시세_응답에_포함한다() {
+        var verified = quote(CLOSE);
+        verified.markCloseVerified();
+        when(repository.findAllByIdMarketAndIdSnapshotTime("JAPAN", CLOSE)).thenReturn(List.of(verified));
+
+        var result = service.findQuotes("JAPAN", CLOSE);
+
+        assertThat(result.quotes().getFirst().closeVerified()).isTrue();
     }
 
     @Test
@@ -58,5 +70,13 @@ class OverseasStockQuoteServiceTest {
     void 지원하지_않는_시장은_거부한다() {
         assertThatThrownBy(() -> service.findQuotes("TAIWAN", null)).isInstanceOf(BadRequestException.class);
         assertThatThrownBy(() -> service.findSnapshotTimes("TAIWAN")).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 직전_거래일은_주말과_공식_휴장일을_건너뛴다() {
+        assertThat(service.findPreviousTradingDay("JAPAN", java.time.LocalDate.parse("2026-11-09")))
+                .isEqualTo(java.time.LocalDate.parse("2026-11-06"));
+        assertThat(service.findPreviousTradingDay("JAPAN", java.time.LocalDate.parse("2026-11-04")))
+                .isEqualTo(java.time.LocalDate.parse("2026-11-02"));
     }
 }

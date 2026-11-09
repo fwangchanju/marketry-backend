@@ -1,6 +1,7 @@
 package kr.co.marketry.domain.stock.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import kr.co.marketry.common.exception.BadRequestException;
@@ -40,6 +41,12 @@ public class OverseasStockQuoteService {
         return new QuoteSnapshot(snapshotTime, quotes);
     }
 
+    @Transactional(readOnly = true)
+    public LocalDate findPreviousTradingDay(String market, LocalDate date) {
+        validateMarket(market);
+        return kr.co.marketry.domain.stock.collector.JapanMarketReference.previousTradingDay(date);
+    }
+
     private void validateMarket(String market) {
         if ("JAPAN".equals(market)) return;
         throw new BadRequestException(ErrorCode.INVALID_INPUT);
@@ -52,14 +59,16 @@ public class OverseasStockQuoteService {
             BigDecimal currentPrice,
             BigDecimal lastPrice,
             BigDecimal changeRate,
-            BigDecimal totalMarketValue) {
+            BigDecimal totalMarketValue,
+            Boolean closeVerified) {
         private static Quote from(OverseasStockQuote quote) {
             return new Quote(
                     quote.getId().getStockCode(),
                     quote.getCurrentPrice(),
                     quote.getLastPrice(),
                     quote.getChangeRate(),
-                    quote.getTotalMarketValue());
+                    quote.getTotalMarketValue(),
+                    quote.getCloseVerified());
         }
     }
 }
