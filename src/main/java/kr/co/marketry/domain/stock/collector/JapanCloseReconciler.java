@@ -62,6 +62,11 @@ public class JapanCloseReconciler {
             extra.removeAll(expectedStocks);
             return new Result(0, List.of("기준 종목 불일치: 누락=" + missing + " 추가=" + extra));
         }
+        if (latest.getId().getSnapshotTime().equals(date.atTime(CLOSE_TIME))
+                && baseline.stream().allMatch(quote -> Boolean.TRUE.equals(quote.getCloseVerified()))) {
+            log.info("[일본 종가 확인] 당일 종가가 이미 확인되어 건너뜁니다. 날짜={}", date);
+            return new Result(0, List.of());
+        }
 
         // 지수 일봉이 없으면 휴장인지 제공 지연인지 판별할 수 없다. 보정하지 않고 알린다.
         boolean tradingDay = false;

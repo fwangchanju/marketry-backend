@@ -1,6 +1,8 @@
 package kr.co.marketry.domain.stock.scheduler;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import kr.co.marketry.common.event.DailyPriceCollectionFailedEvent;
 import kr.co.marketry.common.util.KstClock;
@@ -8,8 +10,10 @@ import kr.co.marketry.domain.stock.collector.JapanCloseReconciler;
 import kr.co.marketry.domain.stock.collector.JapanMarketReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +25,19 @@ import org.springframework.stereotype.Component;
 public class JapanCloseReconciliationScheduler {
     private final JapanCloseReconciler reconciler;
     private final ApplicationEventPublisher events;
+
+    private static final LocalTime CLOSE_RECONCILIATION_TIME = LocalTime.of(18, 0);
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void reconcileAfterCloseOnStartup() {
+        reconcileAfterCloseOnStartup(KstClock.now());
+    }
+
+    void reconcileAfterCloseOnStartup(LocalDateTime now) {
+        if (now.toLocalTime().isBefore(CLOSE_RECONCILIATION_TIME)) return;
+        log.info("[일본 종가 확인] 장 마감 뒤 시작되어 당일 보정을 실행합니다. 날짜={}", now.toLocalDate());
+        reconcile(now.toLocalDate());
+    }
 
     @Scheduled(cron = "${japan-close-reconcile.cron:0 0 18 * * MON-FRI}", zone = "Asia/Seoul")
     public void reconcile() {
