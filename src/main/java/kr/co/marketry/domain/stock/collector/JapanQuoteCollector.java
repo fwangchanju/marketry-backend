@@ -4,11 +4,13 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import kr.co.marketry.common.enums.Zone;
+import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
@@ -52,31 +54,58 @@ public class JapanQuoteCollector {
     }
 
     public Result collect() {
+        return collect(KstClock.now().toLocalDate());
+    }
+
+    Result collect(LocalDate collectionDate) {
         LocalDateTime lastSnapshotTime = repository
                 .findFirstByIdMarketOrderByIdSnapshotTimeDesc(MARKET)
                 .map(quote -> quote.getId().getSnapshotTime())
                 .orElse(null);
         if (lastSnapshotTime == null) {
-            return Result.skipped("기준이 될 일본 시세가 없습니다");
+            return Result.skipped("기준이 될 일본 시세가 없습니다", 0, 0, 0, 0);
         }
 
         List<OverseasStockQuote> lastQuotes = repository.findAllByIdMarketAndIdSnapshotTime(MARKET, lastSnapshotTime);
         List<Fetched> fetched = fetchAll(lastQuotes);
         long successCount =
                 fetched.stream().filter(item -> item.quote() != null).count();
+        int todayQuoteCount = (int) fetched.stream()
+                .filter(item -> item.quote() != null)
+                .filter(item -> item.quote()
+                        .marketTime()
+                        .atZone(Zone.KST.zoneId())
+                        .toLocalDate()
+                        .equals(collectionDate))
+                .count();
+        int otherDateQuoteCount = (int) successCount - todayQuoteCount;
+        int failureCount = fetched.size() - (int) successCount;
         if (successCount < lastQuotes.size() * MIN_SUCCESS_RATIO) {
-            return Result.skipped("받은 종목이 너무 적습니다: " + successCount + "/" + lastQuotes.size());
+            return Result.skipped(
+                    "받은 종목이 너무 적습니다: " + successCount + "/" + lastQuotes.size(),
+                    todayQuoteCount,
+                    otherDateQuoteCount,
+                    failureCount,
+                    lastQuotes.size());
         }
 
         LocalDateTime snapshotTime = snapshotTimeOf(fetched);
         if (snapshotTime.isAfter(lastSnapshotTime) == false) {
-            return Result.skipped("새 시세가 없습니다");
+            return Result.skipped("새 시세가 없습니다", todayQuoteCount, otherDateQuoteCount, failureCount, lastQuotes.size());
         }
 
         List<OverseasStockQuote> quotes =
                 fetched.stream().map(item -> toQuote(item, snapshotTime)).toList();
         repository.saveAll(quotes);
-        return new Result(true, snapshotTime, (int) successCount, quotes.size(), null);
+        return new Result(
+                true,
+                snapshotTime,
+                (int) successCount,
+                quotes.size(),
+                todayQuoteCount,
+                otherDateQuoteCount,
+                failureCount,
+                null);
     }
 
     private List<Fetched> fetchAll(List<OverseasStockQuote> lastQuotes) {
@@ -152,9 +181,26 @@ public class JapanQuoteCollector {
 
     private record Fetched(OverseasStockQuote last, YahooFinanceQuoteClient.Quote quote) {}
 
-    public record Result(boolean saved, LocalDateTime snapshotTime, int successCount, int totalCount, String reason) {
-        static Result skipped(String reason) {
-            return new Result(false, null, 0, 0, reason);
+    public record Result(
+            boolean saved,
+            LocalDateTime snapshotTime,
+            int successCount,
+            int totalCount,
+            int todayQuoteCount,
+            int otherDateQuoteCount,
+            int failureCount,
+            String reason) {
+        static Result skipped(
+                String reason, int todayQuoteCount, int otherDateQuoteCount, int failureCount, int totalCount) {
+            return new Result(
+                    false,
+                    null,
+                    todayQuoteCount + otherDateQuoteCount,
+                    totalCount,
+                    todayQuoteCount,
+                    otherDateQuoteCount,
+                    failureCount,
+                    reason);
         }
     }
 }

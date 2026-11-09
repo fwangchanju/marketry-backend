@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.springframework.web.client.HttpClientErrorException;
 
 class JapanQuoteCollectorTest {
     private static final LocalDateTime LAST_TIME = LocalDateTime.of(2026, 11, 6, 15, 30);
+    private static final LocalDate COLLECTION_DATE = LocalDate.of(2026, 11, 9);
     // 2026-11-09 10:07:30 KST
     private static final Instant MARKET_TIME = Instant.parse("2026-11-09T01:07:30Z");
 
@@ -46,7 +48,7 @@ class JapanQuoteCollectorTest {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
         when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
 
-        JapanQuoteCollector.Result result = collector.collect();
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isTrue();
         assertThat(result.snapshotTime()).isEqualTo(LocalDateTime.of(2026, 11, 9, 10, 5));
@@ -64,9 +66,11 @@ class JapanQuoteCollectorTest {
         // 2026-11-06 15:30:02 KST — 휴장일에는 직전 거래일 시각이 그대로 온다.
         when(client.fetchTokyoQuote("7203")).thenReturn(quote("1000", "990", Instant.parse("2026-11-06T06:30:02Z")));
 
-        JapanQuoteCollector.Result result = collector.collect();
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isFalse();
+        assertThat(result.todayQuoteCount()).isZero();
+        assertThat(result.otherDateQuoteCount()).isEqualTo(1);
         verify(repository, never()).saveAll(any());
     }
 
@@ -80,10 +84,13 @@ class JapanQuoteCollectorTest {
         when(client.fetchTokyoQuote(anyString())).thenReturn(quote("1100", "1000", MARKET_TIME));
         when(client.fetchTokyoQuote("C3")).thenThrow(new IllegalStateException("없음"));
 
-        JapanQuoteCollector.Result result = collector.collect();
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isTrue();
         assertThat(result.successCount()).isEqualTo(9);
+        assertThat(result.todayQuoteCount()).isEqualTo(9);
+        assertThat(result.otherDateQuoteCount()).isZero();
+        assertThat(result.failureCount()).isEqualTo(1);
         OverseasStockQuote kept = savedQuotes().stream()
                 .filter(quote -> quote.getId().getStockCode().equals("C3"))
                 .findFirst()
@@ -99,7 +106,7 @@ class JapanQuoteCollectorTest {
         when(client.fetchTokyoQuote("A")).thenReturn(quote("1100", "1000", MARKET_TIME));
         when(client.fetchTokyoQuote("B")).thenThrow(new IllegalStateException("없음"));
 
-        JapanQuoteCollector.Result result = collector.collect();
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isFalse();
         verify(repository, never()).saveAll(any());
@@ -111,7 +118,7 @@ class JapanQuoteCollectorTest {
         when(client.fetchTokyoQuote("A"))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "", null, null, null));
 
-        JapanQuoteCollector.Result result = collector.collect();
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isFalse();
         verify(client, times(1)).fetchTokyoQuote(anyString());
@@ -122,7 +129,7 @@ class JapanQuoteCollectorTest {
     void 기준_시세가_없으면_요청하지_않는다() {
         when(repository.findFirstByIdMarketOrderByIdSnapshotTimeDesc("JAPAN")).thenReturn(Optional.empty());
 
-        JapanQuoteCollector.Result result = collector.collect();
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isFalse();
         verify(client, never()).fetchTokyoQuote(anyString());
@@ -132,6 +139,25 @@ class JapanQuoteCollectorTest {
     void 등락률은_전일_종가_기준_소수_둘째_자리로_반올림한다() {
         assertThat(JapanQuoteCollector.changeRateOf(new BigDecimal("1022.00"), new BigDecimal("1131.50")))
                 .isEqualByComparingTo("-9.68");
+    }
+
+    @Test
+    void 전일_시각_응답은_오늘_시세_집계에서_분리한다() {
+        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"), lastQuote("2914", "6269.00", "1000000"));
+        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        when(client.fetchTokyoQuote("2914")).thenReturn(quote("6269", "6269", Instant.parse("2026-11-06T06:30:00Z")));
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isTrue();
+        assertThat(result.todayQuoteCount()).isEqualTo(1);
+        assertThat(result.otherDateQuoteCount()).isEqualTo(1);
+        assertThat(result.failureCount()).isZero();
+        OverseasStockQuote savedHaltedStock = savedQuotes().stream()
+                .filter(quote -> quote.getId().getStockCode().equals("2914"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(savedHaltedStock.getId().getSnapshotTime()).isEqualTo(result.snapshotTime());
     }
 
     private void givenLastQuotes(OverseasStockQuote... quotes) {
