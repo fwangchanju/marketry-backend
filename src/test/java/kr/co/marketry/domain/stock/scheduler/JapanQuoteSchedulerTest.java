@@ -33,6 +33,24 @@ class JapanQuoteSchedulerTest {
     }
 
     @Test
+    void 점심_중단은_시작을_포함하고_재개_시각은_포함하지_않는다() {
+        JapanQuoteCollector collector = mock(JapanQuoteCollector.class);
+        when(collector.collect()).thenReturn(new JapanQuoteCollector.Result(false, null, 0, 0, 0, 0, 0, "새 시세가 없습니다"));
+        JapanQuoteScheduler scheduler = new JapanQuoteScheduler(collector);
+
+        scheduler.collect(LocalDateTime.of(2026, 11, 9, 11, 53));
+        verify(collector).collect();
+        scheduler.collect(LocalDateTime.of(2026, 11, 9, 11, 58));
+        scheduler.collect(LocalDateTime.of(2026, 11, 9, 12, 33));
+        scheduler.collect(LocalDateTime.of(2026, 11, 9, 12, 43));
+        scheduler.collect(LocalDateTime.of(2026, 11, 9, 12, 47, 59));
+        verify(collector).collect();
+        scheduler.collect(LocalDateTime.of(2026, 11, 9, 12, 48));
+
+        verify(collector, times(2)).collect();
+    }
+
+    @Test
     void 개장_시세_측정은_수집기를_호출한다() {
         JapanQuoteCollector collector = mock(JapanQuoteCollector.class);
         LocalDateTime now = LocalDateTime.of(2026, 11, 9, 9, 15);
