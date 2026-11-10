@@ -43,10 +43,16 @@ class AuthTokenFilterTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"/api/custom/preferences", "/api/map/telegram-image-setting", "/api/auth/session"})
+    @ValueSource(
+            strings = {
+                "/api/custom/preferences",
+                "/api/map/telegram-image-setting",
+                "/api/japan/quotes",
+                "/api/auth/session"
+            })
     void validCaptureTokenAuthenticatesGetRequestsAsAReadOnlyUser(String path) throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
-                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER));
+                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER, true));
         MockHttpServletRequest request = captureRequest("GET", path);
         MockHttpServletResponse response = new MockHttpServletResponse();
         MockFilterChain filterChain = new MockFilterChain();
@@ -54,7 +60,7 @@ class AuthTokenFilterTest {
         filter.doFilter(request, response, filterChain);
 
         assertThat(SecurityContextHolder.getContext().getAuthentication().getPrincipal())
-                .isEqualTo(new AuthenticatedUserPrincipal(42L, Role.USER));
+                .isEqualTo(new AuthenticatedUserPrincipal(42L, Role.USER, true));
         assertThat(filterChain.getRequest()).isNotNull();
     }
 
@@ -74,7 +80,7 @@ class AuthTokenFilterTest {
     @ValueSource(strings = {"POST", "PUT", "DELETE", "PATCH"})
     void captureTokenRejectsNonGetRequests(String method) throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
-                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER));
+                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER, true));
         MockHttpServletRequest request = captureRequest(method, "/api/custom/preferences");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -92,7 +98,7 @@ class AuthTokenFilterTest {
             })
     void captureTokenRejectsAdminRoutes(String path) throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
-                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER));
+                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER, true));
         MockHttpServletRequest request = captureRequest("GET", path);
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -105,7 +111,7 @@ class AuthTokenFilterTest {
     @Test
     void captureTokenRejectsRefreshEvenAsAGetRequest() throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
-                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER));
+                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER, true));
         MockHttpServletRequest request = captureRequest("GET", "/api/auth/refresh");
         MockHttpServletResponse response = new MockHttpServletResponse();
 
@@ -118,7 +124,7 @@ class AuthTokenFilterTest {
     @Test
     void captureTokenRejectsLogoutEvenAsAGetRequest() throws Exception {
         when(appJwtService.parseCaptureToken("capture-token"))
-                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER));
+                .thenReturn(new AuthenticatedUserPrincipal(42L, Role.USER, true));
         MockHttpServletRequest request = captureRequest("GET", "/api/auth/logout");
         MockHttpServletResponse response = new MockHttpServletResponse();
 

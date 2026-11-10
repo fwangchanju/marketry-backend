@@ -81,7 +81,9 @@ public class JapanController {
     }
 
     private void requireSpecial(AuthenticatedUserPrincipal principal) {
-        if (principal.role() == Role.ADMIN) {
+        // 캡처 토큰은 AuthTokenFilter가 GET만 허용하고 관리자 API를 차단한다.
+        // 텔레그램 일본 지도를 그리는 내부 읽기 요청은 특별회원 자격과 별도로 허용한다.
+        if (principal.role() == Role.ADMIN || principal.captureToken()) {
             return;
         }
         boolean special = userAccountRepository

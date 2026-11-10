@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.common.event.EscalationEvent;
+import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,11 +36,11 @@ public class EscalationPublisher {
     private LocalDate occurrenceDate;
 
     public synchronized void report(EscalateException e) {
-        report(e, LocalDateTime.now(Zone.KST.zoneId()));
+        report(null, e, LocalDateTime.now(Zone.KST.zoneId()));
     }
 
     public synchronized void report(String source, EscalateException e) {
-        report(e);
+        report(source, e, LocalDateTime.now(Zone.KST.zoneId()));
     }
 
     public synchronized void resolve(String source) {
@@ -47,6 +48,10 @@ public class EscalationPublisher {
     }
 
     synchronized void report(EscalateException e, LocalDateTime now) {
+        report(null, e, now);
+    }
+
+    void report(String source, EscalateException e, LocalDateTime now) {
         LocalDate today = now.toLocalDate();
         String logMessage = e.createLogMessage();
         log.error(logMessage, e);
@@ -56,7 +61,12 @@ public class EscalationPublisher {
             failureBySource.invalidateAll();
         }
 
-        String errorKey = e.getErrorCode().name();
+        boolean marketMapImageFailure = source != null
+                && source.isBlank() == false
+                && (e.getErrorCode() == ErrorCode.SCREENSHOT_CAPTURE_FAILED
+                        || e.getErrorCode() == ErrorCode.TELEGRAM_IMAGE_SEND_FAILED);
+        String errorKey =
+                (marketMapImageFailure ? source + "|" : "") + e.getErrorCode().name();
         FailureState previous = failureBySource.getIfPresent(errorKey);
         List<LocalDateTime> failures = previous == null ? new ArrayList<>() : previous.times();
         if (failures.size() < MAX_NOTIFICATIONS_PER_ERROR) failures.add(now);
@@ -65,9 +75,17 @@ public class EscalationPublisher {
 
         String summary = e.getMessage().replace("에 실패했습니다.", " 실패.");
         String notification = "[" + e.getErrorCode().name() + "]\n⚠️ " + summary + " " + occurrence + "회차.";
-        String causeMessage = e.getCauseMessage();
-        if (causeMessage.isBlank() == false) {
-            notification += "\n" + causeMessage;
+        if (marketMapImageFailure) {
+            notification = "⚠️ " + source + " " + summary.replaceAll("\\.$", "") + " (" + occurrence + "회차)";
+            if (e.getCause() != null) {
+                notification += "\n원인: " + e.getCause().getClass().getSimpleName();
+                if (e.getCause().getMessage() != null
+                        && e.getCause().getMessage().isBlank() == false) {
+                    notification += "\n상세: " + e.getCause().getMessage();
+                }
+            }
+        } else if (e.getCauseMessage().isBlank() == false) {
+            notification += "\n" + e.getCauseMessage();
         }
 
         String channelMessage = null;
@@ -75,7 +93,8 @@ public class EscalationPublisher {
             String times = failures.stream()
                     .map(time -> time.format(DateTimeFormatter.ofPattern("HH:mm")))
                     .collect(java.util.stream.Collectors.joining(", "));
-            channelMessage = "⚠️ " + summary + " 오늘 3회 발생.\n발생 시각: " + times;
+            channelMessage =
+                    (marketMapImageFailure ? "⚠️ " + source + " " : "⚠️ ") + summary + " 오늘 3회 발생.\n발생 시각: " + times;
         }
         eventPublisher.publishEvent(new EscalationEvent(notification, channelMessage));
     }

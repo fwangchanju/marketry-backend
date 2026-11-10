@@ -7,7 +7,11 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public record AuthenticatedUserPrincipal(Long userId, Role role) implements UserDetails {
+public record AuthenticatedUserPrincipal(Long userId, Role role, boolean captureToken) implements UserDetails {
+
+    public AuthenticatedUserPrincipal(Long userId, Role role) {
+        this(userId, role, false);
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

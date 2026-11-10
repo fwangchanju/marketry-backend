@@ -69,4 +69,13 @@ class JapanControllerTest {
                 .isEmpty();
         verifyNoInteractions(users);
     }
+
+    @Test
+    void 읽기전용_캡처_토큰은_특별회원_검사없이_일본_지도_데이터를_조회한다() {
+        when(names.findAll()).thenReturn(Map.of("7203", "도요타"));
+
+        assertThat(controller.findStockNames(new AuthenticatedUserPrincipal(3L, Role.USER, true)))
+                .containsEntry("7203", "도요타");
+        verifyNoInteractions(users);
+    }
 }
