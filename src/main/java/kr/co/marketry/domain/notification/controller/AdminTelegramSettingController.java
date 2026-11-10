@@ -36,8 +36,16 @@ public class AdminTelegramSettingController {
 
     @PostMapping("/send-once")
     public ResponseEntity<Void> sendOnce() {
-        // 관리자가 요청한 한 번의 발송은 최신 공통 스냅샷 시각으로 정기 리포트와 같은 캡처·전송 경로를 쓴다.
-        boolean sent = telegramReportDispatcher.sendLatestHome();
+        // 국내 테스트는 국내 지도 한 장만 보낸다.
+        boolean sent = telegramReportDispatcher.sendLatestKorea();
+        return sent
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.status(HttpStatus.CONFLICT).build();
+    }
+
+    @PostMapping("/send-japan-once")
+    public ResponseEntity<Void> sendJapanOnce() {
+        boolean sent = telegramReportDispatcher.sendLatestJapan();
         return sent
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.status(HttpStatus.CONFLICT).build();
