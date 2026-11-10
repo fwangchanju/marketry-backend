@@ -64,7 +64,8 @@ public class EscalationPublisher {
         boolean marketMapImageFailure = source != null
                 && source.isBlank() == false
                 && (e.getErrorCode() == ErrorCode.SCREENSHOT_CAPTURE_FAILED
-                        || e.getErrorCode() == ErrorCode.TELEGRAM_IMAGE_SEND_FAILED);
+                        || e.getErrorCode() == ErrorCode.TELEGRAM_IMAGE_SEND_FAILED
+                        || e.getErrorCode() == ErrorCode.MAP_CAPTION_BUILD_FAILED);
         String errorKey =
                 (marketMapImageFailure ? source + "|" : "") + e.getErrorCode().name();
         FailureState previous = failureBySource.getIfPresent(errorKey);
