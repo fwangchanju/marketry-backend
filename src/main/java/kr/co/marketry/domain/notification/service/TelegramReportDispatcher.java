@@ -28,4 +28,8 @@ public class TelegramReportDispatcher {
     public boolean sendLatestJapan() {
         return homeReportSender.sendLatestJapan();
     }
+
+    public HomeReportSender.JapanSendResult sendLatestJapanOnce() {
+        return homeReportSender.sendLatestJapanOnce();
+    }
 }

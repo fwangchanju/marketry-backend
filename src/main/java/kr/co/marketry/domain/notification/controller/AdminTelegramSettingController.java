@@ -7,6 +7,7 @@ import kr.co.marketry.domain.notification.service.TelegramSendSettingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,10 +45,22 @@ public class AdminTelegramSettingController {
     }
 
     @PostMapping("/send-japan-once")
-    public ResponseEntity<Void> sendJapanOnce() {
-        boolean sent = telegramReportDispatcher.sendLatestJapan();
-        return sent
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.status(HttpStatus.CONFLICT).build();
+    public ResponseEntity<?> sendJapanOnce() {
+        return switch (telegramReportDispatcher.sendLatestJapanOnce()) {
+            case SENT -> ResponseEntity.noContent().build();
+            case NO_QUOTES -> japanSendFailure(HttpStatus.CONFLICT, "NO_JAPAN_QUOTES", "발송할 일본 시세가 없습니다.");
+            case QUOTE_LOOKUP_FAILED ->
+                japanSendFailure(HttpStatus.INTERNAL_SERVER_ERROR, "JAPAN_QUOTE_LOOKUP_FAILED", "일본 시세 조회에 실패했습니다.");
+            case MAP_CAPTURE_FAILED ->
+                japanSendFailure(HttpStatus.BAD_GATEWAY, "JAPAN_MAP_CAPTURE_FAILED", "일본 지도 캡처에 실패했습니다.");
+            case TELEGRAM_SEND_FAILED ->
+                japanSendFailure(HttpStatus.BAD_GATEWAY, "JAPAN_TELEGRAM_SEND_FAILED", "일본 지도 텔레그램 전송에 실패했습니다.");
+        };
+    }
+
+    private ResponseEntity<ProblemDetail> japanSendFailure(HttpStatus status, String errorCode, String detail) {
+        ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
+        problemDetail.setProperty("errorCode", errorCode);
+        return ResponseEntity.status(status).body(problemDetail);
     }
 }

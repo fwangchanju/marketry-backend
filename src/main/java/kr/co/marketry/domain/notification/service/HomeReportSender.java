@@ -33,10 +33,10 @@ public class HomeReportSender {
 
     private static final MarketQuery HOME_MARKETS = MarketQuery.ALL_STOCK;
     private static final int CAPTION_SECTOR_COUNT = 2;
-    private static final String KOREA_HEADER = "[#KOSPI #KOSDAQ]";
-    private static final String KOREA_CLOSE_HEADER = "[#KOSPI #KOSDAQ #마감]";
-    private static final String JAPAN_HEADER = "[#니케이225] (20분 지연)";
-    private static final String JAPAN_CLOSE_HEADER = "[#니케이225] (20분 지연) #마감";
+    private static final String KOREA_HEADER = "#KOSPI #KOSDAQ";
+    private static final String KOREA_CLOSE_HEADER = "#KOSPI #KOSDAQ #마감";
+    private static final String JAPAN_HEADER = "#니케이225 (20분 지연)";
+    private static final String JAPAN_CLOSE_HEADER = "#니케이225 (20분 지연) #마감";
     private static final String MAP_CAPTURE_ERROR_SOURCE = "홈리포트 모바일 지도 캡처";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
     private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
@@ -67,20 +67,38 @@ public class HomeReportSender {
     public boolean sendLatestKorea() {
         return sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .map(this::sendKoreaReport)
+                .map(this::sendKoreaTestReport)
                 .orElse(false);
     }
 
     public boolean sendLatestJapan() {
+        return sendLatestJapanOnce() == JapanSendResult.SENT;
+    }
+
+    public JapanSendResult sendLatestJapanOnce() {
+        OverseasStockQuoteService.QuoteSnapshot snapshot;
         try {
-            LocalDateTime snapshotTime =
-                    overseasStockQuoteService.findQuotes("JAPAN", null).snapshotTime();
-            if (snapshotTime == null) return false;
-            return captureJapanMap().map(this::sendJapanMap).orElse(false);
+            snapshot = overseasStockQuoteService.findQuotes("JAPAN", null);
         } catch (Exception e) {
-            log.warn("[홈리포트] 일본 테스트 발송 실패 | context : {}", e.getClass().getSimpleName());
-            return false;
+            log.warn("[홈리포트] 일본 최신 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
+            return JapanSendResult.QUOTE_LOOKUP_FAILED;
         }
+        if (snapshot.snapshotTime() == null) return JapanSendResult.NO_QUOTES;
+
+        Optional<CapturedJapanMap> captured = captureJapanMap();
+        if (captured.isEmpty()) return JapanSendResult.MAP_CAPTURE_FAILED;
+        CapturedJapanMap testCapture = captured.get();
+        CapturedJapanMap markedCapture =
+                new CapturedJapanMap(testCapture.images(), withTestMarker(testCapture.caption()));
+        return sendJapanMap(markedCapture) ? JapanSendResult.SENT : JapanSendResult.TELEGRAM_SEND_FAILED;
+    }
+
+    public enum JapanSendResult {
+        SENT,
+        NO_QUOTES,
+        QUOTE_LOOKUP_FAILED,
+        MAP_CAPTURE_FAILED,
+        TELEGRAM_SEND_FAILED
     }
 
     public boolean send(LocalDateTime dataTime) {
@@ -137,7 +155,7 @@ public class HomeReportSender {
         return true;
     }
 
-    private boolean sendKoreaReport(LocalDateTime dataTime) {
+    private boolean sendKoreaTestReport(LocalDateTime dataTime) {
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
         String caption = null;
         try {
@@ -160,6 +178,7 @@ public class HomeReportSender {
             }
         }
         caption = withHeader(caption, koreaHeader(basis, dataTime));
+        caption = withTestMarker(caption);
         List<byte[]> images = captureMapImages(basis);
         if (images.isEmpty()) return false;
         telegramClient.sendPhoto(telegramProperties.chatId(), images.get(0), caption);
@@ -226,6 +245,10 @@ public class HomeReportSender {
 
     private String withHeader(String caption, String header) {
         return caption == null || caption.isBlank() ? header : header + "\n" + caption;
+    }
+
+    private String withTestMarker(String caption) {
+        return caption + "\n\n테스트 발송";
     }
 
     private record CapturedJapanMap(List<byte[]> images, String caption) {}

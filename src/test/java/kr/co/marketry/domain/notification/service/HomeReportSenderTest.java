@@ -144,7 +144,7 @@ class HomeReportSenderTest {
         verify(screenshotClient)
                 .captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR);
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
         verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), any());
     }
 
@@ -173,7 +173,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.sendLatestJapan()).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%\n\n테스트 발송");
         verify(screenshotClient, never()).captureWithRows(any(), eq(RenderTarget.HOME_MOBILE.selector()), any());
         verify(sectorPriceSnapshotService, never()).findLatestCommonSnapshotTime(anyList());
     }
@@ -196,7 +196,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME)).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n헬스케어 +1.91% / S7 +1.71%");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n헬스케어 +1.91% / S7 +1.71%");
         verify(treemapQueryService, never()).getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
@@ -219,8 +219,8 @@ class HomeReportSenderTest {
         assertThat(sender.send(DATA_TIME, true)).isTrue();
 
         var order = inOrder(telegramClient);
-        order.verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
-        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+        order.verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
+        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
@@ -235,7 +235,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME, false)).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
         verify(screenshotClient, never())
                 .captureWithRows(
                         RenderTarget.JAPAN_MAP_MOBILE.path(),
@@ -257,7 +257,7 @@ class HomeReportSenderTest {
 
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
     }
 
     @Test
@@ -276,7 +276,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME, true)).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
@@ -292,7 +292,7 @@ class HomeReportSenderTest {
 
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
     }
 
     @Test
@@ -312,12 +312,12 @@ class HomeReportSenderTest {
                 .thenReturn("기술 +4.5%\n금융 +4.2%");
         org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
                 .when(telegramClient)
-                .sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
 
         assertThat(sender.send(DATA_TIME, true)).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
@@ -337,7 +337,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n계산 캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n계산 캡션");
     }
 
     // 프리·애프터 마켓에는 화면이 NXT 종목만 보여 주므로, 서버 계산 캡션도 같은 종목으로 순위를 만든다.
@@ -355,7 +355,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
     }
 
     @Test
@@ -372,7 +372,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ #마감]\n헬스케어 +1.91% / S7 +1.71%");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ #마감\n헬스케어 +1.91% / S7 +1.71%");
     }
 
     @Test
@@ -388,7 +388,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
     }
 
     @Test
@@ -408,7 +408,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ\n캡션");
     }
 
     @Test
@@ -423,7 +423,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ");
     }
 
     // 시장 지도 캡처가 실패하면 발송하지 않고 개발자 채널에 알린다.
@@ -489,7 +489,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME)).isTrue();
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ");
     }
 
     @Test
@@ -502,7 +502,7 @@ class HomeReportSenderTest {
         givenMapCapture();
 
         assertThat(sender.send(DATA_TIME)).isTrue();
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#KOSPI #KOSDAQ");
     }
 
     @Test
