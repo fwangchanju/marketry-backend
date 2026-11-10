@@ -114,13 +114,28 @@ app.post('/capture', (req, res) => {
 
 // 준비 표식을 끝내 못 받았을 때 어느 단계에서 멈췄는지 알 수 있도록 API 호출과 페이지 오류를 모은다.
 // 주소는 경로만 남긴다. 토큰이 든 헤더와 쿼리는 기록하지 않는다.
-function trackPageActivity(page, sameOrigin) {
+function isTrustedApiUrl(requestUrl, baseUrl) {
+  const url = new URL(requestUrl)
+  const base = new URL(baseUrl)
+  if (!url.pathname.startsWith('/api/')) return false
+  if (url.origin === base.origin) return true
+
+  // 운영 HTTP 주소는 nginx가 같은 호스트의 HTTPS로 돌려보낸다. 이 한 가지
+  // 기본 포트 리디렉션만 허용해야 캡처 토큰이 다른 출처로 전달되지 않는다.
+  return base.protocol === 'http:'
+    && url.protocol === 'https:'
+    && url.hostname === base.hostname
+    && (base.port === '' || base.port === '80')
+    && (url.port === '' || url.port === '443')
+}
+
+function trackPageActivity(page, baseUrl) {
   const pending = new Map()
   const failed = []
   const pageErrors = []
   const apiPath = (request) => {
     const url = new URL(request.url())
-    return url.origin === sameOrigin && url.pathname.startsWith('/api/') ? url.pathname : null
+    return isTrustedApiUrl(url, baseUrl) ? url.pathname : null
   }
   page.on('request', (request) => {
     const path = apiPath(request)
@@ -170,7 +185,7 @@ async function handleCapture(path, selector, token, rowSelector) {
   const page = await acquirePage()
 
   try {
-    const activity = trackPageActivity(page, new URL(BASE_URL).origin)
+    const activity = trackPageActivity(page, BASE_URL)
     const captureUrl = new URL(path, 'http://localhost')
     const useSharedMapCapture = selector === SHARED_MAP_CAPTURE_SELECTOR
       && captureUrl.pathname.startsWith('/map/')
@@ -256,9 +271,8 @@ async function handleCapture(path, selector, token, rowSelector) {
 // 컨텍스트는 여러 캡처가 공유하므로(launchPersistentContext) 컨텍스트 전체 쿠키·헤더에는 절대 넣지 않는다.
 // 토큰은 로그에 남기지 않는다.
 async function registerCaptureTokenRoute(page, token) {
-  const sameOrigin = new URL(BASE_URL).origin
   await page.route(
-    (url) => url.origin === sameOrigin && url.pathname.startsWith('/api/'),
+    (url) => isTrustedApiUrl(url, BASE_URL),
     async (route) => {
       await route.continue({ headers: { ...route.request().headers(), [CAPTURE_TOKEN_HEADER]: token } })
     },
