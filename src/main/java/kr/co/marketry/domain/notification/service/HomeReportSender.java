@@ -12,6 +12,7 @@ import kr.co.marketry.domain.notification.listener.EscalationPublisher;
 import kr.co.marketry.domain.notification.properties.TelegramProperties;
 import kr.co.marketry.domain.renderer.client.ScreenshotClient;
 import kr.co.marketry.domain.renderer.client.ScreenshotClient.CaptureResult;
+import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.SectorPriceSnapshotService;
 import kr.co.marketry.domain.view.dto.TopSectorItem;
 import kr.co.marketry.domain.view.enums.MarketQuery;
@@ -32,10 +33,15 @@ public class HomeReportSender {
 
     private static final MarketQuery HOME_MARKETS = MarketQuery.ALL_STOCK;
     private static final int CAPTION_SECTOR_COUNT = 2;
-    private static final String CLOSE_TAG = "#종가";
+    private static final String KOREA_HEADER = "[#KOSPI #KOSDAQ]";
+    private static final String KOREA_CLOSE_HEADER = "[#KOSPI #KOSDAQ #마감]";
+    private static final String JAPAN_HEADER = "[#니케이225] (20분 지연)";
+    private static final String JAPAN_CLOSE_HEADER = "[#니케이225] (20분 지연) #마감";
     private static final String MAP_CAPTURE_ERROR_SOURCE = "홈리포트 모바일 지도 캡처";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
     private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
+    private static final String JAPAN_GROUP_ROW_SELECTOR =
+            "[data-captureid='map-mobile-capture'] [data-japan-report-row]";
 
     private final ScreenshotClient screenshotClient;
     private final TelegramClient telegramClient;
@@ -46,6 +52,7 @@ public class HomeReportSender {
     private final MarketTradingScheduleService marketTradingScheduleService;
     private final EscalationPublisher escalationPublisher;
     private final RenderBasisResolver renderBasisResolver;
+    private final OverseasStockQuoteService overseasStockQuoteService;
 
     @Value("${collect.interval-minutes}")
     private int collectionIntervalMinutes;
@@ -53,11 +60,34 @@ public class HomeReportSender {
     public boolean sendLatest() {
         return sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .map(this::sendReport)
+                .map(dataTime -> sendReport(dataTime, false))
                 .orElse(false);
     }
 
+    public boolean sendLatestKorea() {
+        return sectorPriceSnapshotService
+                .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
+                .map(this::sendKoreaReport)
+                .orElse(false);
+    }
+
+    public boolean sendLatestJapan() {
+        try {
+            LocalDateTime snapshotTime =
+                    overseasStockQuoteService.findQuotes("JAPAN", null).snapshotTime();
+            if (snapshotTime == null) return false;
+            return captureJapanMap().map(this::sendJapanMap).orElse(false);
+        } catch (Exception e) {
+            log.warn("[홈리포트] 일본 테스트 발송 실패 | context : {}", e.getClass().getSimpleName());
+            return false;
+        }
+    }
+
     public boolean send(LocalDateTime dataTime) {
+        return send(dataTime, false);
+    }
+
+    public boolean send(LocalDateTime dataTime, boolean finalDailySend) {
         if (sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
                 .filter(dataTime::equals)
@@ -65,10 +95,10 @@ public class HomeReportSender {
             log.warn("[홈리포트] 기준 시각의 최신 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
             return false;
         }
-        return sendReport(dataTime);
+        return sendReport(dataTime, finalDailySend);
     }
 
-    private boolean sendReport(LocalDateTime dataTime) {
+    private boolean sendReport(LocalDateTime dataTime, boolean finalDailySend) {
         // 캡션과 지도에 같은 등락률 기준(종가·별도)을 적용한다.
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
         String caption = null;
@@ -92,7 +122,7 @@ public class HomeReportSender {
                 log.warn("[홈리포트] 캡션 계산 실패로 캡션 없이 발송 | context : {}", dataTime, e);
             }
         }
-        caption = withBasisTag(caption, basis, dataTime);
+        caption = withHeader(caption, koreaHeader(basis, dataTime));
 
         List<byte[]> mapImages = captureMapImages(basis);
         if (mapImages.isEmpty()) {
@@ -100,17 +130,112 @@ public class HomeReportSender {
             return false;
         }
         telegramClient.sendPhoto(telegramProperties.chatId(), mapImages.get(0), caption);
-        log.info("홈 리포트 발송 완료: 시장 지도 1장");
+        log.info("홈 리포트 발송 완료: 국내 시장 지도 1장");
+        if (finalDailySend) {
+            captureJapanMap(dataTime, true).ifPresent(this::sendJapanMap);
+        }
         return true;
     }
 
-    // 15:30~15:40 종가 구간의 마지막 스냅샷에만 종가 태그를 붙인다.
-    private String withBasisTag(String caption, Optional<RenderBasis> basis, LocalDateTime dataTime) {
-        if (basis.orElse(null) != RenderBasis.CLOSE
-                || renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes) == false) {
-            return caption;
+    private boolean sendKoreaReport(LocalDateTime dataTime) {
+        Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
+        String caption = null;
+        try {
+            CaptureResult summary = screenshotClient.captureWithRows(
+                    RenderTarget.HOME_MOBILE.path(basis), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
+            if (!summary.images().isEmpty()) {
+                caption = sectorRankingTextBuilder.buildCaptionFromRenderedRows(summary.rows(), CAPTION_SECTOR_COUNT);
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "[홈리포트] 요약 캡처 실패로 서버 계산 캡션 사용 | context : {}|{}",
+                    dataTime,
+                    e.getClass().getSimpleName());
         }
-        return caption == null || caption.isBlank() ? CLOSE_TAG : caption + "\n" + CLOSE_TAG;
+        if (caption == null) {
+            try {
+                caption = buildCaption(dataTime);
+            } catch (Exception e) {
+                log.warn("[홈리포트] 캡션 계산 실패로 캡션 없이 발송 | context : {}", dataTime, e);
+            }
+        }
+        caption = withHeader(caption, koreaHeader(basis, dataTime));
+        List<byte[]> images = captureMapImages(basis);
+        if (images.isEmpty()) return false;
+        telegramClient.sendPhoto(telegramProperties.chatId(), images.get(0), caption);
+        return true;
+    }
+
+    private boolean sendJapanMap(CapturedJapanMap captured) {
+        try {
+            telegramClient.sendPhoto(
+                    telegramProperties.chatId(), captured.images().get(0), captured.caption());
+            log.info("홈 리포트 발송 완료: 일본 시장 지도 1장");
+            return true;
+        } catch (Exception e) {
+            log.warn("[홈리포트] 일본 지도 텔레그램 발송 실패 | context : {}", e.getClass().getSimpleName());
+            return false;
+        }
+    }
+
+    // 당일 일본 시세가 저장된 경우만 함께 보낸다. 아직 첫 시세가 없으면 전일 지도를 오늘 지도처럼 보내지 않는다.
+    private Optional<CapturedJapanMap> captureJapanMap(LocalDateTime dataTime, boolean closingTransmission) {
+        try {
+            LocalDateTime japanSnapshotTime =
+                    overseasStockQuoteService.findQuotes("JAPAN", null).snapshotTime();
+            if (japanSnapshotTime == null || !japanSnapshotTime.toLocalDate().equals(dataTime.toLocalDate())) {
+                return Optional.empty();
+            }
+            return captureJapanMap(closingTransmission);
+        } catch (Exception e) {
+            log.warn(
+                    "[홈리포트] 일본 지도 캡처 실패로 국내 지도만 발송 | context : {}|{}",
+                    dataTime,
+                    e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    private Optional<CapturedJapanMap> captureJapanMap() {
+        return captureJapanMap(false);
+    }
+
+    private Optional<CapturedJapanMap> captureJapanMap(boolean closingTransmission) {
+        try {
+            CaptureResult captured = screenshotClient.captureWithRows(
+                    RenderTarget.JAPAN_MAP_MOBILE.path(),
+                    RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                    JAPAN_GROUP_ROW_SELECTOR);
+            if (captured.images().isEmpty()) {
+                log.warn("[홈리포트] 일본 지도 캡처 결과가 비어 있어 일본 발송 생략");
+                return Optional.empty();
+            }
+            String topSectors =
+                    sectorRankingTextBuilder.buildCaptionFromRenderedRows(captured.rows(), CAPTION_SECTOR_COUNT);
+            if (topSectors == null || topSectors.isBlank()) {
+                log.warn("[홈리포트] 일본 대분류 TOP2를 읽지 못해 일본 지도 발송 생략");
+                return Optional.empty();
+            }
+            String header = closingTransmission ? JAPAN_CLOSE_HEADER : JAPAN_HEADER;
+            return Optional.of(new CapturedJapanMap(captured.images(), header + "\n" + topSectors));
+        } catch (Exception e) {
+            log.warn("[홈리포트] 일본 지도 캡처 실패로 일본 발송 생략 | context : {}", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    private String withHeader(String caption, String header) {
+        return caption == null || caption.isBlank() ? header : header + "\n" + caption;
+    }
+
+    private record CapturedJapanMap(List<byte[]> images, String caption) {}
+
+    // 마지막 종가 구간의 스냅샷에만 헤더에 마감 태그를 더한다.
+    private String koreaHeader(Optional<RenderBasis> basis, LocalDateTime dataTime) {
+        return basis.orElse(null) == RenderBasis.CLOSE
+                        && renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes)
+                ? KOREA_CLOSE_HEADER
+                : KOREA_HEADER;
     }
 
     // 시장 지도 캡처 실패는 개발자 채널에 알린다. 한 번 실패는 곧바로 다시 찍어 보고, 또 실패할 때만 알린다.

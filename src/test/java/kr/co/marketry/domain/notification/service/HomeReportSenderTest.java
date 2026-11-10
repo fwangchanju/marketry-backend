@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -26,6 +27,7 @@ import kr.co.marketry.domain.notification.listener.EscalationPublisher;
 import kr.co.marketry.domain.notification.properties.TelegramProperties;
 import kr.co.marketry.domain.renderer.client.ScreenshotClient;
 import kr.co.marketry.domain.renderer.client.ScreenshotClient.CaptureResult;
+import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.SectorPriceSnapshotService;
 import kr.co.marketry.domain.view.dto.TopSectorItem;
 import kr.co.marketry.domain.view.enums.AverageMode;
@@ -39,14 +41,19 @@ class HomeReportSenderTest {
     private static final LocalDateTime DATA_TIME = LocalDateTime.of(2026, 10, 22, 8, 5);
     private static final byte[] SUMMARY_IMAGE = {1, 2, 3};
     private static final byte[] MAP_IMAGE = {4, 5, 6};
+    private static final byte[] JAPAN_MAP_IMAGE = {7, 8, 9};
     private static final String ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
+    private static final String JAPAN_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-japan-report-row]";
     private static final List<String> ROWS = List.of("{\"name\":\"헬스케어\",\"value\":\"+1.91\"}");
+    private static final List<String> JAPAN_ROWS =
+            List.of("{\"name\":\"기술\",\"value\":\"+4.5\"}", "{\"name\":\"금융\",\"value\":\"+4.2\"}");
 
     private final ScreenshotClient screenshotClient = mock(ScreenshotClient.class);
     private final TelegramClient telegramClient = mock(TelegramClient.class);
     private final SectorRankingTextBuilder sectorRankingTextBuilder = mock(SectorRankingTextBuilder.class);
     private final TreemapQueryService treemapQueryService = mock(TreemapQueryService.class);
     private final SectorPriceSnapshotService sectorPriceSnapshotService = mock(SectorPriceSnapshotService.class);
+    private final OverseasStockQuoteService overseasStockQuoteService = mock(OverseasStockQuoteService.class);
     private final MarketTradingScheduleService marketTradingScheduleService = mock(MarketTradingScheduleService.class);
     private final EscalationPublisher escalationPublisher = mock(EscalationPublisher.class);
     private final RenderBasisResolver renderBasisResolver = mock(RenderBasisResolver.class);
@@ -61,11 +68,14 @@ class HomeReportSenderTest {
             sectorPriceSnapshotService,
             marketTradingScheduleService,
             escalationPublisher,
-            renderBasisResolver);
+            renderBasisResolver,
+            overseasStockQuoteService);
 
     @org.junit.jupiter.api.BeforeEach
     void givenNoBasis() {
         when(renderBasisResolver.resolve(any())).thenReturn(Optional.empty());
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(null, List.of()));
     }
 
     private void givenTodaySnapshot() {
@@ -117,7 +127,7 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 일회성_발송은_최근_공통_스냅샷이_오늘이_아니어도_홈리포트를_보낸다() {
+    void 일회성_국내_발송은_최근_공통_스냅샷으로_국내지도만_보낸다() {
         LocalDateTime latestSnapshot = DATA_TIME.minusDays(1);
         when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList()))
                 .thenReturn(Optional.of(latestSnapshot));
@@ -134,7 +144,8 @@ class HomeReportSenderTest {
         verify(screenshotClient)
                 .captureWithRows(
                         "/home?capture=mobile&basis=afterHours", RenderTarget.HOME_MOBILE.selector(), ROW_SELECTOR);
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), any());
     }
 
     @Test
@@ -147,6 +158,34 @@ class HomeReportSenderTest {
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
+    @Test
+    void 일본_일회성_발송은_일본_지도와_대분류_TOP2만_보낸다() {
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        when(screenshotClient.captureWithRows(
+                        RenderTarget.JAPAN_MAP_MOBILE.path(),
+                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                        JAPAN_ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), JAPAN_ROWS));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
+                .thenReturn("기술 +4.5%\n금융 +4.2%");
+
+        assertThat(sender.sendLatestJapan()).isTrue();
+
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(screenshotClient, never()).captureWithRows(any(), eq(RenderTarget.HOME_MOBILE.selector()), any());
+        verify(sectorPriceSnapshotService, never()).findLatestCommonSnapshotTime(anyList());
+    }
+
+    @Test
+    void 일본_일회성_발송은_시세가_없으면_발송하지_않는다() {
+        assertThat(sender.sendLatestJapan()).isFalse();
+
+        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
+    }
+
     // 이미지에 그려진 그룹 등락률 값으로 캡션을 만들어야 이미지와 숫자가 어긋나지 않는다.
     @Test
     void 시장_지도_한_장을_그룹_등락률_캡션과_함께_보낸다() {
@@ -157,8 +196,128 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME)).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "헬스케어 +1.91% / S7 +1.71%");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n헬스케어 +1.91% / S7 +1.71%");
         verify(treemapQueryService, never()).getMergedSectorRanking(any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
+    void 당일_마지막_발송은_국내_지도_뒤에_일본_마감_지도를_별도_사진으로_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        when(screenshotClient.captureWithRows(
+                        RenderTarget.JAPAN_MAP_MOBILE.path(),
+                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                        JAPAN_ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), JAPAN_ROWS));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
+                .thenReturn("기술 +4.5%\n금융 +4.2%");
+
+        assertThat(sender.send(DATA_TIME, true)).isTrue();
+
+        var order = inOrder(telegramClient);
+        order.verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
+    }
+
+    @Test
+    void 당일_중간_정기발송은_일본_지도를_보내지_않는다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        assertThat(sender.send(DATA_TIME, false)).isTrue();
+
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(screenshotClient, never())
+                .captureWithRows(
+                        RenderTarget.JAPAN_MAP_MOBILE.path(),
+                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                        JAPAN_ROW_SELECTOR);
+        verify(telegramClient, times(1)).sendPhoto(any(), any(), any());
+    }
+
+    @Test
+    void 일본_당일_시세가_없으면_국내_지도만_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME.minusDays(1), List.of()));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.send(DATA_TIME);
+
+        verify(screenshotClient, never())
+                .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+    }
+
+    @Test
+    void 일본_지도_캡처가_실패해도_국내_지도는_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        when(screenshotClient.captureWithRows(
+                        RenderTarget.JAPAN_MAP_MOBILE.path(),
+                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                        JAPAN_ROW_SELECTOR))
+                .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        assertThat(sender.send(DATA_TIME, true)).isTrue();
+
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
+    }
+
+    @Test
+    void 일본_시세_조회가_실패해도_국내_지도는_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null)).thenThrow(new RuntimeException("조회 실패"));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        assertThat(sender.send(DATA_TIME, true)).isTrue();
+
+        verify(screenshotClient, never())
+                .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+    }
+
+    @Test
+    void 일본_사진_전송이_실패해도_국내_사진_전송은_성공으로_유지한다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        when(screenshotClient.captureWithRows(
+                        RenderTarget.JAPAN_MAP_MOBILE.path(),
+                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                        JAPAN_ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), JAPAN_ROWS));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
+                .thenReturn("기술 +4.5%\n금융 +4.2%");
+        org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
+                .when(telegramClient)
+                .sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+
+        assertThat(sender.send(DATA_TIME, true)).isTrue();
+
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "[#니케이225] (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
@@ -178,7 +337,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "계산 캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n계산 캡션");
     }
 
     // 프리·애프터 마켓에는 화면이 NXT 종목만 보여 주므로, 서버 계산 캡션도 같은 종목으로 순위를 만든다.
@@ -196,11 +355,11 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
     }
 
     @Test
-    void 종가로_보내는_메시지는_캡션_아래_줄에_종가_태그를_붙인다() {
+    void 종가로_보내는_메시지는_첫줄에_마감_태그를_붙인다() {
         givenTodaySnapshot();
         when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.CLOSE));
         when(renderBasisResolver.isFinalClosingSnapshot(DATA_TIME, 0)).thenReturn(true);
@@ -213,7 +372,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "헬스케어 +1.91% / S7 +1.71%\n#종가");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ #마감]\n헬스케어 +1.91% / S7 +1.71%");
     }
 
     @Test
@@ -229,7 +388,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
     }
 
     @Test
@@ -249,7 +408,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]\n캡션");
     }
 
     @Test
@@ -264,7 +423,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, null);
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]");
     }
 
     // 시장 지도 캡처가 실패하면 발송하지 않고 개발자 채널에 알린다.
@@ -330,7 +489,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.send(DATA_TIME)).isTrue();
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, null);
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]");
     }
 
     @Test
@@ -343,7 +502,7 @@ class HomeReportSenderTest {
         givenMapCapture();
 
         assertThat(sender.send(DATA_TIME)).isTrue();
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, null);
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "[#KOSPI #KOSDAQ]");
     }
 
     @Test
@@ -352,6 +511,8 @@ class HomeReportSenderTest {
         assertThat(RenderTarget.HOME_MOBILE.selector()).isEqualTo("[data-captureid='summary-capture']");
         assertThat(RenderTarget.MAP_MOBILE.path()).isEqualTo("/map/korea?capture=mobile");
         assertThat(RenderTarget.MAP_MOBILE.selector()).isEqualTo("[data-captureid='map-mobile-capture']");
+        assertThat(RenderTarget.JAPAN_MAP_MOBILE.path()).isEqualTo("/map/japan?capture=mobile");
+        assertThat(RenderTarget.JAPAN_MAP_MOBILE.selector()).isEqualTo("[data-captureid='map-mobile-capture']");
     }
 
     @Test
