@@ -33,8 +33,8 @@ public class HomeReportSender {
 
     private static final MarketQuery HOME_MARKETS = MarketQuery.ALL_STOCK;
     private static final int CAPTION_SECTOR_COUNT = 2;
-    private static final String KOREA_HEADER = "#KOSPI #KOSDAQ";
-    private static final String KOREA_CLOSE_HEADER = "#KOSPI #KOSDAQ #마감";
+    private static final String KOREA_HEADER = "#코스피 #코스닥";
+    private static final String KOREA_CLOSE_HEADER = "#코스피 #코스닥 #마감";
     private static final String JAPAN_HEADER = "#니케이225 (20분 지연)";
     private static final String JAPAN_CLOSE_HEADER = "#니케이225 (20분 지연) #마감";
     private static final String MAP_CAPTURE_ERROR_SOURCE = "홈리포트 모바일 지도 캡처";
