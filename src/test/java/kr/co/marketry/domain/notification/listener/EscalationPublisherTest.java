@@ -64,4 +64,13 @@ class EscalationPublisherTest {
                 .extracting(EscalationEvent::message)
                 .containsExactly("⚠️ 일본 지도 스크린샷 캡처 실패 (1회차)", "⚠️ 일본 지도 스크린샷 캡처 실패 (2회차)", "⚠️ 국내 지도 스크린샷 캡처 실패 (1회차)");
     }
+
+    @Test
+    void 일본_지도_캡션_생성_실패도_일본_지도_원인으로_알린다() {
+        publisher.report("일본 지도", new EscalateException(ErrorCode.MAP_CAPTION_BUILD_FAILED), FIRST);
+
+        var captured = ArgumentCaptor.forClass(EscalationEvent.class);
+        verify(events).publishEvent(captured.capture());
+        assertThat(captured.getValue().message()).isEqualTo("⚠️ 일본 지도 캡션 생성 실패 (1회차)");
+    }
 }

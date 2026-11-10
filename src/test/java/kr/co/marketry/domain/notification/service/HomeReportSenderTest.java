@@ -43,7 +43,7 @@ class HomeReportSenderTest {
     private static final byte[] MAP_IMAGE = {4, 5, 6};
     private static final byte[] JAPAN_MAP_IMAGE = {7, 8, 9};
     private static final String ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
-    private static final String JAPAN_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-japan-report-row]";
+    private static final String JAPAN_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
     private static final List<String> ROWS = List.of("{\"name\":\"헬스케어\",\"value\":\"+1.91\"}");
     private static final List<String> JAPAN_ROWS =
             List.of("{\"name\":\"기술\",\"value\":\"+4.5\"}", "{\"name\":\"금융\",\"value\":\"+4.2\"}");
@@ -330,6 +330,31 @@ class HomeReportSenderTest {
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
         verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+    }
+
+    @Test
+    void 일본_지도에서_TOP2를_읽지_못하면_일본_지도_캡션_실패를_알린다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        when(overseasStockQuoteService.findQuotes("JAPAN", null))
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        when(screenshotClient.captureWithRows(
+                        RenderTarget.JAPAN_MAP_MOBILE.path(),
+                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
+                        JAPAN_ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), List.of()));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(List.of(), 2))
+                .thenReturn(null);
+
+        assertThat(sender.send(DATA_TIME, true)).isTrue();
+
+        var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
+        verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
+        assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.MAP_CAPTION_BUILD_FAILED);
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
     }
 
     @Test

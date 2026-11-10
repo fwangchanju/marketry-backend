@@ -55,6 +55,7 @@ public enum ErrorCode {
     // Market summary
     RENDERER_DISABLED("렌더러가 비활성 상태입니다."),
     SCREENSHOT_CAPTURE_FAILED("스크린샷 캡처에 실패했습니다."),
+    MAP_CAPTION_BUILD_FAILED("캡션 생성에 실패했습니다."),
     IMAGE_STITCH_FAILED("이미지 병합에 실패했습니다."),
     TELEGRAM_MESSAGE_SEND_FAILED("텔레그램 메시지 발송에 실패했습니다."),
     TELEGRAM_IMAGE_SEND_FAILED("텔레그램 이미지 발송에 실패했습니다."),

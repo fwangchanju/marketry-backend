@@ -41,8 +41,7 @@ public class HomeReportSender {
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
     private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
-    private static final String JAPAN_GROUP_ROW_SELECTOR =
-            "[data-captureid='map-mobile-capture'] [data-japan-report-row]";
+    private static final String JAPAN_GROUP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
 
     private final ScreenshotClient screenshotClient;
     private final TelegramClient telegramClient;
@@ -252,12 +251,16 @@ public class HomeReportSender {
             String topSectors =
                     sectorRankingTextBuilder.buildCaptionFromRenderedRows(captured.rows(), CAPTION_SECTOR_COUNT);
             if (topSectors == null || topSectors.isBlank()) {
+                escalationPublisher.report(
+                        JAPAN_MAP_ERROR_SOURCE, new EscalateException(ErrorCode.MAP_CAPTION_BUILD_FAILED));
                 log.warn("[홈리포트] 일본 대분류 TOP2를 읽지 못해 일본 지도 발송 생략");
                 return Optional.empty();
             }
             String header = closingTransmission ? JAPAN_CLOSE_HEADER : JAPAN_HEADER;
             return Optional.of(new CapturedJapanMap(captured.images(), header + "\n" + topSectors));
         } catch (Exception e) {
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_CAPTION_BUILD_FAILED, e));
             log.warn(
                     "[홈리포트] 일본 지도 캡션 처리 실패로 일본 발송 생략 | context : {}",
                     e.getClass().getSimpleName());
