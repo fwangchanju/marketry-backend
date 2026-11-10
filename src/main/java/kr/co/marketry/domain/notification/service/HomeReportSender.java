@@ -37,7 +37,8 @@ public class HomeReportSender {
     private static final String KOREA_CLOSE_HEADER = "#코스피 #코스닥 #마감";
     private static final String JAPAN_HEADER = "#니케이225 (20분 지연)";
     private static final String JAPAN_CLOSE_HEADER = "#니케이225 (20분 지연) #마감";
-    private static final String MAP_CAPTURE_ERROR_SOURCE = "홈리포트 모바일 지도 캡처";
+    private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
+    private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
     private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
     private static final String JAPAN_GROUP_ROW_SELECTOR =
@@ -181,8 +182,15 @@ public class HomeReportSender {
         caption = withTestMarker(caption);
         List<byte[]> images = captureMapImages(basis);
         if (images.isEmpty()) return false;
-        telegramClient.sendPhoto(telegramProperties.chatId(), images.get(0), caption);
-        return true;
+        try {
+            telegramClient.sendPhoto(telegramProperties.chatId(), images.get(0), caption);
+            return true;
+        } catch (Exception e) {
+            escalationPublisher.report(
+                    KOREA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.TELEGRAM_IMAGE_SEND_FAILED, e));
+            log.warn("[홈리포트] 국내 테스트 지도 텔레그램 발송 실패 | context : {}", e.getClass().getSimpleName());
+            return false;
+        }
     }
 
     private boolean sendJapanMap(CapturedJapanMap captured) {
@@ -193,6 +201,8 @@ public class HomeReportSender {
             return true;
         } catch (Exception e) {
             log.warn("[홈리포트] 일본 지도 텔레그램 발송 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.TELEGRAM_IMAGE_SEND_FAILED, e));
             return false;
         }
     }
@@ -220,15 +230,25 @@ public class HomeReportSender {
     }
 
     private Optional<CapturedJapanMap> captureJapanMap(boolean closingTransmission) {
+        CaptureResult captured;
         try {
-            CaptureResult captured = screenshotClient.captureWithRows(
+            captured = screenshotClient.captureWithRows(
                     RenderTarget.JAPAN_MAP_MOBILE.path(),
                     RenderTarget.JAPAN_MAP_MOBILE.selector(),
                     JAPAN_GROUP_ROW_SELECTOR);
-            if (captured.images().isEmpty()) {
-                log.warn("[홈리포트] 일본 지도 캡처 결과가 비어 있어 일본 발송 생략");
-                return Optional.empty();
-            }
+        } catch (Exception e) {
+            EscalateException failure = EscalateException.wrap(ErrorCode.SCREENSHOT_CAPTURE_FAILED, e);
+            escalationPublisher.report(JAPAN_MAP_ERROR_SOURCE, failure);
+            log.warn("[홈리포트] 일본 지도 캡처 실패로 일본 발송 생략 | context : {}", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+        if (captured.images().isEmpty()) {
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
+            log.warn("[홈리포트] 일본 지도 캡처 결과가 비어 있어 일본 발송 생략");
+            return Optional.empty();
+        }
+        try {
             String topSectors =
                     sectorRankingTextBuilder.buildCaptionFromRenderedRows(captured.rows(), CAPTION_SECTOR_COUNT);
             if (topSectors == null || topSectors.isBlank()) {
@@ -238,7 +258,9 @@ public class HomeReportSender {
             String header = closingTransmission ? JAPAN_CLOSE_HEADER : JAPAN_HEADER;
             return Optional.of(new CapturedJapanMap(captured.images(), header + "\n" + topSectors));
         } catch (Exception e) {
-            log.warn("[홈리포트] 일본 지도 캡처 실패로 일본 발송 생략 | context : {}", e.getClass().getSimpleName());
+            log.warn(
+                    "[홈리포트] 일본 지도 캡션 처리 실패로 일본 발송 생략 | context : {}",
+                    e.getClass().getSimpleName());
             return Optional.empty();
         }
     }
@@ -265,10 +287,10 @@ public class HomeReportSender {
     private List<byte[]> captureMapImages(Optional<RenderBasis> basis) {
         try {
             List<byte[]> images = captureMapWithRetry(basis);
-            escalationPublisher.resolve(MAP_CAPTURE_ERROR_SOURCE);
+            escalationPublisher.resolve(KOREA_MAP_ERROR_SOURCE);
             return images;
         } catch (EscalateException e) {
-            escalationPublisher.report(MAP_CAPTURE_ERROR_SOURCE, e);
+            escalationPublisher.report(KOREA_MAP_ERROR_SOURCE, e);
             return List.of();
         }
     }

@@ -55,7 +55,8 @@ class AppJwtServiceTest {
 
         String token = service.issueCaptureToken(999999L);
 
-        assertThat(service.parseCaptureToken(token)).isEqualTo(new AuthenticatedUserPrincipal(999999L, Role.USER));
+        assertThat(service.parseCaptureToken(token))
+                .isEqualTo(new AuthenticatedUserPrincipal(999999L, Role.USER, true));
     }
 
     @Test

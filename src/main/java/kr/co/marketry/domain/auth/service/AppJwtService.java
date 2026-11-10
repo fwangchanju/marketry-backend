@@ -76,7 +76,7 @@ public class AppJwtService {
         if (!(subject instanceof String userId)) {
             return null;
         }
-        return new AuthenticatedUserPrincipal(Long.parseLong(userId), Role.USER);
+        return new AuthenticatedUserPrincipal(Long.parseLong(userId), Role.USER, true);
     }
 
     // 서명·헤더·발급자·만료를 검증하고 클레임 맵을 돌려준다. typ별 필수 클레임 검증은 각 parse 메서드가 한다.

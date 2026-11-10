@@ -49,4 +49,19 @@ class EscalationPublisherTest {
                 .extracting(EscalationEvent::message)
                 .allSatisfy(message -> assertThat(message).contains("1회차"));
     }
+
+    @Test
+    void 국내와_일본_지도_실패는_시장명을_붙이고_각각_횟수를_집계한다() {
+        var failure = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
+
+        publisher.report("일본 지도", failure, FIRST);
+        publisher.report("일본 지도", failure, FIRST.plusMinutes(5));
+        publisher.report("국내 지도", failure, FIRST.plusMinutes(10));
+
+        var captured = ArgumentCaptor.forClass(EscalationEvent.class);
+        verify(events, times(3)).publishEvent(captured.capture());
+        assertThat(captured.getAllValues())
+                .extracting(EscalationEvent::message)
+                .containsExactly("⚠️ 일본 지도 스크린샷 캡처 실패 (1회차)", "⚠️ 일본 지도 스크린샷 캡처 실패 (2회차)", "⚠️ 국내 지도 스크린샷 캡처 실패 (1회차)");
+    }
 }
