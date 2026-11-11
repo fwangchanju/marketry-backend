@@ -108,6 +108,17 @@ class VisitorServiceTest {
     }
 
     @Test
+    void 검색_로봇은_사람_방문이_아니라_이름별_횟수로_센다() {
+        service.record(request("1.2.3.4", "Mozilla/5.0 (compatible; Yeti/1.1; +http://naver.me/spd)"));
+        service.record(request("5.6.7.8", "Mozilla/5.0 (compatible; Yeti/1.1; +http://naver.me/spd)"));
+        service.record(request("1.2.3.4", "daumoa/3.0"));
+
+        verify(repository, never()).recordVisit(any(), anyString(), any());
+        verify(repository, times(2)).recordBotVisit(any(), eq("yeti"));
+        verify(repository).recordBotVisit(any(), eq("daumoa"));
+    }
+
+    @Test
     void 네이버와_다음_검색_로봇은_세지_않지만_네이버_앱_브라우저는_센다() {
         service.record(request("1.2.3.4", "Mozilla/5.0 (compatible; Yeti/1.1; +http://naver.me/spd)"));
         service.record(request("1.2.3.4", "daumoa/3.0"));

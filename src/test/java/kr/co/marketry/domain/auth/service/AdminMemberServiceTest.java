@@ -16,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import kr.co.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
+import kr.co.marketry.domain.auth.dto.AdminBotDayCountResponse;
+import kr.co.marketry.domain.auth.dto.AdminBotNameCountResponse;
 import kr.co.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import kr.co.marketry.domain.auth.dto.AdminMemberNicknameResetResponse;
 import kr.co.marketry.domain.auth.dto.AdminMemberPageResponse;
@@ -46,6 +48,27 @@ class AdminMemberServiceTest {
     private final VisitorDailyRepository visitorRepository = mock(VisitorDailyRepository.class);
     private final AdminMemberService service =
             new AdminMemberService(repository, accessDailyRepository, profileRepository, visitorRepository);
+
+    @Test
+    void 검색_로봇_방문은_이름별과_날짜별로_나오고_방문이_없는_날은_0이다() {
+        LocalDate today = LocalDate.of(2026, 11, 11);
+        when(visitorRepository.countBotVisitsByDate(today.minusDays(2), today))
+                .thenReturn(List.of(
+                        new AdminBotDayCountResponse(today.minusDays(2), 5L), new AdminBotDayCountResponse(today, 2L)));
+        when(visitorRepository.countBotVisitsByName(today.minusDays(2), today))
+                .thenReturn(List.of(
+                        new AdminBotNameCountResponse("yeti", 6L), new AdminBotNameCountResponse("daumoa", 1L)));
+
+        var result = service.getBotVisits(today, 3);
+
+        assertThat(result.byDay())
+                .containsExactly(
+                        new AdminBotDayCountResponse(today.minusDays(2), 5L),
+                        new AdminBotDayCountResponse(today.minusDays(1), 0L),
+                        new AdminBotDayCountResponse(today, 2L));
+        assertThat(result.byName()).extracting(AdminBotNameCountResponse::name).containsExactly("yeti", "daumoa");
+        assertThatThrownBy(() -> service.getBotVisits(today, 0)).isInstanceOf(ResponseStatusException.class);
+    }
 
     @Test
     void 검색어_공백을_제거하고_권한과_50명_페이지를_조회한다() {
