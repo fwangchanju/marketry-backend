@@ -57,6 +57,7 @@ public enum ErrorCode {
     SCREENSHOT_CAPTURE_FAILED("스크린샷 캡처에 실패했습니다."),
     MAP_CAPTION_BUILD_FAILED("캡션 생성에 실패했습니다."),
     MAP_QUOTE_LOOKUP_FAILED("시세 조회에 실패했습니다."),
+    JAPAN_QUOTE_COLLECT_FAILED("시세 수집에 실패했습니다."),
     IMAGE_STITCH_FAILED("이미지 병합에 실패했습니다."),
     TELEGRAM_MESSAGE_SEND_FAILED("텔레그램 메시지 발송에 실패했습니다."),
     TELEGRAM_IMAGE_SEND_FAILED("텔레그램 이미지 발송에 실패했습니다."),
