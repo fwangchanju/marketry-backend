@@ -7,6 +7,7 @@ import kr.co.marketry.common.exception.BusinessException;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import kr.co.marketry.common.util.KstClock;
+import kr.co.marketry.domain.notification.exception.TelegramSendException;
 import kr.co.marketry.domain.notification.listener.EscalationPublisher;
 import kr.co.marketry.domain.notification.schedule.TelegramSendSchedule;
 import kr.co.marketry.domain.notification.service.TelegramCollectionFailureNotifier;
@@ -129,8 +130,12 @@ public class CollectionScheduler {
                         ? businessException.getErrorCode().name()
                         : e.getClass().getSimpleName();
             }
-            escalationPublisher.report(
-                    collectorName, EscalateException.wrap(ErrorCode.COLLECTOR_EXECUTION_FAILED, e, collectorName));
+            if ("홈텔레그램발송".equals(collectorName) && e instanceof TelegramSendException) {
+                escalationPublisher.report("국내 지도", EscalateException.wrap(ErrorCode.TELEGRAM_IMAGE_SEND_FAILED, e));
+            } else {
+                escalationPublisher.report(
+                        collectorName, EscalateException.wrap(ErrorCode.COLLECTOR_EXECUTION_FAILED, e, collectorName));
+            }
             success = false;
         } finally {
             LocalDateTime finishedAt = LocalDateTime.now(Zone.KST.zoneId());
