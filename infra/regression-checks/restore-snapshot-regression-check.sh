@@ -19,6 +19,7 @@ done
 printf '%s\n' "$*" >> "$MOCK_ROOT/trace"
 [ "$1 $2" = '--context orbstack' ] || exit 88
 shift 2
+if [ "$1" = info ]; then [ "${MOCK_INFO_FAIL:-0}" = 0 ]; exit; fi
 if [ "$1 $2 $3" = 'context inspect orbstack' ]; then
   printf '%s\n' "${MOCK_ENDPOINT:-unix://$HOME/.orbstack/run/docker.sock}"
   exit 0
@@ -47,6 +48,18 @@ case "$1" in
 esac
 MOCK
 chmod +x "$test_root/bin/docker"
+# 05:00 복원은 OrbStack이 꺼져 있으면 orbctl로 켠다. 실제 OrbStack 대신 상태·켜기 호출만 기록한다.
+mkdir -p "$HOME/.orbstack/bin"
+cat > "$HOME/.orbstack/bin/orbctl" <<'MOCK'
+#!/bin/bash
+printf 'orbctl %s\n' "$*" >> "$MOCK_ROOT/trace"
+case "$1" in
+  status) printf '%s\n' "${MOCK_ORB_STATUS:-Running}" ;;
+  start) ;;
+  *) exit 88 ;;
+esac
+MOCK
+chmod +x "$HOME/.orbstack/bin/orbctl"
 run() {
   status=0
   /bin/bash "$script" > "$test_root/out" 2> "$test_root/err" || status=$?
@@ -54,7 +67,7 @@ run() {
 new_case() {
   : > "$test_root/trace"
   printf 'mock archive\n' > "$SNAPSHOT_FILE"
-  unset MOCK_ENDPOINT MOCK_UP_FAIL MOCK_INVALID MOCK_RESTORE_FAIL
+  unset MOCK_ENDPOINT MOCK_UP_FAIL MOCK_INVALID MOCK_RESTORE_FAIL MOCK_ORB_STATUS MOCK_INFO_FAIL ORBSTACK_START_TIMEOUT_SECONDS ORBSTACK_POLL_SECONDS
 }
 no_drop() { ! grep -q 'DROP DATABASE' "$test_root/trace"; }
 
@@ -101,7 +114,26 @@ run
 [ "$status" != 0 ]
 ! grep -q '^완료$' "$test_root/out"
 echo 'PASS: 복원 실패를 성공으로 기록하지 않음'
-echo '6개 개발 스냅샷 복원 회귀 검사 통과'
+
+new_case
+run
+[ "$status" = 0 ] && ! grep -q '^orbctl start' "$test_root/trace"
+echo 'PASS: OrbStack이 켜져 있으면 다시 켜지 않음'
+
+new_case
+export MOCK_ORB_STATUS=Stopped
+run
+[ "$status" = 0 ] || { cat "$test_root/err"; exit 1; }
+grep -q '^orbctl start' "$test_root/trace" && grep -q 'DROP DATABASE IF EXISTS marketry_db' "$test_root/trace"
+echo 'PASS: OrbStack이 꺼져 있으면 켜고 복원'
+
+new_case
+export MOCK_ORB_STATUS=Stopped MOCK_INFO_FAIL=1 ORBSTACK_START_TIMEOUT_SECONDS=0
+run
+[ "$status" != 0 ] && no_drop
+! grep -q '^완료$' "$test_root/out"
+echo 'PASS: OrbStack이 준비되지 않으면 기존 개발 DB를 지우지 않음'
+echo '9개 개발 스냅샷 복원 회귀 검사 통과'
 
 # 기본 경로가 서로 달라지면 별도로 지정한 SNAPSHOT_FILE 테스트만으로는 발견할 수 없다.
 backup="$repo/infra/prod/backup.sh"

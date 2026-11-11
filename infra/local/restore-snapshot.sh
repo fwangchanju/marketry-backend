@@ -36,6 +36,25 @@ if [ "$endpoint" != "unix://$HOME/.orbstack/run/docker.sock" ]; then
   exit 1
 fi
 
+# 사용자가 밤에 local-tools로 서버를 끄면서 OrbStack도 꺼 두는 날이 있다(2026-11-11 이 때문에 복원 실패).
+# 꺼져 있으면 켜고 Docker가 응답할 때까지 기다린다. 아침에 바로 로컬 화면을 쓰도록 복원 뒤에도 켜 둔다.
+ORBCTL="$HOME/.orbstack/bin/orbctl"
+ORBSTACK_START_TIMEOUT_SECONDS="${ORBSTACK_START_TIMEOUT_SECONDS:-180}"
+ORBSTACK_POLL_SECONDS="${ORBSTACK_POLL_SECONDS:-5}"
+if [ "$("$ORBCTL" status 2>/dev/null || true)" != "Running" ]; then
+  echo "OrbStack이 꺼져 있어 켭니다"
+  "$ORBCTL" start
+fi
+waited=0
+until local_docker info >/dev/null 2>&1; do
+  if [ "$waited" -ge "$ORBSTACK_START_TIMEOUT_SECONDS" ]; then
+    echo "중단: OrbStack이 ${ORBSTACK_START_TIMEOUT_SECONDS}초 안에 준비되지 않았습니다. 기존 개발 DB는 그대로 둡니다."
+    exit 1
+  fi
+  sleep "$ORBSTACK_POLL_SECONDS"
+  waited=$((waited + ORBSTACK_POLL_SECONDS))
+done
+
 # 비밀번호는 컨테이너 안의 로컬 소켓 접속으로 처리한다. 환경 파일은 Compose만 읽는다.
 db() {
   local_compose exec -T db "$@"
