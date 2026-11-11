@@ -88,6 +88,8 @@ public class HomeReportSender {
             snapshot = overseasStockQuoteService.findQuotes("JAPAN", null);
         } catch (Exception e) {
             log.warn("[홈리포트] 일본 최신 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
             return JapanSendResult.QUOTE_LOOKUP_FAILED;
         }
         if (snapshot.snapshotTime() == null) return JapanSendResult.NO_QUOTES;
@@ -220,6 +222,8 @@ public class HomeReportSender {
                     "[홈리포트] 일본 시세 조회 실패로 국내 지도만 발송 | context : {}|{}",
                     dataTime,
                     e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
             return;
         }
         if (japanSnapshotTime == null || japanSnapshotTime.toLocalDate().equals(dataTime.toLocalDate()) == false) {

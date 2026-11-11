@@ -387,6 +387,21 @@ class HomeReportSenderTest {
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
         verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
+        verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
+        assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.MAP_QUOTE_LOOKUP_FAILED);
+    }
+
+    @Test
+    void 일본_테스트_발송에서_시세_조회가_실패하면_일본_지도로_알린다() {
+        when(overseasStockQuoteService.findQuotes("JAPAN", null)).thenThrow(new RuntimeException("조회 실패"));
+
+        assertThat(sender.sendLatestJapanOnce()).isEqualTo(HomeReportSender.JapanSendResult.QUOTE_LOOKUP_FAILED);
+
+        var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
+        verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
+        assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.MAP_QUOTE_LOOKUP_FAILED);
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
     }
 
     @Test
