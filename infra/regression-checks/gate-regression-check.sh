@@ -226,6 +226,15 @@ run_gate 'deploy renderer latest'; success
 absent 1; exists 2; exists 3
 passed 'latest 이동 뒤 태그 없는 추적 이미지 정리'
 
+# nginx 설정 파일만 바뀌고 이미지는 같아도 컨테이너를 새로 만들어야 새 설정이 연결된다(2026-11-11).
+new_case
+add_image 1 1 marketry-nginx latest; set_container marketry-nginx 1
+incoming 1 1 marketry-nginx latest
+run_gate 'deploy nginx latest'; success
+grep -q -- '--force-recreate marketry-nginx' "$case_dir/trace"
+[ "$(grep -c ' up ' "$case_dir/trace")" = 1 ]
+passed '이미지가 같아도 nginx 배포는 컨테이너를 한 번만 새로 만든다'
+
 new_case
 add_image 1 1; add_image 2 2; add_image 3 3; add_image 4 4
 printf 'other.example/service:old\n' >> "$case_dir/images/$(image_id 1)/tags"
