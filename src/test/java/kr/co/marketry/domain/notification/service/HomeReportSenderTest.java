@@ -137,7 +137,7 @@ class HomeReportSenderTest {
                 .captureWithRows(
                         "/map/korea?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector(), ROW_SELECTOR);
         verify(screenshotClient, never()).captureWithRows(any(), eq(RenderTarget.HOME_MOBILE.selector()), any());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥 #애프터마켓\n캡션");
         verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), any());
     }
 
@@ -454,7 +454,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥 #애프터마켓\n캡션");
     }
 
     @Test
@@ -473,7 +473,7 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 별도_등락률_메시지에는_태그를_붙이지_않는다() {
+    void 애프터_마켓_별도_등락률_메시지는_첫줄에_애프터마켓_태그를_붙인다() {
         givenTodaySnapshot();
         when(renderBasisResolver.resolve(DATA_TIME)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
         when(screenshotClient.captureWithRows(
@@ -483,7 +483,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥 #애프터마켓\n캡션");
     }
 
     @Test

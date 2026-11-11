@@ -36,6 +36,7 @@ public class HomeReportSender {
     private static final int CAPTION_SECTOR_COUNT = 2;
     private static final String KOREA_HEADER = "#코스피 #코스닥";
     private static final String KOREA_CLOSE_HEADER = "#코스피 #코스닥 #마감";
+    private static final String KOREA_AFTER_HOURS_HEADER = "#코스피 #코스닥 #애프터마켓";
     private static final String JAPAN_HEADER = "#니케이225 (20분 지연)";
     private static final String JAPAN_CLOSE_HEADER = "#니케이225 (20분 지연) #마감";
     // 일본 정규장 마감 시각. 이 시각의 시세가 종가라 #마감을 붙인다.
@@ -245,12 +246,17 @@ public class HomeReportSender {
 
     private record CapturedJapanMap(List<byte[]> images, String caption) {}
 
-    // 마지막 종가 구간의 스냅샷에만 헤더에 마감 태그를 더한다.
+    // 마지막 종가 구간의 스냅샷에는 마감 태그를, 메인 마켓이 끝나 애프터 마켓 별도 등락률로 찍는 회차에는 애프터마켓 태그를 더한다.
     private String koreaHeader(Optional<RenderBasis> basis, LocalDateTime dataTime) {
-        return basis.orElse(null) == RenderBasis.CLOSE
-                        && renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes)
-                ? KOREA_CLOSE_HEADER
-                : KOREA_HEADER;
+        RenderBasis value = basis.orElse(null);
+        if (value == RenderBasis.AFTER_HOURS) {
+            return KOREA_AFTER_HOURS_HEADER;
+        }
+        if (value == RenderBasis.CLOSE
+                && renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes)) {
+            return KOREA_CLOSE_HEADER;
+        }
+        return KOREA_HEADER;
     }
 
     // 지도에서 읽은 업종 등락률로 TOP2를 만든다. 못 읽으면 서버에서 계산한 순위로, 그것도 실패하면 헤더만 보낸다.
