@@ -36,15 +36,15 @@ public class HomeReportSender {
     private static final int CAPTION_SECTOR_COUNT = 2;
     private static final String KOREA_HEADER = "#코스피 #코스닥";
     private static final String KOREA_CLOSE_HEADER = "#코스피 #코스닥 #마감";
+    private static final String KOREA_AFTER_HOURS_HEADER = "#코스피 #코스닥 #애프터마켓";
     private static final String JAPAN_HEADER = "#니케이225 (20분 지연)";
     private static final String JAPAN_CLOSE_HEADER = "#니케이225 (20분 지연) #마감";
     // 일본 정규장 마감 시각. 이 시각의 시세가 종가라 #마감을 붙인다.
     private static final LocalTime JAPAN_CLOSE_TIME = LocalTime.of(15, 30);
     private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
-    // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
-    private static final String GROUP_ROW_SELECTOR = "[data-captureid='summary-capture'] [data-capture-row]";
-    private static final String JAPAN_GROUP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
+    // 지도 모바일 캡처 판 안의 첫 화면 업종 헤더. 보내는 지도 이미지에 그려진 업종과 등락률을 그대로 캡션에 쓴다(국내·일본 공통).
+    private static final String MAP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
 
     private final ScreenshotClient screenshotClient;
     private final TelegramClient telegramClient;
@@ -88,6 +88,8 @@ public class HomeReportSender {
             snapshot = overseasStockQuoteService.findQuotes("JAPAN", null);
         } catch (Exception e) {
             log.warn("[홈리포트] 일본 최신 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
             return JapanSendResult.QUOTE_LOOKUP_FAILED;
         }
         if (snapshot.snapshotTime() == null) return JapanSendResult.NO_QUOTES;
@@ -120,37 +122,15 @@ public class HomeReportSender {
     }
 
     private boolean sendReport(LocalDateTime dataTime) {
-        // 캡션과 지도에 같은 등락률 기준(종가·별도)을 적용한다.
+        // 캡션과 지도에 같은 등락률 기준(종가·별도)을 적용한다. 지도 한 번으로 이미지와 업종 등락률을 함께 읽는다.
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
-        String caption = null;
-        try {
-            CaptureResult summary = screenshotClient.captureWithRows(
-                    RenderTarget.HOME_MOBILE.path(basis), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
-            if (!summary.images().isEmpty()) {
-                caption = sectorRankingTextBuilder.buildCaptionFromRenderedRows(summary.rows(), CAPTION_SECTOR_COUNT);
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "[홈리포트] 요약 캡처 실패로 서버 계산 캡션 사용 | context : {}|{}",
-                    dataTime,
-                    e.getClass().getSimpleName());
-        }
-        if (caption == null) {
-            log.warn("[홈리포트] 이미지에서 그룹 등락률 값을 읽지 못해 서버 계산 캡션으로 발송 | context : {}", dataTime);
-            try {
-                caption = buildCaption(dataTime);
-            } catch (Exception e) {
-                log.warn("[홈리포트] 캡션 계산 실패로 캡션 없이 발송 | context : {}", dataTime, e);
-            }
-        }
-        caption = withHeader(caption, koreaHeader(basis, dataTime));
-
-        List<byte[]> mapImages = captureMapImages(basis);
-        if (mapImages.isEmpty()) {
+        Optional<CaptureResult> map = captureKoreaMap(basis);
+        if (map.isEmpty()) {
             log.warn("[홈리포트] 시장 지도 캡처 실패로 발송 생략");
             return false;
         }
-        telegramClient.sendPhoto(telegramProperties.chatId(), mapImages.get(0), caption);
+        String caption = koreaCaption(map.get().rows(), basis, dataTime);
+        telegramClient.sendPhoto(telegramProperties.chatId(), map.get().images().get(0), caption);
         log.info("홈 리포트 발송 완료: 국내 시장 지도 1장");
         sendNewJapanMap(dataTime);
         return true;
@@ -158,32 +138,12 @@ public class HomeReportSender {
 
     private boolean sendKoreaTestReport(LocalDateTime dataTime) {
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
-        String caption = null;
+        Optional<CaptureResult> map = captureKoreaMap(basis);
+        if (map.isEmpty()) return false;
+        String caption = withTestMarker(koreaCaption(map.get().rows(), basis, dataTime));
         try {
-            CaptureResult summary = screenshotClient.captureWithRows(
-                    RenderTarget.HOME_MOBILE.path(basis), RenderTarget.HOME_MOBILE.selector(), GROUP_ROW_SELECTOR);
-            if (!summary.images().isEmpty()) {
-                caption = sectorRankingTextBuilder.buildCaptionFromRenderedRows(summary.rows(), CAPTION_SECTOR_COUNT);
-            }
-        } catch (Exception e) {
-            log.warn(
-                    "[홈리포트] 요약 캡처 실패로 서버 계산 캡션 사용 | context : {}|{}",
-                    dataTime,
-                    e.getClass().getSimpleName());
-        }
-        if (caption == null) {
-            try {
-                caption = buildCaption(dataTime);
-            } catch (Exception e) {
-                log.warn("[홈리포트] 캡션 계산 실패로 캡션 없이 발송 | context : {}", dataTime, e);
-            }
-        }
-        caption = withHeader(caption, koreaHeader(basis, dataTime));
-        caption = withTestMarker(caption);
-        List<byte[]> images = captureMapImages(basis);
-        if (images.isEmpty()) return false;
-        try {
-            telegramClient.sendPhoto(telegramProperties.chatId(), images.get(0), caption);
+            telegramClient.sendPhoto(
+                    telegramProperties.chatId(), map.get().images().get(0), caption);
             return true;
         } catch (Exception e) {
             escalationPublisher.report(
@@ -220,6 +180,8 @@ public class HomeReportSender {
                     "[홈리포트] 일본 시세 조회 실패로 국내 지도만 발송 | context : {}|{}",
                     dataTime,
                     e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    JAPAN_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
             return;
         }
         if (japanSnapshotTime == null || japanSnapshotTime.toLocalDate().equals(dataTime.toLocalDate()) == false) {
@@ -244,9 +206,7 @@ public class HomeReportSender {
         CaptureResult captured;
         try {
             captured = screenshotClient.captureWithRows(
-                    RenderTarget.JAPAN_MAP_MOBILE.path(),
-                    RenderTarget.JAPAN_MAP_MOBILE.selector(),
-                    JAPAN_GROUP_ROW_SELECTOR);
+                    RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector(), MAP_ROW_SELECTOR);
         } catch (Exception e) {
             EscalateException failure = EscalateException.wrap(ErrorCode.SCREENSHOT_CAPTURE_FAILED, e);
             escalationPublisher.report(JAPAN_MAP_ERROR_SOURCE, failure);
@@ -290,42 +250,61 @@ public class HomeReportSender {
 
     private record CapturedJapanMap(List<byte[]> images, String caption) {}
 
-    // 마지막 종가 구간의 스냅샷에만 헤더에 마감 태그를 더한다.
+    // 마지막 종가 구간의 스냅샷에는 마감 태그를, 메인 마켓이 끝나 애프터 마켓 별도 등락률로 찍는 회차에는 애프터마켓 태그를 더한다.
     private String koreaHeader(Optional<RenderBasis> basis, LocalDateTime dataTime) {
-        return basis.orElse(null) == RenderBasis.CLOSE
-                        && renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes)
-                ? KOREA_CLOSE_HEADER
-                : KOREA_HEADER;
+        RenderBasis value = basis.orElse(null);
+        if (value == RenderBasis.AFTER_HOURS) {
+            return KOREA_AFTER_HOURS_HEADER;
+        }
+        if (value == RenderBasis.CLOSE
+                && renderBasisResolver.isFinalClosingSnapshot(dataTime, collectionIntervalMinutes)) {
+            return KOREA_CLOSE_HEADER;
+        }
+        return KOREA_HEADER;
+    }
+
+    // 지도에서 읽은 업종 등락률로 TOP2를 만든다. 못 읽으면 서버에서 계산한 순위로, 그것도 실패하면 헤더만 보낸다.
+    private String koreaCaption(List<String> rows, Optional<RenderBasis> basis, LocalDateTime dataTime) {
+        String caption = sectorRankingTextBuilder.buildCaptionFromRenderedRows(rows, CAPTION_SECTOR_COUNT);
+        if (caption == null) {
+            log.warn("[홈리포트] 지도에서 업종 등락률 값을 읽지 못해 서버 계산 캡션으로 발송 | context : {}", dataTime);
+            try {
+                caption = buildCaption(dataTime);
+            } catch (Exception e) {
+                log.warn("[홈리포트] 캡션 계산 실패로 캡션 없이 발송 | context : {}", dataTime, e);
+            }
+        }
+        return withHeader(caption, koreaHeader(basis, dataTime));
     }
 
     // 시장 지도 캡처 실패는 개발자 채널에 알린다. 한 번 실패는 곧바로 다시 찍어 보고, 또 실패할 때만 알린다.
-    private List<byte[]> captureMapImages(Optional<RenderBasis> basis) {
+    private Optional<CaptureResult> captureKoreaMap(Optional<RenderBasis> basis) {
         try {
-            List<byte[]> images = captureMapWithRetry(basis);
+            CaptureResult map = captureKoreaMapWithRetry(basis);
             escalationPublisher.resolve(KOREA_MAP_ERROR_SOURCE);
-            return images;
+            return Optional.of(map);
         } catch (EscalateException e) {
             escalationPublisher.report(KOREA_MAP_ERROR_SOURCE, e);
-            return List.of();
+            return Optional.empty();
         }
     }
 
-    private List<byte[]> captureMapWithRetry(Optional<RenderBasis> basis) {
+    private CaptureResult captureKoreaMapWithRetry(Optional<RenderBasis> basis) {
         try {
-            return captureMap(basis);
+            return captureKoreaMapOnce(basis);
         } catch (EscalateException e) {
             log.warn("[홈리포트] 시장 지도 캡처 실패, 1회 다시 시도 | cause={}", e.getCauseMessage());
-            return captureMap(basis);
+            return captureKoreaMapOnce(basis);
         }
     }
 
-    private List<byte[]> captureMap(Optional<RenderBasis> basis) {
-        List<byte[]> images =
-                screenshotClient.capture(RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector());
-        if (images.isEmpty()) {
+    private CaptureResult captureKoreaMapOnce(Optional<RenderBasis> basis) {
+        CaptureResult map = screenshotClient.captureWithRows(
+                RenderTarget.MAP_MOBILE.path(basis), RenderTarget.MAP_MOBILE.selector(), MAP_ROW_SELECTOR);
+        if (map.images().isEmpty()) {
             throw new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
         }
-        return images;
+        return map;
     }
 
     /**

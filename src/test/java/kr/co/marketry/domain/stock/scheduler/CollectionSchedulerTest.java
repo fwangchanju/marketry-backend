@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -13,6 +15,8 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import kr.co.marketry.common.exception.ErrorCode;
+import kr.co.marketry.domain.notification.exception.TelegramSendException;
 import kr.co.marketry.domain.notification.listener.EscalationPublisher;
 import kr.co.marketry.domain.notification.schedule.TelegramSendSchedule;
 import kr.co.marketry.domain.notification.service.TelegramCollectionFailureNotifier;
@@ -196,6 +200,32 @@ class CollectionSchedulerTest {
 
         verify(failureNotifier).notify(DATE.atTime(20, 0));
         verifyNoInteractions(dispatcher);
+    }
+
+    @Test
+    void 정기_국내_지도_전송실패는_국내_지도_이미지_발송_실패로_알린다() {
+        LocalDateTime tick = DATE.atTime(8, 5);
+        when(schedule.due(tick, true)).thenReturn(true);
+        doThrow(new TelegramSendException("HttpServerErrorException", "502"))
+                .when(dispatcher)
+                .sendHome(tick);
+
+        scheduler.collectMarketData(tick);
+
+        verify(escalationPublisher)
+                .report(eq("국내 지도"), argThat(e -> e.getErrorCode() == ErrorCode.TELEGRAM_IMAGE_SEND_FAILED));
+    }
+
+    @Test
+    void 정기_발송의_다른_오류는_기존_수집기_실패로_알린다() {
+        LocalDateTime tick = DATE.atTime(8, 5);
+        when(schedule.due(tick, true)).thenReturn(true);
+        doThrow(new RuntimeException("boom")).when(dispatcher).sendHome(tick);
+
+        scheduler.collectMarketData(tick);
+
+        verify(escalationPublisher)
+                .report(eq("홈텔레그램발송"), argThat(e -> e.getErrorCode() == ErrorCode.COLLECTOR_EXECUTION_FAILED));
     }
 
     @Test
