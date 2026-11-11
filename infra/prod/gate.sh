@@ -160,9 +160,26 @@ deploy_services() {
     docker stop --timeout 60 marketry-app
   fi
 
+  # nginx 설정은 저장소의 infra/prod/nginx.conf를 파일 하나로 연결해 쓴다. update_repo가 그 파일을 갈아 끼워도
+  # 이미지가 같으면 compose up은 컨테이너를 그대로 두어, 연결이 지워진 옛 파일에 남아 새 설정이 반영되지 않는다
+  # (2026-11-11 렌더러 횟수 제한 변경이 배포 뒤에도 적용되지 않음). nginx를 배포할 때는 항상 새로 만들어 새 파일을 연결한다.
+  local recreate_nginx=false
+  if [ -e "$RENAME_PENDING" ] || [ "$TARGET" = nginx ] || [ "$TARGET" = all ]; then
+    recreate_nginx=true
+  fi
+  local services=() service
+  for service in "${SERVICES[@]}"; do
+    if [ "$recreate_nginx" = true ] && [ "$service" = marketry-nginx ]; then
+      continue
+    fi
+    services+=("$service")
+  done
+
   log "기동: ${SERVICES[*]}"
-  compose up -d --no-deps "${SERVICES[@]}"
-  if [ -e "$RENAME_PENDING" ]; then
+  if [ "${#services[@]}" -gt 0 ]; then
+    compose up -d --no-deps "${services[@]}"
+  fi
+  if [ "$recreate_nginx" = true ]; then
     compose up -d --no-deps --force-recreate marketry-nginx
   fi
 }
