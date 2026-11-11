@@ -85,9 +85,7 @@ public class CollectionScheduler {
             if (collection.success() == false) {
                 run("데이터수집실패알림", () -> telegramCollectionFailureNotifier.notify(dataTime));
             } else if (telegramSendSchedule.sendEnabled()) {
-                // 수집 종료 뒤 due(false)는 설정된 endHour:sendMinute 한 번뿐이라 이 회차가 일일 마지막 발송이다.
-                boolean finalDailySend = !shouldCollect;
-                run("홈텔레그램발송", () -> telegramReportDispatcher.sendHome(dataTime, finalDailySend));
+                run("홈텔레그램발송", () -> telegramReportDispatcher.sendHome(dataTime));
             }
         }
     }

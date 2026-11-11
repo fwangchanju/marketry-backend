@@ -237,7 +237,7 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 당일_마지막_발송은_국내_지도_뒤에_일본_마감_지도를_별도_사진으로_보낸다() {
+    void 정기_발송은_당일_일본_시세가_있으면_국내_지도_뒤에_일본_지도를_별도_사진으로_보낸다() {
         givenTodaySnapshot();
         givenSummaryCapture(ROWS);
         givenMapCapture();
@@ -252,32 +252,89 @@ class HomeReportSenderTest {
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
                 .thenReturn("기술 +4.5%\n금융 +4.2%");
 
-        assertThat(sender.send(DATA_TIME, true)).isTrue();
+        assertThat(sender.send(DATA_TIME)).isTrue();
 
         var order = inOrder(telegramClient);
         order.verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
     @Test
-    void 당일_중간_정기발송은_일본_지도를_보내지_않는다() {
+    void 같은_일본_시세로는_일본_지도를_다시_보내지_않는다() {
         givenTodaySnapshot();
         givenSummaryCapture(ROWS);
         givenMapCapture();
+        givenJapanSnapshot(DATA_TIME);
+        givenJapanCapture();
+
+        sender.send(DATA_TIME);
+        sender.send(DATA_TIME);
+
+        verify(telegramClient, times(2)).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        verify(telegramClient, times(1)).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
+    }
+
+    @Test
+    void 새_일본_시세가_저장되면_다음_발송에서_일본_지도를_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        givenJapanSnapshot(DATA_TIME);
+        givenJapanCapture();
+
+        sender.send(DATA_TIME);
+        givenJapanSnapshot(DATA_TIME.plusMinutes(5));
+        sender.send(DATA_TIME);
+
+        verify(telegramClient, times(2)).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+    }
+
+    @Test
+    void 일본_15시30분_시세는_마감을_붙여_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        givenJapanSnapshot(DATA_TIME.toLocalDate().atTime(15, 30));
+        givenJapanCapture();
+
+        sender.send(DATA_TIME);
+
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+    }
+
+    @Test
+    void 일본_지도_전송이_실패하면_같은_시세로_다음_발송에서_다시_보낸다() {
+        givenTodaySnapshot();
+        givenSummaryCapture(ROWS);
+        givenMapCapture();
+        givenJapanSnapshot(DATA_TIME);
+        givenJapanCapture();
+        org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
+                .doNothing()
+                .when(telegramClient)
+                .sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
+
+        sender.send(DATA_TIME);
+        sender.send(DATA_TIME);
+
+        verify(telegramClient, times(2)).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
+    }
+
+    private void givenJapanSnapshot(LocalDateTime snapshotTime) {
         when(overseasStockQuoteService.findQuotes("JAPAN", null))
-                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(snapshotTime, List.of()));
+    }
 
-        assertThat(sender.send(DATA_TIME, false)).isTrue();
-
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        verify(screenshotClient, never())
-                .captureWithRows(
+    private void givenJapanCapture() {
+        when(screenshotClient.captureWithRows(
                         RenderTarget.JAPAN_MAP_MOBILE.path(),
                         RenderTarget.JAPAN_MAP_MOBILE.selector(),
-                        JAPAN_ROW_SELECTOR);
-        verify(telegramClient, times(1)).sendPhoto(any(), any(), any());
+                        JAPAN_ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), JAPAN_ROWS));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
+                .thenReturn("기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
@@ -310,7 +367,7 @@ class HomeReportSenderTest {
                 .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
-        assertThat(sender.send(DATA_TIME, true)).isTrue();
+        assertThat(sender.send(DATA_TIME)).isTrue();
 
         verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
         verify(escalationPublisher).report(eq("일본 지도"), any(EscalateException.class));
@@ -325,7 +382,7 @@ class HomeReportSenderTest {
         when(overseasStockQuoteService.findQuotes("JAPAN", null)).thenThrow(new RuntimeException("조회 실패"));
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
-        assertThat(sender.send(DATA_TIME, true)).isTrue();
+        assertThat(sender.send(DATA_TIME)).isTrue();
 
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
@@ -348,7 +405,7 @@ class HomeReportSenderTest {
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(List.of(), 2))
                 .thenReturn(null);
 
-        assertThat(sender.send(DATA_TIME, true)).isTrue();
+        assertThat(sender.send(DATA_TIME)).isTrue();
 
         var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
         verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
@@ -374,12 +431,12 @@ class HomeReportSenderTest {
                 .thenReturn("기술 +4.5%\n금융 +4.2%");
         org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
                 .when(telegramClient)
-                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
 
-        assertThat(sender.send(DATA_TIME, true)).isTrue();
+        assertThat(sender.send(DATA_TIME)).isTrue();
 
         verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test

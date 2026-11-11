@@ -112,7 +112,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(19, 55));
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
-        verify(dispatcher).sendHome(DATE.atTime(19, 55), true);
+        verify(dispatcher).sendHome(DATE.atTime(19, 55));
         verify(snapshotCollector, never()).collect(DATE.atTime(20, 10));
     }
 
@@ -141,7 +141,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
         verify(failureNotifier).notify(DATE.atTime(20, 0));
-        verify(dispatcher, never()).sendHome(any(), anyBoolean());
+        verify(dispatcher, never()).sendHome(any());
     }
 
     @Test
@@ -168,7 +168,7 @@ class CollectionSchedulerTest {
 
         scheduler.collectMarketData(DATE.atTime(8, 10));
 
-        verify(dispatcher).sendHome(DATE.atTime(8, 10), false);
+        verify(dispatcher).sendHome(DATE.atTime(8, 10));
         verifyNoInteractions(failureNotifier);
     }
 

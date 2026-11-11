@@ -17,13 +17,6 @@ class TelegramReportDispatcherTest {
     void sendHome_홈_발송기를_부른다() {
         dispatcher.sendHome(dataTime);
 
-        verify(homeReportSender).send(dataTime, false);
-    }
-
-    @Test
-    void sendHome_마지막_정기발송이면_마감으로_전달한다() {
-        dispatcher.sendHome(dataTime, true);
-
-        verify(homeReportSender).send(dataTime, true);
+        verify(homeReportSender).send(dataTime);
     }
 }

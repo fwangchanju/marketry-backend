@@ -1,6 +1,7 @@
 package kr.co.marketry.domain.notification.service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import kr.co.marketry.common.exception.ErrorCode;
@@ -37,6 +38,8 @@ public class HomeReportSender {
     private static final String KOREA_CLOSE_HEADER = "#코스피 #코스닥 #마감";
     private static final String JAPAN_HEADER = "#니케이225 (20분 지연)";
     private static final String JAPAN_CLOSE_HEADER = "#니케이225 (20분 지연) #마감";
+    // 일본 정규장 마감 시각. 이 시각의 시세가 종가라 #마감을 붙인다.
+    private static final LocalTime JAPAN_CLOSE_TIME = LocalTime.of(15, 30);
     private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
     // 시장 요약 판 안의 그룹 등락률 업종 막대 — 코스피·코스닥 지수 줄은 data-capture-row가 없다. 일반 홈 화면 쪽 같은 막대는 제외한다.
@@ -57,10 +60,14 @@ public class HomeReportSender {
     @Value("${collect.interval-minutes}")
     private int collectionIntervalMinutes;
 
+    // 마지막으로 정기 발송한 일본 시세 시각. 같은 시세의 일본 지도를 다시 보내지 않으려고 기억한다.
+    // 앱이 재시작되면 비워지므로 재시작 직후 첫 발송에서 같은 지도가 한 번 더 나갈 수 있다.
+    private volatile LocalDateTime lastSentJapanSnapshotTime;
+
     public boolean sendLatest() {
         return sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .map(dataTime -> sendReport(dataTime, false))
+                .map(this::sendReport)
                 .orElse(false);
     }
 
@@ -102,10 +109,6 @@ public class HomeReportSender {
     }
 
     public boolean send(LocalDateTime dataTime) {
-        return send(dataTime, false);
-    }
-
-    public boolean send(LocalDateTime dataTime, boolean finalDailySend) {
         if (sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
                 .filter(dataTime::equals)
@@ -113,10 +116,10 @@ public class HomeReportSender {
             log.warn("[홈리포트] 기준 시각의 최신 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
             return false;
         }
-        return sendReport(dataTime, finalDailySend);
+        return sendReport(dataTime);
     }
 
-    private boolean sendReport(LocalDateTime dataTime, boolean finalDailySend) {
+    private boolean sendReport(LocalDateTime dataTime) {
         // 캡션과 지도에 같은 등락률 기준(종가·별도)을 적용한다.
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
         String caption = null;
@@ -149,9 +152,7 @@ public class HomeReportSender {
         }
         telegramClient.sendPhoto(telegramProperties.chatId(), mapImages.get(0), caption);
         log.info("홈 리포트 발송 완료: 국내 시장 지도 1장");
-        if (finalDailySend) {
-            captureJapanMap(dataTime, true).ifPresent(this::sendJapanMap);
-        }
+        sendNewJapanMap(dataTime);
         return true;
     }
 
@@ -206,21 +207,32 @@ public class HomeReportSender {
         }
     }
 
-    // 당일 일본 시세가 저장된 경우만 함께 보낸다. 아직 첫 시세가 없으면 전일 지도를 오늘 지도처럼 보내지 않는다.
-    private Optional<CapturedJapanMap> captureJapanMap(LocalDateTime dataTime, boolean closingTransmission) {
+    // 일본 지도는 국내 정기 발송 뒤에 별도 사진으로 보낸다. 지난 일본 발송 뒤 새 일본 시세가 저장됐을 때만 보낸다.
+    // 일본 수집은 점심(11:58~12:48)과 마감 뒤에 멈추므로 그 시간에는 같은 지도를 반복하지 않는다.
+    // 15:30 시세는 종가라 #마감을 붙이고, 그 뒤로는 새 시세가 없어 그날 일본 발송이 끝난다.
+    private void sendNewJapanMap(LocalDateTime dataTime) {
+        LocalDateTime japanSnapshotTime;
         try {
-            LocalDateTime japanSnapshotTime =
+            japanSnapshotTime =
                     overseasStockQuoteService.findQuotes("JAPAN", null).snapshotTime();
-            if (japanSnapshotTime == null || !japanSnapshotTime.toLocalDate().equals(dataTime.toLocalDate())) {
-                return Optional.empty();
-            }
-            return captureJapanMap(closingTransmission);
         } catch (Exception e) {
             log.warn(
-                    "[홈리포트] 일본 지도 캡처 실패로 국내 지도만 발송 | context : {}|{}",
+                    "[홈리포트] 일본 시세 조회 실패로 국내 지도만 발송 | context : {}|{}",
                     dataTime,
                     e.getClass().getSimpleName());
-            return Optional.empty();
+            return;
+        }
+        if (japanSnapshotTime == null || japanSnapshotTime.toLocalDate().equals(dataTime.toLocalDate()) == false) {
+            return;
+        }
+        if (japanSnapshotTime.equals(lastSentJapanSnapshotTime)) {
+            return;
+        }
+        boolean closingTransmission = japanSnapshotTime.toLocalTime().isBefore(JAPAN_CLOSE_TIME) == false;
+        Optional<CapturedJapanMap> captured = captureJapanMap(closingTransmission);
+        if (captured.isEmpty()) return;
+        if (sendJapanMap(captured.get())) {
+            lastSentJapanSnapshotTime = japanSnapshotTime;
         }
     }
 
