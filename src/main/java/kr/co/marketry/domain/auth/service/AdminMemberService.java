@@ -13,6 +13,8 @@ import java.util.Objects;
 import java.util.Set;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
+import kr.co.marketry.domain.auth.dto.AdminBotDayCountResponse;
+import kr.co.marketry.domain.auth.dto.AdminBotVisitResponse;
 import kr.co.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import kr.co.marketry.domain.auth.dto.AdminMemberNicknameResetResponse;
 import kr.co.marketry.domain.auth.dto.AdminMemberPageResponse;
@@ -251,6 +253,26 @@ public class AdminMemberService {
                     return new AdminVisitorDailyResponse(date, visitors, joined, rate);
                 })
                 .toList();
+    }
+
+    /**
+     * 최근 N일(오늘 포함)의 검색 로봇 방문. 이름별 합과 날짜별 합을 준다. 방문이 없는 날은 0이다.
+     * 사람 방문 집계와는 별도다.
+     */
+    @Transactional(readOnly = true)
+    public AdminBotVisitResponse getBotVisits(LocalDate today, int days) {
+        if (days < 1 || days > MAX_SIGNUP_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회 기간이 올바르지 않습니다.");
+        }
+        LocalDate from = today.minusDays(days - 1L);
+        Map<LocalDate, Long> visitsByDate = new HashMap<>();
+        visitorDailyRepository
+                .countBotVisitsByDate(from, today)
+                .forEach(row -> visitsByDate.put(row.date(), row.visits()));
+        List<AdminBotDayCountResponse> byDay = from.datesUntil(today.plusDays(1))
+                .map(date -> new AdminBotDayCountResponse(date, visitsByDate.getOrDefault(date, 0L)))
+                .toList();
+        return new AdminBotVisitResponse(visitorDailyRepository.countBotVisitsByName(from, today), byDay);
     }
 
     /**

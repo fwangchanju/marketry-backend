@@ -6,6 +6,8 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDate;
 import java.util.List;
+import kr.co.marketry.domain.auth.dto.AdminBotDayCountResponse;
+import kr.co.marketry.domain.auth.dto.AdminBotNameCountResponse;
 import kr.co.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import kr.co.marketry.domain.auth.dto.AdminVisitorSourceResponse;
 import kr.co.marketry.domain.auth.enums.VisitorSource;
@@ -25,6 +27,29 @@ public class VisitorDailyRepositoryImpl implements VisitorDailyRepositoryCustom 
                 VALUES (?, ?, 1)
                 ON CONFLICT (visit_date, bot_name) DO UPDATE SET visit_count = bot_visit_daily.visit_count + 1
                 """, visitDate, botName);
+    }
+
+    @Override
+    public List<AdminBotNameCountResponse> countBotVisitsByName(LocalDate from, LocalDate to) {
+        return jdbcTemplate.query(
+                """
+                SELECT bot_name, SUM(visit_count) FROM bot_visit_daily
+                WHERE visit_date BETWEEN ? AND ?
+                GROUP BY bot_name ORDER BY SUM(visit_count) DESC, bot_name
+                """, (rs, row) -> new AdminBotNameCountResponse(rs.getString(1), rs.getLong(2)), from, to);
+    }
+
+    @Override
+    public List<AdminBotDayCountResponse> countBotVisitsByDate(LocalDate from, LocalDate to) {
+        return jdbcTemplate.query(
+                """
+                SELECT visit_date, SUM(visit_count) FROM bot_visit_daily
+                WHERE visit_date BETWEEN ? AND ?
+                GROUP BY visit_date ORDER BY visit_date
+                """,
+                (rs, row) -> new AdminBotDayCountResponse(rs.getObject(1, LocalDate.class), rs.getLong(2)),
+                from,
+                to);
     }
 
     @Override

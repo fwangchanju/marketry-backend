@@ -3,6 +3,7 @@ package kr.co.marketry.domain.auth.controller;
 import java.util.List;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.auth.dto.AdminAccessFrequencyResponse;
+import kr.co.marketry.domain.auth.dto.AdminBotVisitResponse;
 import kr.co.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import kr.co.marketry.domain.auth.dto.AdminMemberNicknameResetRequest;
 import kr.co.marketry.domain.auth.dto.AdminMemberNicknameResetResponse;
@@ -72,6 +73,14 @@ public class AdminMemberController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(adminMemberService.getVisitors(KstClock.now().toLocalDate(), days));
+    }
+
+    // 최근 N일(기본 30일, 오늘 포함)의 검색 로봇 방문. 사람 방문과 따로 센다.
+    @GetMapping("/bot-visits")
+    public ResponseEntity<AdminBotVisitResponse> botVisits(@RequestParam(defaultValue = "30") int days) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(adminMemberService.getBotVisits(KstClock.now().toLocalDate(), days));
     }
 
     // 최근 N일(기본 30일, 오늘 포함)의 비회원 방문을 유입 경로별로 센다.
