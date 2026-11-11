@@ -21,7 +21,8 @@ public class JapanQuoteScheduler {
     // 판단 전제: Yahoo 시세가 약 15분 지연되고 정규 수집은 매시 03, 08, ... 53, 58분에 시작한다.
     // 오전장 마지막 11:30 시세는 11:45경 제공된다고 보고 11:48과 11:53에 조회한다.
     // 오후장 12:30 시세는 12:45경 제공된다고 보고 그 다음 정규 회차인 12:48에 조회를 재개한다.
-    // 실제 제공 시각과 종목별 도착률은 아직 미측정이므로 측정 결과에 따라 시간을 조정해야 한다.
+    // 2026-11-11 운영 확인: 09:18 회차가 09:00 시세 216/225, 11:48 회차가 11:30 시세 전 종목, 12:48 회차가 12:30 시세
+    // 전 종목을 저장했다. 이 시각으로 확정하고 09:15 개장 측정은 없앴다. 시세 도착이 늦어지면 저장 로그의 오늘 시세 수로 본다.
     // 이 기간에 조회를 중단하면 예상보다 늦게 도착한 오전장 시세는 12:48까지 저장이 늦어질 수 있다.
     private static final LocalTime LUNCH_COLLECTION_PAUSE_START = LocalTime.of(11, 58);
     private static final LocalTime LUNCH_COLLECTION_RESUME = LocalTime.of(12, 48);
@@ -30,26 +31,6 @@ public class JapanQuoteScheduler {
     @Scheduled(cron = "${japan-quote.cron:0 3/5 9-15 * * MON-FRI}", zone = "Asia/Seoul")
     public synchronized void collect() {
         collect(KstClock.now());
-    }
-
-    /** Yahoo의 첫 당일 시세 제공 시각을 09:15부터 정규 수집 직전까지 한 번 측정한다. */
-    @Scheduled(cron = "0 15 9 * * MON-FRI", zone = "Asia/Seoul")
-    public synchronized void measureOpeningFreshness() {
-        try {
-            JapanQuoteCollector.OpeningMeasurement result = collector.measureOpeningFreshness();
-            log.info(
-                    "[일본시세] 개장 시세 측정: 시작={}, 종료={}, 오늘 시세={}/{}, 요청={}, 첫 오늘 시세={}, 90% 도달={}, 결과={}",
-                    result.startedAt(),
-                    result.finishedAt(),
-                    result.todayQuoteCount(),
-                    result.totalCount(),
-                    result.requestCount(),
-                    result.firstTodayQuoteAt(),
-                    result.thresholdReachedAt(),
-                    result.reason() == null ? "도달" : result.reason());
-        } catch (RuntimeException failure) {
-            log.warn("[일본시세] 개장 시세 측정 실패", failure);
-        }
     }
 
     void collect(LocalDateTime now) {

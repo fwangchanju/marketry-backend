@@ -49,17 +49,4 @@ class JapanQuoteSchedulerTest {
 
         verify(collector, times(2)).collect();
     }
-
-    @Test
-    void 개장_시세_측정은_수집기를_호출한다() {
-        JapanQuoteCollector collector = mock(JapanQuoteCollector.class);
-        LocalDateTime now = LocalDateTime.of(2026, 11, 9, 9, 15);
-        when(collector.measureOpeningFreshness())
-                .thenReturn(new JapanQuoteCollector.OpeningMeasurement(now, now, 203, 225, 225, now, now, null));
-        JapanQuoteScheduler scheduler = new JapanQuoteScheduler(collector);
-
-        scheduler.measureOpeningFreshness();
-
-        verify(collector).measureOpeningFreshness();
-    }
 }
