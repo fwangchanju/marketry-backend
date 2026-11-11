@@ -33,7 +33,8 @@ public class VisitorService {
     private static final String REFERRER_HEADER = "X-Visit-Referrer";
     private static final String UTM_SOURCE_HEADER = "X-Visit-Source";
     private static final Pattern BOT_PATTERN = Pattern.compile(
-            "bot|crawl|spider|slurp|preview|monitor|uptime|curl|wget|python|java/|headless|facebookexternalhit",
+            "bot|crawl|spider|slurp|preview|monitor|uptime|curl|wget|python|java/|headless|facebookexternalhit|yeti|daumoa",
+            // 네이버 검색 로봇은 Yeti, 다음 로봇은 daumoa 이름으로 접속한다. naver·daum 같은 넓은 이름은 네이버 앱 사용자까지 걸러서 넣지 않는다.
             Pattern.CASE_INSENSITIVE);
     // 오늘 이미 기록한 방문자 — 같은 사람이 화면을 열 때마다 DB를 건드리지 않게 한다. 날짜가 바뀌면 비운다.
     private final Set<String> recordedToday = ConcurrentHashMap.newKeySet();

@@ -108,6 +108,17 @@ class VisitorServiceTest {
     }
 
     @Test
+    void 네이버와_다음_검색_로봇은_세지_않지만_네이버_앱_브라우저는_센다() {
+        service.record(request("1.2.3.4", "Mozilla/5.0 (compatible; Yeti/1.1; +http://naver.me/spd)"));
+        service.record(request("1.2.3.4", "daumoa/3.0"));
+        verify(repository, never()).recordVisit(any(), anyString(), any());
+
+        service.record(request(
+                "1.2.3.4", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 NAVER(inapp; search; 2000; 14.0.0)"));
+        verify(repository).recordVisit(any(), anyString(), any());
+    }
+
+    @Test
     void 저장하는_값은_IP를_담지_않은_64자_해시이고_날짜마다_달라진다() {
         String today = service.visitorKey(LocalDate.of(2026, 10, 21), "1.2.3.4", BROWSER);
         String tomorrow = service.visitorKey(LocalDate.of(2026, 10, 22), "1.2.3.4", BROWSER);
