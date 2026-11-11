@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,6 +21,13 @@ public class AdminDefaultPreferenceController {
     @GetMapping
     public ResponseEntity<Map<String, Object>> find() {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.find());
+    }
+
+    // 한 프로필만 저장한다. 일본 지도 기본값처럼 다른 프로필을 건드리면 안 될 때 쓴다.
+    @PutMapping("/{profile}")
+    public ResponseEntity<Map<String, Object>> updateProfile(
+            @PathVariable String profile, @RequestBody Map<String, Object> settings) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(service.updateProfile(profile, settings));
     }
 
     @PutMapping
