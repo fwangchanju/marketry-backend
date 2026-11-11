@@ -16,7 +16,22 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class DefaultPreferenceService {
-    private static final Set<String> PROFILES = Set.of("marketry", "exchange");
+    private static final Set<String> PROFILES = Set.of("marketry", "exchange", "japan");
+    // 일본 지도 기본값 — 일본 지도 설정의 값 이름 그대로 쓴다. 텔레그램 일본 이미지와 개인 설정이 없는 화면이 읽는다.
+    private static final Set<String> JAPAN_KEYS = Set.of(
+            "sectorLevelEnabled",
+            "maxDepth",
+            "depthMetricEnabled",
+            "activeDepthMetric",
+            "depthMetricMinIndex",
+            "depthMetricMaxIndex",
+            "boxSizeMarketCapRatio",
+            "stockLabelEnabled",
+            "stockLabelModeIndex",
+            "decimalPlaces",
+            "topPickEnabled",
+            "topPickDepth",
+            "topPickCount");
     private static final Set<String> PROFILE_KEYS = Set.of(
             "avgChangeRateUseSimple",
             "boxSizeMarketCapRatio",
@@ -74,8 +89,27 @@ public class DefaultPreferenceService {
         return payload;
     }
 
+    /** 한 프로필만 바꾼다. 다른 프로필의 기본값은 그대로 둔다. */
+    @Transactional
+    public Map<String, Object> updateProfile(String profile, Map<String, Object> settings) {
+        if (profile == null || !PROFILES.contains(profile)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
+        validateProfile(profile, settings);
+        Map<String, Object> merged = new java.util.LinkedHashMap<>(find());
+        merged.put(profile, settings);
+        return update(merged);
+    }
+
     private void validateProfile(String profile, Object value) {
         if (!(value instanceof Map<?, ?> settings)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
+        if (profile.equals("japan")) {
+            for (Object key : settings.keySet()) {
+                if (!(key instanceof String name) || !JAPAN_KEYS.contains(name)) {
+                    throw new BadRequestException(ErrorCode.INVALID_INPUT);
+                }
+                validateValue(name, settings.get(name));
+            }
+            return;
+        }
         for (Object key : settings.keySet()) {
             if (!(key instanceof String name) || !PROFILE_KEYS.contains(name)) {
                 throw new BadRequestException(ErrorCode.INVALID_INPUT);
@@ -118,7 +152,7 @@ public class DefaultPreferenceService {
             }
             return;
         }
-        if (key.equals("selectedMaxDepth")) {
+        if (key.equals("selectedMaxDepth") || key.equals("maxDepth")) {
             if (value != null && !isNumberInRange(value, 1, 3, true)) {
                 throw new BadRequestException(ErrorCode.INVALID_INPUT);
             }
@@ -134,6 +168,7 @@ public class DefaultPreferenceService {
                             "topPickDepth",
                             "topPickCount",
                             "stockLabelModeIndex",
+                            "decimalPlaces",
                             "decimalPlacesIndex" -> 0;
                     default -> Double.NaN;
                 };
@@ -145,7 +180,7 @@ public class DefaultPreferenceService {
                     case "depthMetricMinIndex", "depthMetricMaxIndex", "topPickDepth" -> 2;
                     case "topPickCount" -> 3;
                     case "stockLabelModeIndex" -> 3;
-                    case "decimalPlacesIndex" -> 2;
+                    case "decimalPlaces", "decimalPlacesIndex" -> 2;
                     default -> Double.NaN;
                 };
         if (Double.isNaN(min) || !isNumberInRange(value, min, max, true)) {
