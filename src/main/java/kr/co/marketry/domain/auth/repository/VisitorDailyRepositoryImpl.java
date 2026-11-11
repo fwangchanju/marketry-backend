@@ -19,6 +19,15 @@ public class VisitorDailyRepositoryImpl implements VisitorDailyRepositoryCustom 
     private final JdbcTemplate jdbcTemplate;
 
     @Override
+    public void recordBotVisit(LocalDate visitDate, String botName) {
+        jdbcTemplate.update("""
+                INSERT INTO bot_visit_daily (visit_date, bot_name, visit_count)
+                VALUES (?, ?, 1)
+                ON CONFLICT (visit_date, bot_name) DO UPDATE SET visit_count = bot_visit_daily.visit_count + 1
+                """, visitDate, botName);
+    }
+
+    @Override
     public void recordVisit(LocalDate visitDate, String visitorKey, VisitorSource source) {
         jdbcTemplate.update("""
                 INSERT INTO visitor_daily (visit_date, visitor_key, source)

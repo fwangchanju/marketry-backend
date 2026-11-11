@@ -7,6 +7,7 @@ import java.util.HexFormat;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -46,12 +47,15 @@ public class VisitorService {
     /** 비회원 요청이면 오늘의 방문자로 기록한다. 로봇으로 보이는 요청은 센 수에서 뺀다. 기록에 실패해도 요청은 막지 않는다. */
     public void record(HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
-        if (userAgent == null
-                || userAgent.isBlank()
-                || BOT_PATTERN.matcher(userAgent).find()) {
+        LocalDate today = LocalDate.now(Zone.KST.zoneId());
+        if (userAgent == null || userAgent.isBlank()) {
             return;
         }
-        LocalDate today = LocalDate.now(Zone.KST.zoneId());
+        Matcher bot = BOT_PATTERN.matcher(userAgent);
+        if (bot.find()) {
+            recordBot(today, bot.group());
+            return;
+        }
         String key = visitorKey(today, clientIp(request), userAgent);
         resetIfNewDay(today);
         if (!recordedToday.add(key)) {
@@ -64,6 +68,15 @@ public class VisitorService {
                     VisitorSource.from(request.getHeader(REFERRER_HEADER), request.getHeader(UTM_SOURCE_HEADER)));
         } catch (RuntimeException e) {
             recordedToday.remove(key);
+        }
+    }
+
+    // 로봇은 사람 방문 집계에 넣지 않고 날짜·로봇 이름별 횟수만 센다. 실패해도 요청은 막지 않는다.
+    private void recordBot(LocalDate today, String matched) {
+        try {
+            visitorDailyRepository.recordBotVisit(today, matched.toLowerCase(Locale.ROOT));
+        } catch (RuntimeException ignored) {
+            // 로봇 횟수 기록 실패는 조용히 넘긴다(사람 방문 집계와 무관).
         }
     }
 
