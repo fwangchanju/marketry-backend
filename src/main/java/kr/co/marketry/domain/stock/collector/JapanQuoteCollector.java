@@ -82,7 +82,7 @@ public class JapanQuoteCollector {
         int failureCount = fetched.size() - (int) successCount;
         if (successCount < lastQuotes.size() * MIN_SUCCESS_RATIO) {
             return Result.skipped(
-                    "받은 종목이 너무 적습니다: " + successCount + "/" + lastQuotes.size(),
+                    TOO_FEW_REASON + ": " + successCount + "/" + lastQuotes.size(),
                     todayQuoteCount,
                     otherDateQuoteCount,
                     failureCount,
@@ -181,6 +181,9 @@ public class JapanQuoteCollector {
 
     private record Fetched(OverseasStockQuote last, YahooFinanceQuoteClient.Quote quote) {}
 
+    /** 응답을 받은 종목이 기준보다 적어 저장을 건너뛴 이유 — 야후 요청이 막히거나 실패한 상태다. */
+    static final String TOO_FEW_REASON = "받은 종목이 너무 적습니다";
+
     public record Result(
             boolean saved,
             LocalDateTime snapshotTime,
@@ -190,6 +193,11 @@ public class JapanQuoteCollector {
             int otherDateQuoteCount,
             int failureCount,
             String reason) {
+        /** 야후 요청이 실패해 저장하지 못했는지. "새 시세가 없습니다"처럼 정상인 건너뜀은 아니다. */
+        public boolean fetchFailed() {
+            return saved == false && reason != null && reason.startsWith(TOO_FEW_REASON);
+        }
+
         static Result skipped(
                 String reason, int todayQuoteCount, int otherDateQuoteCount, int failureCount, int totalCount) {
             return new Result(
