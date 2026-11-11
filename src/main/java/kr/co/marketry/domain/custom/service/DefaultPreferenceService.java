@@ -89,16 +89,6 @@ public class DefaultPreferenceService {
         return payload;
     }
 
-    /** 한 프로필만 바꾼다. 다른 프로필의 기본값은 그대로 둔다. */
-    @Transactional
-    public Map<String, Object> updateProfile(String profile, Map<String, Object> settings) {
-        if (profile == null || !PROFILES.contains(profile)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
-        validateProfile(profile, settings);
-        Map<String, Object> merged = new java.util.LinkedHashMap<>(find());
-        merged.put(profile, settings);
-        return update(merged);
-    }
-
     private void validateProfile(String profile, Object value) {
         if (!(value instanceof Map<?, ?> settings)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
         if (profile.equals("japan")) {
