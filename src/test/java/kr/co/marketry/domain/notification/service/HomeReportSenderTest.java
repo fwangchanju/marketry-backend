@@ -300,7 +300,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연) #마감\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 #마감 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
