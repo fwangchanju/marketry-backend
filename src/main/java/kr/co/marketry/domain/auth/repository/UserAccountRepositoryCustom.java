@@ -32,4 +32,7 @@ public interface UserAccountRepositoryCustom {
 
     /** 실제 가입 회원 수(관리자·특별 회원·일반 회원 합계). */
     long countMembers();
+
+    /** 관리자를 뺀 회원 수 — 관리자 접속을 집계에서 뺀 접속 빈도의 "0일" 계산에 쓴다. */
+    long countNonAdminMembers();
 }

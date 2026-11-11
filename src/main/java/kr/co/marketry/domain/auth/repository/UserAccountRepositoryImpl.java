@@ -143,6 +143,11 @@ public class UserAccountRepositoryImpl implements UserAccountRepositoryCustom {
         return count(userAccount.id.isNotNull());
     }
 
+    @Override
+    public long countNonAdminMembers() {
+        return count(userAccount.role.ne(Role.ADMIN));
+    }
+
     // 관리자는 권한으로, 특별 회원은 일반 권한(USER) 중 특별 표시가 켜진 회원으로 본다.
     private Predicate gradeCondition(MemberGrade grade) {
         return switch (grade) {

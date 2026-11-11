@@ -307,7 +307,7 @@ class AdminMemberServiceTest {
         // 접속한 회원 6명: 1일, 2일, 3일, 6일, 7일, 14일 — 마지막에 15일, 30일도 있어 8명
         when(accessDailyRepository.countAccessDaysPerMember(today.minusDays(29), today))
                 .thenReturn(List.of(1L, 2L, 3L, 6L, 7L, 14L, 15L, 30L));
-        when(repository.countMembers()).thenReturn(11L);
+        when(repository.countNonAdminMembers()).thenReturn(11L);
 
         assertThat(service.getAccessFrequency(today))
                 .containsExactly(
@@ -323,7 +323,7 @@ class AdminMemberServiceTest {
         LocalDate today = LocalDate.of(2026, 10, 21);
         when(accessDailyRepository.countAccessDaysPerMember(today.minusDays(29), today))
                 .thenReturn(List.of(1L, 1L));
-        when(repository.countMembers()).thenReturn(1L);
+        when(repository.countNonAdminMembers()).thenReturn(1L);
 
         assertThat(service.getAccessFrequency(today).get(0)).isEqualTo(new AdminAccessFrequencyResponse("0일", 0));
     }

@@ -302,7 +302,7 @@ public class AdminMemberService {
     public List<AdminAccessFrequencyResponse> getAccessFrequency(LocalDate today) {
         List<Long> accessDays =
                 userAccessDailyRepository.countAccessDaysPerMember(today.minusDays(ACCESS_DAYS_WINDOW - 1L), today);
-        long neverAccessed = Math.max(0, userAccountRepository.countMembers() - accessDays.size());
+        long neverAccessed = Math.max(0, userAccountRepository.countNonAdminMembers() - accessDays.size());
         long[] counts = new long[ACCESS_FREQUENCY_LABELS.length];
         counts[0] = neverAccessed;
         for (long days : accessDays) {
