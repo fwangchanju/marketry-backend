@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import kr.co.marketry.domain.auth.dto.AdminDailyAccessResponse;
 import kr.co.marketry.domain.auth.entity.UserAccount;
+import kr.co.marketry.domain.auth.enums.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -49,7 +50,9 @@ public class UserAccessDailyRepositoryImpl implements UserAccessDailyRepositoryC
                         userAccount
                                 .issuer
                                 .isNull()
-                                .or(userAccount.issuer.notIn(UserAccount.LOCAL_TEST_ISSUER, UserAccount.SYSTEM_ISSUER)))
+                                .or(userAccount.issuer.notIn(UserAccount.LOCAL_TEST_ISSUER, UserAccount.SYSTEM_ISSUER)),
+                        // 관리자 계정의 접속은 회원 접속 집계에서 뺀다. 기록은 남기고 집계할 때만 거른다.
+                        userAccount.role.ne(Role.ADMIN))
                 .groupBy(userAccessDaily.id.accessDate)
                 .orderBy(userAccessDaily.id.accessDate.asc())
                 .fetch();
@@ -84,7 +87,9 @@ public class UserAccessDailyRepositoryImpl implements UserAccessDailyRepositoryC
                         userAccount
                                 .issuer
                                 .isNull()
-                                .or(userAccount.issuer.notIn(UserAccount.LOCAL_TEST_ISSUER, UserAccount.SYSTEM_ISSUER)))
+                                .or(userAccount.issuer.notIn(UserAccount.LOCAL_TEST_ISSUER, UserAccount.SYSTEM_ISSUER)),
+                        // 관리자 계정의 접속은 회원 접속 집계에서 뺀다. 기록은 남기고 집계할 때만 거른다.
+                        userAccount.role.ne(Role.ADMIN))
                 .groupBy(userAccessDaily.id.userId)
                 .fetch();
     }
