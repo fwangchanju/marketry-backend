@@ -73,4 +73,13 @@ class EscalationPublisherTest {
         verify(events).publishEvent(captured.capture());
         assertThat(captured.getValue().message()).isEqualTo("⚠️ 일본 지도 캡션 생성 실패 (1회차)");
     }
+
+    @Test
+    void 일본_시세_조회_실패도_일본_지도_양식으로_알린다() {
+        publisher.report("일본 지도", new EscalateException(ErrorCode.MAP_QUOTE_LOOKUP_FAILED), FIRST);
+
+        var captured = ArgumentCaptor.forClass(EscalationEvent.class);
+        verify(events).publishEvent(captured.capture());
+        assertThat(captured.getValue().message()).isEqualTo("⚠️ 일본 지도 시세 조회 실패 (1회차)");
+    }
 }
