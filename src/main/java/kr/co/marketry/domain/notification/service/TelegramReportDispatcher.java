@@ -14,11 +14,7 @@ public class TelegramReportDispatcher {
     private final HomeReportSender homeReportSender;
 
     public boolean sendHome(LocalDateTime dataTime) {
-        return sendHome(dataTime, false);
-    }
-
-    public boolean sendHome(LocalDateTime dataTime, boolean finalDailySend) {
-        return homeReportSender.send(dataTime, finalDailySend);
+        return homeReportSender.send(dataTime);
     }
 
     public boolean sendLatestKorea() {
