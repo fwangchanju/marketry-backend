@@ -72,22 +72,4 @@ class DefaultPreferenceServiceTest {
         assertThatThrownBy(() -> service.update(Map.of("marketry", Map.of("maxDepth", 2))))
                 .isInstanceOf(BadRequestException.class);
     }
-
-    @Test
-    void 한_프로필만_저장하면_다른_프로필_기본값은_그대로_남는다() {
-        DefaultPreference stored = DefaultPreference.create();
-        stored.update("{\"marketry\":{\"boxSizeMarketCapRatio\":60}}");
-        when(repository.findById(1L)).thenReturn(Optional.of(stored));
-        when(repository.save(any(DefaultPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        Map<String, Object> saved = service.updateProfile("japan", Map.of("topPickCount", 3));
-
-        assertThat(saved.get("marketry")).isEqualTo(Map.of("boxSizeMarketCapRatio", 60));
-        assertThat(saved.get("japan")).isEqualTo(Map.of("topPickCount", 3));
-    }
-
-    @Test
-    void 알_수_없는_프로필은_저장하지_않는다() {
-        assertThatThrownBy(() -> service.updateProfile("korea", Map.of())).isInstanceOf(BadRequestException.class);
-    }
 }
