@@ -166,7 +166,7 @@ class HomeReportSenderTest {
 
         assertThat(sender.sendLatestJapan()).isTrue();
 
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%\n\n테스트 발송");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%\n\n테스트 발송");
         verify(screenshotClient, never())
                 .captureWithRows(eq(RenderTarget.MAP_MOBILE.path(Optional.empty())), any(), any());
         verify(sectorPriceSnapshotService, never()).findLatestCommonSnapshotTime(anyList());
@@ -201,7 +201,7 @@ class HomeReportSenderTest {
                 .thenReturn("기술 +4.5%\n금융 +4.2%");
         org.mockito.Mockito.doThrow(new RuntimeException("전송 실패"))
                 .when(telegramClient)
-                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%\n\n테스트 발송");
+                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%\n\n테스트 발송");
 
         assertThat(sender.sendLatestJapanOnce()).isEqualTo(HomeReportSender.JapanSendResult.TELEGRAM_SEND_FAILED);
 
@@ -248,7 +248,7 @@ class HomeReportSenderTest {
 
         var order = inOrder(telegramClient);
         order.verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
@@ -277,7 +277,7 @@ class HomeReportSenderTest {
         givenJapanSnapshot(DATA_TIME.plusMinutes(5));
         sender.send(DATA_TIME);
 
-        verify(telegramClient, times(2)).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient, times(2)).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
@@ -289,7 +289,7 @@ class HomeReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 #마감 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 #마감 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
@@ -429,12 +429,12 @@ class HomeReportSenderTest {
                 .thenReturn("기술 +4.5%\n금융 +4.2%");
         org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
                 .when(telegramClient)
-                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+                .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
 
         assertThat(sender.send(DATA_TIME)).isTrue();
 
         verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이225 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
