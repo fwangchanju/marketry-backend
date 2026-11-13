@@ -12,8 +12,11 @@ import java.util.function.Consumer;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
+import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
+import kr.co.marketry.domain.stock.entity.OverseasIndexQuoteId;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +34,8 @@ import org.springframework.web.client.RestClientResponseException;
 @Component
 public class JapanQuoteCollector {
     static final String MARKET = "JAPAN";
+    static final String INDEX_MARKET = "NIKKEI225";
+    private static final String INDEX_SYMBOL = "^N225";
     static final double MIN_SUCCESS_RATIO = 0.9;
     private static final Duration REQUEST_INTERVAL = Duration.ofMillis(200);
     private static final int SNAPSHOT_GRID_MINUTES = 5;
@@ -39,17 +44,25 @@ public class JapanQuoteCollector {
 
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
+    private final OverseasIndexQuoteRepository indexQuotes;
     private final Consumer<Duration> sleeper;
 
     @Autowired
-    public JapanQuoteCollector(YahooFinanceQuoteClient client, OverseasStockQuoteRepository repository) {
-        this(client, repository, JapanQuoteCollector::sleep);
+    public JapanQuoteCollector(
+            YahooFinanceQuoteClient client,
+            OverseasStockQuoteRepository repository,
+            OverseasIndexQuoteRepository indexQuotes) {
+        this(client, repository, indexQuotes, JapanQuoteCollector::sleep);
     }
 
     JapanQuoteCollector(
-            YahooFinanceQuoteClient client, OverseasStockQuoteRepository repository, Consumer<Duration> sleeper) {
+            YahooFinanceQuoteClient client,
+            OverseasStockQuoteRepository repository,
+            OverseasIndexQuoteRepository indexQuotes,
+            Consumer<Duration> sleeper) {
         this.client = client;
         this.repository = repository;
+        this.indexQuotes = indexQuotes;
         this.sleeper = sleeper;
     }
 
@@ -97,6 +110,7 @@ public class JapanQuoteCollector {
         List<OverseasStockQuote> quotes =
                 fetched.stream().map(item -> toQuote(item, snapshotTime)).toList();
         repository.saveAll(quotes);
+        saveIndexQuote(snapshotTime);
         return new Result(
                 true,
                 snapshotTime,
@@ -106,6 +120,29 @@ public class JapanQuoteCollector {
                 otherDateQuoteCount,
                 failureCount,
                 null);
+    }
+
+    /**
+     * 닛케이 225 지수의 지금 값을 종목 시세와 같은 시각으로 저장한다. 종목 시세를 먼저 저장한 뒤에 하며, 지수를 받지 못해도 종목 시세는
+     * 그대로 둔다. 그 시각의 지수가 없으면 그래프가 지수 막대만 만들지 않는다.
+     */
+    private void saveIndexQuote(LocalDateTime snapshotTime) {
+        try {
+            YahooFinanceQuoteClient.Quote quote = client.fetchQuote(INDEX_SYMBOL);
+            if (quote == null) {
+                log.warn("[일본지수] 지수 값을 받지 못했습니다: {}", snapshotTime);
+                return;
+            }
+            BigDecimal value = quote.currentPrice().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+            BigDecimal previousClose = quote.previousClose().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+            indexQuotes.save(OverseasIndexQuote.create(
+                    new OverseasIndexQuoteId(INDEX_MARKET, snapshotTime),
+                    value,
+                    previousClose,
+                    changeRateOf(value, previousClose)));
+        } catch (RuntimeException failure) {
+            log.warn("[일본지수] 지수 저장 실패: {} {}", snapshotTime, failure.getMessage());
+        }
     }
 
     private List<Fetched> fetchAll(List<OverseasStockQuote> lastQuotes) {

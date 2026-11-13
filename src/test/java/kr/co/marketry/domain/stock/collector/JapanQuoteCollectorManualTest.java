@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -53,8 +54,11 @@ class JapanQuoteCollectorManualTest {
                 .thenReturn(Optional.of(baseQuotes.getFirst()));
         when(repository.findAllByIdMarketAndIdSnapshotTime("JAPAN", BASE_TIME)).thenReturn(baseQuotes);
 
-        JapanQuoteCollector.Result result =
-                new JapanQuoteCollector(new YahooFinanceQuoteClient(RestClient.create()), repository).collect();
+        JapanQuoteCollector.Result result = new JapanQuoteCollector(
+                        new YahooFinanceQuoteClient(RestClient.create()),
+                        repository,
+                        mock(OverseasIndexQuoteRepository.class))
+                .collect();
 
         System.out.println("결과: " + result);
         assertThat(result.saved()).isTrue();
