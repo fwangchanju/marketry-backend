@@ -9,6 +9,8 @@ import kr.co.marketry.domain.auth.service.SpecialMemberGuard;
 import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
+import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
+import kr.co.marketry.domain.stock.service.OverseasIndexCloseService.IndexClose;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
@@ -27,12 +29,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UsaController {
     private static final String MARKET = "USA";
+    private static final String INDEX_MARKET = "SP500";
 
     private final SpecialMemberGuard guard;
     private final OverseasStockQuoteService quoteService;
     private final OverseasStockClassificationService classificationService;
     private final OverseasClassificationCategoryService categoryService;
     private final UsaConstituents constituents;
+    private final OverseasIndexCloseService indexCloseService;
 
     @GetMapping("/quotes")
     public QuoteSnapshot findQuotes(
@@ -55,6 +59,15 @@ public class UsaController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         guard.require(principal);
         return quoteService.findPreviousTradingDay(MARKET, date);
+    }
+
+    @GetMapping("/index-closes")
+    public List<IndexClose> findIndexCloses(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        guard.require(principal);
+        return indexCloseService.findCloses(INDEX_MARKET, from, to);
     }
 
     @GetMapping("/classifications")
