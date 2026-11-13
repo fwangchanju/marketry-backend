@@ -67,7 +67,9 @@ public class EscalationPublisher {
                         || e.getErrorCode() == ErrorCode.TELEGRAM_IMAGE_SEND_FAILED
                         || e.getErrorCode() == ErrorCode.MAP_CAPTION_BUILD_FAILED
                         || e.getErrorCode() == ErrorCode.MAP_QUOTE_LOOKUP_FAILED
-                        || e.getErrorCode() == ErrorCode.JAPAN_QUOTE_COLLECT_FAILED);
+                        || e.getErrorCode() == ErrorCode.JAPAN_QUOTE_COLLECT_FAILED
+                        || e.getErrorCode() == ErrorCode.USA_QUOTE_COLLECT_FAILED
+                        || e.getErrorCode() == ErrorCode.USA_QUOTE_MISSING);
         String errorKey =
                 (marketMapImageFailure ? source + "|" : "") + e.getErrorCode().name();
         FailureState previous = failureBySource.getIfPresent(errorKey);
