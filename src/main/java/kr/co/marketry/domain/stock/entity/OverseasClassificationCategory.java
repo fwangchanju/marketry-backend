@@ -21,7 +21,7 @@ public class OverseasClassificationCategory {
 
     private Long parentId;
 
-    @Column(nullable = false, length = 12)
+    @Column(nullable = false, length = 40)
     private String name;
 
     protected OverseasClassificationCategory() {}
