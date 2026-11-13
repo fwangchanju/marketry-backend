@@ -10,10 +10,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
+import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,21 +29,31 @@ import org.springframework.web.client.RestClientResponseException;
 @Component
 public class JapanCloseReconciler {
     private static final String MARKET = "JAPAN";
+    static final String INDEX_MARKET = "NIKKEI225";
+    private static final String INDEX_SYMBOL = "^N225";
     private static final LocalTime CLOSE_TIME = LocalTime.of(15, 30);
     private static final int MAX_PASSES = 3;
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
+    private final MarketIndexDailyRepository indexes;
     private final Set<String> expectedStocks;
 
     @Autowired
-    public JapanCloseReconciler(YahooFinanceQuoteClient client, OverseasStockQuoteRepository repository) {
-        this(client, repository, JapanMarketReference.constituentCodes());
+    public JapanCloseReconciler(
+            YahooFinanceQuoteClient client,
+            OverseasStockQuoteRepository repository,
+            MarketIndexDailyRepository indexes) {
+        this(client, repository, indexes, JapanMarketReference.constituentCodes());
     }
 
     JapanCloseReconciler(
-            YahooFinanceQuoteClient client, OverseasStockQuoteRepository repository, Set<String> expectedStocks) {
+            YahooFinanceQuoteClient client,
+            OverseasStockQuoteRepository repository,
+            MarketIndexDailyRepository indexes,
+            Set<String> expectedStocks) {
         this.client = client;
         this.repository = repository;
+        this.indexes = indexes;
         this.expectedStocks = expectedStocks;
     }
 
@@ -70,10 +83,11 @@ public class JapanCloseReconciler {
 
         // 지수 일봉이 없으면 휴장인지 제공 지연인지 판별할 수 없다. 보정하지 않고 알린다.
         boolean tradingDay = false;
+        List<DailyBar> indexBars = List.of();
         for (int pass = 0; pass < MAX_PASSES && !tradingDay; pass++) {
             try {
-                tradingDay = client.fetchDailyBars("^N225", date.minusDays(14), date).stream()
-                        .anyMatch(bar -> bar.date().equals(date));
+                indexBars = client.fetchDailyBars(INDEX_SYMBOL, date.minusDays(14), date);
+                tradingDay = indexBars.stream().anyMatch(bar -> bar.date().equals(date));
             } catch (RuntimeException failure) {
                 log.warn(
                         "[일본 지수 일봉 확인 실패] 날짜={} 회차={} 오류={}",
@@ -91,6 +105,7 @@ public class JapanCloseReconciler {
             }
         }
         if (!tradingDay) return new Result(0, List.of("닛케이 일봉 없음: 휴장 또는 야후 제공 지연 확인 필요"));
+        saveIndexClose(indexBars, date);
 
         Map<String, OverseasStockQuote> pending = new LinkedHashMap<>();
         baseline.forEach(quote -> pending.put(quote.getId().getStockCode(), quote));
@@ -160,6 +175,28 @@ public class JapanCloseReconciler {
         if (corrected.isEmpty()) return new Result(0, List.copyOf(pending.keySet()));
         repository.saveAll(corrected.values());
         return new Result(corrected.size(), List.copyOf(pending.keySet()));
+    }
+
+    /** 기간 그래프에 쓸 닛케이 지수 일봉을 저장한다. 실패해도 종목 종가 보정은 막지 않는다. */
+    private void saveIndexClose(List<DailyBar> indexBars, LocalDate date) {
+        try {
+            DailyBar bar = indexBars.stream()
+                    .filter(candidate -> candidate.date().equals(date))
+                    .findFirst()
+                    .orElseThrow();
+            indexes.save(MarketIndexDaily.create(
+                    INDEX_MARKET,
+                    date,
+                    bar.open().setScale(2, RoundingMode.HALF_UP),
+                    bar.high().setScale(2, RoundingMode.HALF_UP),
+                    bar.low().setScale(2, RoundingMode.HALF_UP),
+                    bar.close().setScale(2, RoundingMode.HALF_UP),
+                    bar.volume(),
+                    null,
+                    KstClock.now()));
+        } catch (RuntimeException failure) {
+            log.warn("[일본 지수 종가 저장 실패] 날짜={} 오류={}", date, failure.getClass().getSimpleName());
+        }
     }
 
     public record Result(int saved, List<String> failures) {}

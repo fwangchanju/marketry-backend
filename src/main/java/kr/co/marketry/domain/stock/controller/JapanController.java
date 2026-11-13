@@ -10,6 +10,8 @@ import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.stock.service.JapanStockKoreanNameService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
+import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
+import kr.co.marketry.domain.stock.service.OverseasIndexCloseService.IndexClose;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
@@ -31,12 +33,14 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class JapanController {
     private static final String MARKET = "JAPAN";
+    private static final String INDEX_MARKET = "NIKKEI225";
 
     private final UserAccountRepository userAccountRepository;
     private final OverseasStockQuoteService quoteService;
     private final OverseasStockClassificationService classificationService;
     private final OverseasClassificationCategoryService categoryService;
     private final JapanStockKoreanNameService nameService;
+    private final OverseasIndexCloseService indexCloseService;
 
     @GetMapping("/quotes")
     public QuoteSnapshot findQuotes(
@@ -59,6 +63,15 @@ public class JapanController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         requireSpecial(principal);
         return quoteService.findPreviousTradingDay(MARKET, date);
+    }
+
+    @GetMapping("/index-closes")
+    public List<IndexClose> findIndexCloses(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        requireSpecial(principal);
+        return indexCloseService.findCloses(INDEX_MARKET, from, to);
     }
 
     @GetMapping("/classifications")
