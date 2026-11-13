@@ -152,6 +152,23 @@ class UsaHistoryBackfillServiceTest {
     }
 
     @Test
+    void 시가총액은_일봉과_같은_시작일부터_찾아서_오래전에_멈춘_기록도_놓치지_않는다() {
+        UsaHistoryBackfillService service = service(CLOSE.plus(Duration.ofHours(1)), "META");
+        when(client.fetchDailyBars(eq("META"), any(), any()))
+                .thenReturn(List.of(bar("2025-10-01", "700"), bar("2025-10-02", "710"), bar("2026-11-11", "600")));
+        // 야후 시가총액 기록이 2025-10-02에서 멈춘 종목
+        when(client.fetchMarketValueOf(eq("META"), any(), any()))
+                .thenReturn(new MarketValue(LocalDate.of(2025, 10, 2), new BigDecimal("1800000")));
+
+        service.run(LocalDate.of(2019, 12, 27), DAY);
+
+        ArgumentCaptor<LocalDate> fromCaptor = ArgumentCaptor.forClass(LocalDate.class);
+        verify(client).fetchMarketValueOf(eq("META"), fromCaptor.capture(), any());
+        assertThat(fromCaptor.getValue()).isEqualTo(LocalDate.of(2019, 12, 13));
+        assertThat(service.status().failed()).isZero();
+    }
+
+    @Test
     void 이미_끝난_항목은_호출하지_않고_건너뛴다() {
         UsaHistoryBackfillService service = service(CLOSE.plus(Duration.ofHours(1)), "AAPL", "MSFT");
         when(progress.existsById(new HistoryBackfillProgress.Id("USA:2026-11-10", "AAPL")))

@@ -47,8 +47,8 @@ public class UsaQuoteCollector {
     private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
     private static final LocalTime CLOSE_TIME = LocalTime.of(16, 0);
     private static final Duration REQUEST_INTERVAL = Duration.ofMillis(200);
-    private static final int NEW_STOCK_BAR_LOOKBACK_DAYS = 40;
-    private static final int MARKET_VALUE_LOOKBACK_DAYS = 30;
+    // 새 종목의 시가총액은 야후 기록이 몇 달 전에 멈춰 있을 수 있다. 일봉과 시가총액을 같은 구간으로 받아 기록 날짜의 종가를 찾는다.
+    private static final int NEW_STOCK_LOOKBACK_DAYS = 400;
     private static final int PRICE_SCALE = 2;
     private static final BigDecimal PERCENT = BigDecimal.valueOf(100);
 
@@ -150,7 +150,7 @@ public class UsaQuoteCollector {
     /** 오늘 봉이나 기준이 되는 봉을 찾지 못하면 null이다. 그 종목은 저장하지 않는다. */
     private OverseasStockQuote buildRow(
             String symbol, LocalDate day, LocalDate lastDay, OverseasStockQuote last, LocalDateTime snapshotTime) {
-        LocalDate from = last == null ? day.minusDays(NEW_STOCK_BAR_LOOKBACK_DAYS) : lastDay;
+        LocalDate from = last == null ? day.minusDays(NEW_STOCK_LOOKBACK_DAYS) : lastDay;
         List<DailyBar> bars = client.fetchDailyBars(symbol, from, day);
         sleeper.accept(REQUEST_INTERVAL);
         DailyBar today = barOn(bars, day);
@@ -161,7 +161,7 @@ public class UsaQuoteCollector {
         BigDecimal baseMarketValue;
         BigDecimal baseClose;
         if (last == null) {
-            MarketValue marketValue = client.fetchMarketValueOf(symbol, day.minusDays(MARKET_VALUE_LOOKBACK_DAYS), day);
+            MarketValue marketValue = client.fetchMarketValueOf(symbol, day.minusDays(NEW_STOCK_LOOKBACK_DAYS), day);
             sleeper.accept(REQUEST_INTERVAL);
             baseMarketValue = marketValue.value();
             baseClose = closeOn(bars, marketValue.date());

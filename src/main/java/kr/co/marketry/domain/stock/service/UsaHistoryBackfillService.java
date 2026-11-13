@@ -48,7 +48,6 @@ public class UsaHistoryBackfillService {
     private static final Duration CALL_INTERVAL = Duration.ofSeconds(1);
     private static final Duration CLOSE_GRACE = Duration.ofMinutes(30);
     private static final int LOOKBACK_DAYS = 14;
-    private static final int MARKET_VALUE_LOOKBACK_DAYS = 400;
     private static final int MAX_CONSECUTIVE_FAILURES = 20;
     private static final int PRICE_SCALE = 2;
     private static final BigDecimal PERCENT = BigDecimal.valueOf(100);
@@ -189,7 +188,9 @@ public class UsaHistoryBackfillService {
     private int backfillStock(String symbol, LocalDate from, LocalDate to) throws InterruptedException {
         List<DailyBar> bars = client.fetchDailyBars(symbol, from.minusDays(LOOKBACK_DAYS), to);
         pause(CALL_INTERVAL);
-        MarketValue marketValue = client.fetchMarketValueOf(symbol, to.minusDays(MARKET_VALUE_LOOKBACK_DAYS), to);
+        // 야후 시가총액 기록은 종목마다 마지막 갱신일이 다르다(2025-10-02에 멈춘 종목이 많다). 일봉과 같은 시작일부터 찾아서 가장 최근
+        // 기록을 놓치지 않고, 그 기록의 날짜가 받은 일봉 안에 들어와 그날 종가로 환산할 수 있게 한다.
+        MarketValue marketValue = client.fetchMarketValueOf(symbol, from.minusDays(LOOKBACK_DAYS), to);
         pause(CALL_INTERVAL);
         BigDecimal baseClose = JapanHistoryBackfillService.closeOn(bars, marketValue.date());
         List<OverseasStockQuote> rows = toQuotes(symbol, bars, marketValue.value(), baseClose, from);
