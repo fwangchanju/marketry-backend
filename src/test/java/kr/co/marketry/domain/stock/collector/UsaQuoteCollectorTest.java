@@ -217,6 +217,31 @@ class UsaQuoteCollectorTest {
         assertThat(added.getTotalMarketValue()).isEqualByComparingTo("1100000");
     }
 
+    @Test
+    void 직전_스냅샷에_없던_종목은_일봉과_시가총액을_400일_구간에서_찾는다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+        givenBars("NEW", bar("2025-10-02", "50"), bar("2026-11-11", "52"), bar("2026-11-12", "55"));
+        // 야후 시가총액 기록이 2025-10-02에서 멈춘 종목
+        when(client.fetchMarketValueOf(eq("NEW"), any(), any()))
+                .thenReturn(new MarketValue(LocalDate.of(2025, 10, 2), new BigDecimal("1000000")));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL", "NEW").collect();
+
+        assertThat(result.saved()).isTrue();
+        ArgumentCaptor<LocalDate> barFrom = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<LocalDate> valueFrom = ArgumentCaptor.forClass(LocalDate.class);
+        verify(client).fetchDailyBars(eq("NEW"), barFrom.capture(), any());
+        verify(client).fetchMarketValueOf(eq("NEW"), valueFrom.capture(), any());
+        assertThat(barFrom.getValue()).isEqualTo(DAY.minusDays(400));
+        assertThat(valueFrom.getValue()).isEqualTo(DAY.minusDays(400));
+        OverseasStockQuote added = savedRows().stream()
+                .filter(row -> row.getId().getStockCode().equals("NEW"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(added.getTotalMarketValue()).isEqualByComparingTo("1100000");
+    }
+
     private UsaQuoteCollector collector(Instant now, String... symbols) {
         StringBuilder csv = new StringBuilder("symbol,name,date_added\n");
         for (String symbol : symbols) {
