@@ -1,0 +1,82 @@
+package kr.co.marketry.domain.stock.controller;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
+import kr.co.marketry.domain.auth.service.SpecialMemberGuard;
+import kr.co.marketry.domain.stock.collector.UsaConstituents;
+import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
+import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
+import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
+import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
+import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
+import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+// 미국 화면의 조회 전용 API다. 관리자와 특별 회원만 본다. 수정 API는 만들지 않는다.
+@RestController
+@RequestMapping("/api/usa")
+@RequiredArgsConstructor
+public class UsaController {
+    private static final String MARKET = "USA";
+
+    private final SpecialMemberGuard guard;
+    private final OverseasStockQuoteService quoteService;
+    private final OverseasStockClassificationService classificationService;
+    private final OverseasClassificationCategoryService categoryService;
+    private final UsaConstituents constituents;
+
+    @GetMapping("/quotes")
+    public QuoteSnapshot findQuotes(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
+                    LocalDateTime snapshotTime) {
+        guard.require(principal);
+        return quoteService.findQuotes(MARKET, snapshotTime);
+    }
+
+    @GetMapping("/quotes/snapshots")
+    public List<LocalDateTime> findSnapshotTimes(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        guard.require(principal);
+        return quoteService.findSnapshotTimes(MARKET);
+    }
+
+    @GetMapping("/quotes/previous-trading-day")
+    public LocalDate findPreviousTradingDay(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        guard.require(principal);
+        return quoteService.findPreviousTradingDay(MARKET, date);
+    }
+
+    @GetMapping("/classifications")
+    public Map<String, Classification> findClassifications(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        guard.require(principal);
+        return classificationService.findAll(MARKET);
+    }
+
+    @GetMapping("/categories")
+    public List<Category> findCategories(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        guard.require(principal);
+        return categoryService.findAll(MARKET);
+    }
+
+    @GetMapping("/stocks")
+    public List<StockInfo> findStocks(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        guard.require(principal);
+        return constituents.all().stream()
+                .map(constituent -> new StockInfo(constituent.symbol(), constituent.name()))
+                .toList();
+    }
+
+    public record StockInfo(String symbol, String name) {}
+}

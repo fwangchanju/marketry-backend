@@ -57,6 +57,9 @@ public class AuthConfiguration {
                         // 일본 조회는 로그인만 여기서 막고, 특별 회원 여부는 JapanController가 회원 정보로 확인한다.
                         .requestMatchers("/api/japan/**")
                         .authenticated()
+                        // 미국 조회도 로그인만 여기서 막고, 특별 회원 여부는 UsaController가 SpecialMemberGuard로 확인한다.
+                        .requestMatchers("/api/usa/**")
+                        .authenticated()
                         .requestMatchers("/api/profile", "/api/profile/**")
                         .authenticated()
                         .requestMatchers(HttpMethod.GET, "/**")
