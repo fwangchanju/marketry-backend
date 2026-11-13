@@ -20,6 +20,7 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.IndexSession;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
 import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.collector.UsaConstituents.Constituent;
+import kr.co.marketry.domain.stock.collector.UsaMarketSession;
 import kr.co.marketry.domain.stock.entity.HistoryBackfillProgress;
 import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
@@ -113,7 +114,8 @@ public class UsaHistoryBackfillService {
     LocalDate completedDayAtOrBefore(LocalDate to) {
         IndexSession session = client.fetchIndexSession(INDEX_SYMBOL);
         LocalDate latest = session.latestBarDate();
-        if (Instant.now(clock).isBefore(session.regularEnd().plus(CLOSE_GRACE))) {
+        Instant closeAt = UsaMarketSession.closeTimeOf(session);
+        if (closeAt == null || Instant.now(clock).isBefore(closeAt.plus(CLOSE_GRACE))) {
             latest = latest.minusDays(1);
         }
         return to.isAfter(latest) ? latest : to;

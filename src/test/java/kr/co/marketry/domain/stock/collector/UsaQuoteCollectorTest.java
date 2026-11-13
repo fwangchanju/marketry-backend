@@ -80,10 +80,37 @@ class UsaQuoteCollectorTest {
     }
 
     @Test
-    void 장_종료_시각의_날짜가_최신_봉_날짜와_다르면_저장하지_않는다() {
-        // 마감 뒤 야후가 다음 거래일의 종료 시각(11-13 16:00 EST)으로 넘긴 경우
+    void 야후가_이미_다음_거래일_종료_시각을_알려_줘도_그날_16시와_대기_시간이_지났으면_저장한다() {
+        // 개장 전에는 최신 일봉이 11/12인데 종료 시각은 11/13 16:00 ET로 넘어가 있다.
         when(client.fetchIndexSession("^GSPC"))
                 .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-13T21:00:00Z")));
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+
+        UsaQuoteCollector.Result result =
+                collector(Instant.parse("2026-11-13T14:00:00Z"), "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+    }
+
+    @Test
+    void 종료_시각이_다음_거래일로_넘어가_있어도_그날_16시_대기_시간_안에는_저장하지_않는다() {
+        when(client.fetchIndexSession("^GSPC"))
+                .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-13T21:00:00Z")));
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+
+        // 11/12 16:29 ET
+        UsaQuoteCollector.Result result =
+                collector(Instant.parse("2026-11-12T21:29:00Z"), "AAPL").collect();
+
+        assertThat(result.status()).isEqualTo(UsaQuoteCollector.Status.WAITING);
+        verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    void 장_종료_시각이_최신_봉_날짜보다_앞서면_저장하지_않는다() {
+        when(client.fetchIndexSession("^GSPC"))
+                .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-11T21:00:00Z")));
         givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
 
         UsaQuoteCollector.Result result =

@@ -63,9 +63,23 @@ class UsaCloseMeasurerTest {
     }
 
     @Test
-    void 장_종료_시각의_날짜가_최신_봉_날짜와_다르면_측정하지_않는다() {
+    void 야후가_이미_다음_거래일_종료_시각을_알려_줘도_그날_16시부터_측정한다() {
+        // 마감 직후 최신 일봉은 11/12인데 종료 시각은 이미 11/13 16:00 ET로 넘어가 있다.
         when(client.fetchIndexSession("^GSPC"))
                 .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-13T21:00:00Z")));
+        when(client.fetchQuote(anyString())).thenReturn(quote(CLOSE));
+        UsaCloseMeasurer measurer = measurer(CLOSE.plusSeconds(60));
+
+        UsaCloseMeasurer.Measurement result = measurer.measure();
+
+        assertThat(result.wasSkipped()).isFalse();
+        assertThat(result.closeAt()).isEqualTo(CLOSE);
+    }
+
+    @Test
+    void 장_종료_시각이_최신_봉_날짜보다_앞서면_측정하지_않는다() {
+        when(client.fetchIndexSession("^GSPC"))
+                .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-11T21:00:00Z")));
         UsaCloseMeasurer measurer = measurer(CLOSE.plusSeconds(60));
 
         UsaCloseMeasurer.Measurement result = measurer.measure();
