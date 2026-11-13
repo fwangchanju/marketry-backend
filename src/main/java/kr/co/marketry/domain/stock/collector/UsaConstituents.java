@@ -8,6 +8,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -23,11 +24,13 @@ public class UsaConstituents {
 
     private final List<Constituent> constituents;
 
+    @Autowired
     public UsaConstituents() {
         this(openResource());
     }
 
-    UsaConstituents(InputStream csv) {
+    /** 목록 파일 대신 다른 입력을 읽는 생성자. 테스트에서 작은 목록을 만들 때 쓴다. */
+    public UsaConstituents(InputStream csv) {
         this.constituents = parse(csv);
     }
 
