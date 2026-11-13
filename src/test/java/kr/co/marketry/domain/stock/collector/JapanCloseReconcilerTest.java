@@ -16,8 +16,10 @@ import java.util.Optional;
 import java.util.Set;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
+import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,7 +27,9 @@ import org.mockito.ArgumentCaptor;
 class JapanCloseReconcilerTest {
     private final YahooFinanceQuoteClient client = mock(YahooFinanceQuoteClient.class);
     private final OverseasStockQuoteRepository repository = mock(OverseasStockQuoteRepository.class);
-    private final JapanCloseReconciler reconciler = new JapanCloseReconciler(client, repository, Set.of("2914"));
+    private final MarketIndexDailyRepository indexes = mock(MarketIndexDailyRepository.class);
+    private final JapanCloseReconciler reconciler =
+            new JapanCloseReconciler(client, repository, indexes, Set.of("2914"));
     private final LocalDate date = LocalDate.of(2026, 11, 9);
 
     private DailyBar bar(LocalDate day, String close) {
@@ -49,7 +53,7 @@ class JapanCloseReconcilerTest {
     @Test
     void 기준_종목이_부족하면_정상_완료로_처리하지_않는다() {
         baseline();
-        var incomplete = new JapanCloseReconciler(client, repository, Set.of("2914", "7203"));
+        var incomplete = new JapanCloseReconciler(client, repository, indexes, Set.of("2914", "7203"));
 
         var result = incomplete.reconcile(date);
 
@@ -60,7 +64,7 @@ class JapanCloseReconcilerTest {
     @Test
     void 개수가_같아도_종목코드가_다르면_보정하지_않는다() {
         baseline();
-        var different = new JapanCloseReconciler(client, repository, Set.of("7203"));
+        var different = new JapanCloseReconciler(client, repository, indexes, Set.of("7203"));
 
         var result = different.reconcile(date);
 
@@ -114,6 +118,46 @@ class JapanCloseReconcilerTest {
     }
 
     @Test
+    void 거래일이면_닛케이_지수_일봉을_저장한다() {
+        baseline();
+        when(client.fetchDailyBars(eq("^N225"), any(), eq(date)))
+                .thenReturn(List.of(bar(date.minusDays(3), "99"), bar(date, "100")));
+        when(client.fetchDailyBars(eq("2914.T"), any(), eq(date)))
+                .thenReturn(List.of(bar(date.minusDays(3), "6269"), bar(date, "5269")));
+
+        reconciler.reconcile(date);
+
+        ArgumentCaptor<MarketIndexDaily> captured = ArgumentCaptor.forClass(MarketIndexDaily.class);
+        verify(indexes).save(captured.capture());
+        assertThat(captured.getValue().getId().getMarket()).isEqualTo("NIKKEI225");
+        assertThat(captured.getValue().getId().getTradeDate()).isEqualTo(date);
+        assertThat(captured.getValue().getCloseValue()).isEqualByComparingTo("100");
+    }
+
+    @Test
+    void 지수_일봉이_없는_휴장일에는_지수를_저장하지_않는다() {
+        baseline();
+        when(client.fetchDailyBars(eq("^N225"), any(), eq(date))).thenReturn(List.of(bar(date.minusDays(3), "99")));
+
+        reconciler.reconcile(date);
+
+        verify(indexes, never()).save(any());
+    }
+
+    @Test
+    void 지수_저장이_실패해도_종목_종가_보정은_계속한다() {
+        baseline();
+        when(indexes.save(any())).thenThrow(new IllegalStateException("저장 실패"));
+        when(client.fetchDailyBars(eq("2914.T"), any(), eq(date)))
+                .thenReturn(List.of(bar(date.minusDays(3), "6269"), bar(date, "5269")));
+
+        var result = reconciler.reconcile(date);
+
+        assertThat(result.saved()).isEqualTo(1);
+        verify(repository).saveAll(any());
+    }
+
+    @Test
     void 종목_조회가_계속_실패하면_재시도하고_부분_저장하지_않는다() {
         baseline();
         when(client.fetchDailyBars(eq("2914.T"), any(), eq(date))).thenThrow(new IllegalStateException());
@@ -138,7 +182,7 @@ class JapanCloseReconcilerTest {
                 new BigDecimal("1000"));
         when(repository.findAllByIdMarketAndIdSnapshotTime("JAPAN", date.atTime(15, 30)))
                 .thenReturn(List.of(latest, other));
-        var twoStocks = new JapanCloseReconciler(client, repository, Set.of("2914", "7203"));
+        var twoStocks = new JapanCloseReconciler(client, repository, indexes, Set.of("2914", "7203"));
         when(client.fetchDailyBars(eq("2914.T"), any(), eq(date)))
                 .thenReturn(List.of(bar(date.minusDays(3), "6269"), bar(date, "5269")));
         when(client.fetchDailyBars(eq("7203.T"), any(), eq(date))).thenThrow(new IllegalStateException());
@@ -174,7 +218,7 @@ class JapanCloseReconcilerTest {
                 .thenReturn(List.of(bar(date.minusDays(3), "6269"), bar(date, "5269")));
         when(client.fetchDailyBars(eq("7203.T"), any(), eq(date))).thenThrow(new IllegalStateException());
 
-        var result = new JapanCloseReconciler(client, repository, Set.of("2914", "7203")).reconcile(date);
+        var result = new JapanCloseReconciler(client, repository, indexes, Set.of("2914", "7203")).reconcile(date);
 
         assertThat(result.failures()).containsExactly("7203");
         assertThat(result.saved()).isZero();

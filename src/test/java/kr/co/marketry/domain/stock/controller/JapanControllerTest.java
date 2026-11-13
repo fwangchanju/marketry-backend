@@ -6,6 +6,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import kr.co.marketry.domain.auth.entity.UserAccount;
@@ -14,6 +16,7 @@ import kr.co.marketry.domain.auth.repository.UserAccountRepository;
 import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.stock.service.JapanStockKoreanNameService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
+import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import org.junit.jupiter.api.Test;
@@ -22,12 +25,14 @@ import org.springframework.web.server.ResponseStatusException;
 class JapanControllerTest {
     private final UserAccountRepository users = mock(UserAccountRepository.class);
     private final JapanStockKoreanNameService names = mock(JapanStockKoreanNameService.class);
+    private final OverseasIndexCloseService indexCloses = mock(OverseasIndexCloseService.class);
     private final JapanController controller = new JapanController(
             users,
             mock(OverseasStockQuoteService.class),
             mock(OverseasStockClassificationService.class),
             mock(OverseasClassificationCategoryService.class),
-            names);
+            names,
+            indexCloses);
 
     private void memberIs(boolean special) {
         UserAccount user = mock(UserAccount.class);
@@ -77,5 +82,32 @@ class JapanControllerTest {
         assertThat(controller.findStockNames(new AuthenticatedUserPrincipal(3L, Role.USER, true)))
                 .containsEntry("7203", "도요타");
         verifyNoInteractions(users);
+    }
+
+    @Test
+    void 일반_회원은_지수_종가를_조회하지_못한다() {
+        memberIs(false);
+
+        assertThatThrownBy(() -> controller.findIndexCloses(
+                        new AuthenticatedUserPrincipal(1L, Role.USER),
+                        LocalDate.of(2026, 11, 1),
+                        LocalDate.of(2026, 11, 6)))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(indexCloses);
+    }
+
+    @Test
+    void 특별_회원은_닛케이_지수_종가를_조회한다() {
+        memberIs(true);
+        var closes = List.of(
+                new OverseasIndexCloseService.IndexClose(LocalDate.of(2026, 11, 6), new java.math.BigDecimal("50000")));
+        when(indexCloses.findCloses("NIKKEI225", LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 6)))
+                .thenReturn(closes);
+
+        assertThat(controller.findIndexCloses(
+                        new AuthenticatedUserPrincipal(1L, Role.USER),
+                        LocalDate.of(2026, 11, 1),
+                        LocalDate.of(2026, 11, 6)))
+                .isEqualTo(closes);
     }
 }
