@@ -13,13 +13,13 @@ public class OverseasStockClassification {
     @EmbeddedId
     private OverseasStockClassificationId id;
 
-    @Column(length = 12)
+    @Column(length = 40)
     private String sectorName;
 
-    @Column(length = 12)
+    @Column(length = 40)
     private String industryName;
 
-    @Column(length = 12)
+    @Column(length = 40)
     private String subIndustryName;
 
     protected OverseasStockClassification() {}
