@@ -109,7 +109,7 @@ class YahooFinanceQuoteClientTest {
     }
 
     @Test
-    void 시가_고가_저가_중_빈_값이_있는_봉은_건너뛴다() {
+    void 시가_고가_저가가_비어_있어도_종가가_있으면_종가로_채워_살린다() {
         long first = Instant.parse("2026-11-11T14:30:00Z").getEpochSecond();
         long second = Instant.parse("2026-11-12T14:30:00Z").getEpochSecond();
         YahooDailyResponse response =
@@ -123,6 +123,31 @@ class YahooFinanceQuoteClientTest {
                                 java.util.Arrays.asList(10L, 20L))))))));
 
         List<YahooFinanceQuoteClient.DailyBar> bars = YahooFinanceQuoteClient.toDailyBars("AAPL", response);
+
+        assertThat(bars).hasSize(2);
+        YahooFinanceQuoteClient.DailyBar filled = bars.get(1);
+        assertThat(filled.date()).isEqualTo(LocalDate.of(2026, 11, 12));
+        assertThat(filled.close()).isEqualByComparingTo("110.0");
+        assertThat(filled.open()).isEqualByComparingTo("110.0");
+        assertThat(filled.high()).isEqualByComparingTo("111.0");
+        assertThat(filled.low()).isEqualByComparingTo("109.0");
+    }
+
+    @Test
+    void 종가가_없는_봉은_건너뛴다() {
+        long first = Instant.parse("2026-11-11T14:30:00Z").getEpochSecond();
+        long second = Instant.parse("2026-11-12T14:30:00Z").getEpochSecond();
+        YahooDailyResponse response =
+                new YahooDailyResponse(new YahooDailyResponse.Chart(List.of(new YahooDailyResponse.Result(
+                        List.of(first, second),
+                        new YahooDailyResponse.Indicators(List.of(new YahooDailyResponse.Quote(
+                                java.util.Arrays.asList(100.0, 110.0),
+                                java.util.Arrays.asList(101.0, 111.0),
+                                java.util.Arrays.asList(99.0, 109.0),
+                                java.util.Arrays.asList(100.5, null),
+                                java.util.Arrays.asList(10L, 20L))))))));
+
+        List<YahooFinanceQuoteClient.DailyBar> bars = YahooFinanceQuoteClient.toDailyBars("^N225", response);
 
         assertThat(bars).hasSize(1);
         assertThat(bars.getFirst().date()).isEqualTo(LocalDate.of(2026, 11, 11));

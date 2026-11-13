@@ -127,12 +127,40 @@ class UsaQuoteCollectorTest {
     @Test
     void 그_날짜를_이미_저장했으면_다시_저장하지_않는다() {
         givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        when(indexes.existsById(new MarketIndexDaily.Id("SP500", DAY))).thenReturn(true);
 
         UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
 
         assertThat(result.status()).isEqualTo(UsaQuoteCollector.Status.ALREADY_SAVED);
         verify(repository, never()).saveAll(any());
         verify(client, never()).fetchDailyBars(anyString(), any(), any());
+    }
+
+    @Test
+    void 종목은_이미_저장했는데_지수_종가가_없으면_지수만_다시_저장한다() {
+        givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        when(indexes.existsById(new MarketIndexDaily.Id("SP500", DAY))).thenReturn(false);
+        givenBars("^GSPC", bar("2026-11-12", "6000"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.status()).isEqualTo(UsaQuoteCollector.Status.ALREADY_SAVED);
+        verify(repository, never()).saveAll(any());
+        verify(client, never()).fetchDailyBars(eq("AAPL"), any(), any());
+        ArgumentCaptor<MarketIndexDaily> captor = ArgumentCaptor.forClass(MarketIndexDaily.class);
+        verify(indexes).save(captor.capture());
+        assertThat(captor.getValue().getCloseValue()).isEqualByComparingTo("6000");
+    }
+
+    @Test
+    void 종목도_지수도_이미_저장했으면_야후를_부르지_않는다() {
+        givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        when(indexes.existsById(new MarketIndexDaily.Id("SP500", DAY))).thenReturn(true);
+
+        collector(AFTER_DELAY, "AAPL").collect();
+
+        verify(client, never()).fetchDailyBars(anyString(), any(), any());
+        verify(indexes, never()).save(any());
     }
 
     @Test

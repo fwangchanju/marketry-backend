@@ -115,6 +115,10 @@ public class UsaQuoteCollector {
             return Result.of(Status.NO_BASELINE, day, null, 0, 0, 0, "기준이 될 미국 시세가 없습니다");
         }
         if (lastSnapshotTime.toLocalDate().isBefore(day) == false) {
+            // 종목은 저장했는데 그때 지수 종가를 못 받았으면 이번 실행에서 다시 시도한다(종목은 건드리지 않는다).
+            if (indexes.existsById(new MarketIndexDaily.Id(INDEX_MARKET, day)) == false) {
+                saveIndexClose(day);
+            }
             return Result.of(Status.ALREADY_SAVED, day, null, 0, 0, 0, "이미 저장했습니다");
         }
 

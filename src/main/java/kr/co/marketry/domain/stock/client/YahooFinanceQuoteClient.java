@@ -152,21 +152,22 @@ public class YahooFinanceQuoteClient {
         List<DailyBar> bars = new ArrayList<>();
         for (int index = 0; index < result.timestamp().size(); index++) {
             Double close = quote.close().get(index);
-            if (close == null
-                    || close <= 0
-                    || quote.open().get(index) == null
-                    || quote.high().get(index) == null
-                    || quote.low().get(index) == null) {
+            // 종가가 없는 봉은 뺀다. 시가·고가·저가만 비어 있는 봉은 종가로 채워 살린다 — 종목 수집은 종가만 쓰는데 그런 봉까지 버리면
+            // 그 종목이 하루 빠지거나 전일 종가가 이틀 전으로 밀려 등락률이 틀어진다. 지수 일봉도 종가만 쓰므로 채운 시가·고가·저가는 쓰이지 않는다.
+            if (close == null || close <= 0) {
                 continue;
             }
+            Double open = valueOrClose(quote.open().get(index), close);
+            Double high = valueOrClose(quote.high().get(index), close);
+            Double low = valueOrClose(quote.low().get(index), close);
             Long volume = quote.volume() == null ? null : quote.volume().get(index);
             bars.add(new DailyBar(
                     Instant.ofEpochSecond(result.timestamp().get(index))
                             .atZone(Zone.KST.zoneId())
                             .toLocalDate(),
-                    BigDecimal.valueOf(quote.open().get(index)),
-                    BigDecimal.valueOf(quote.high().get(index)),
-                    BigDecimal.valueOf(quote.low().get(index)),
+                    BigDecimal.valueOf(open),
+                    BigDecimal.valueOf(high),
+                    BigDecimal.valueOf(low),
                     BigDecimal.valueOf(close),
                     volume == null ? 0 : volume));
         }
@@ -223,6 +224,10 @@ public class YahooFinanceQuoteClient {
             throw new IllegalStateException("야후 시가총액 응답이 비정상입니다: " + stockCode);
         }
         throw new IllegalStateException("야후 시가총액이 없습니다: " + stockCode);
+    }
+
+    private static Double valueOrClose(Double value, Double close) {
+        return value == null || value <= 0 ? close : value;
     }
 
     public record Quote(BigDecimal currentPrice, BigDecimal previousClose, Instant marketTime) {}
