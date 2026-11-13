@@ -17,8 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
+import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,13 +36,15 @@ class JapanQuoteCollectorTest {
 
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository repository;
+    private OverseasIndexQuoteRepository indexQuotes;
     private JapanQuoteCollector collector;
 
     @BeforeEach
     void setUp() {
         client = mock(YahooFinanceQuoteClient.class);
         repository = mock(OverseasStockQuoteRepository.class);
-        collector = new JapanQuoteCollector(client, repository, duration -> {});
+        indexQuotes = mock(OverseasIndexQuoteRepository.class);
+        collector = new JapanQuoteCollector(client, repository, indexQuotes, duration -> {});
     }
 
     @Test
@@ -158,6 +162,59 @@ class JapanQuoteCollectorTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(savedHaltedStock.getId().getSnapshotTime()).isEqualTo(result.snapshotTime());
+    }
+
+    @Test
+    void 종목_시세를_저장한_뒤_닛케이_지수를_같은_시각으로_저장한다() {
+        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
+        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        when(client.fetchQuote("^N225")).thenReturn(quote("61142.35", "61077.90", MARKET_TIME));
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isTrue();
+        ArgumentCaptor<OverseasIndexQuote> captor = ArgumentCaptor.forClass(OverseasIndexQuote.class);
+        verify(indexQuotes).save(captor.capture());
+        OverseasIndexQuote saved = captor.getValue();
+        assertThat(saved.getId().getMarket()).isEqualTo("NIKKEI225");
+        assertThat(saved.getId().getSnapshotTime()).isEqualTo(result.snapshotTime());
+        assertThat(saved.getCurrentValue()).isEqualByComparingTo("61142.35");
+        assertThat(saved.getLastValue()).isEqualByComparingTo("61077.90");
+        assertThat(saved.getChangeRate()).isEqualByComparingTo("0.11");
+    }
+
+    @Test
+    void 지수를_받지_못해도_종목_시세는_저장한다() {
+        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
+        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        when(client.fetchQuote("^N225")).thenThrow(new IllegalStateException("지수 없음"));
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isTrue();
+        assertThat(savedQuotes()).hasSize(1);
+        verify(indexQuotes, never()).save(any());
+    }
+
+    @Test
+    void 지수_응답이_비어_있으면_저장하지_않고_종목_시세는_저장한다() {
+        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
+        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        when(client.fetchQuote("^N225")).thenReturn(null);
+
+        assertThat(collector.collect(COLLECTION_DATE).saved()).isTrue();
+        verify(indexQuotes, never()).save(any());
+    }
+
+    @Test
+    void 종목_시세를_저장하지_않으면_지수도_저장하지_않는다() {
+        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
+        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1000", "990", Instant.parse("2026-11-06T06:30:02Z")));
+        when(client.fetchQuote("^N225")).thenReturn(quote("61142.35", "61077.90", MARKET_TIME));
+
+        assertThat(collector.collect(COLLECTION_DATE).saved()).isFalse();
+        verify(client, never()).fetchQuote(anyString());
+        verify(indexQuotes, never()).save(any());
     }
 
     private void givenLastQuotes(OverseasStockQuote... quotes) {

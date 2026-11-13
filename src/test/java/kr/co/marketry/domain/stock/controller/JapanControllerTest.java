@@ -17,6 +17,7 @@ import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.stock.service.JapanStockKoreanNameService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
+import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import org.junit.jupiter.api.Test;
@@ -26,13 +27,15 @@ class JapanControllerTest {
     private final UserAccountRepository users = mock(UserAccountRepository.class);
     private final JapanStockKoreanNameService names = mock(JapanStockKoreanNameService.class);
     private final OverseasIndexCloseService indexCloses = mock(OverseasIndexCloseService.class);
+    private final OverseasIndexQuoteService indexQuotes = mock(OverseasIndexQuoteService.class);
     private final JapanController controller = new JapanController(
             users,
             mock(OverseasStockQuoteService.class),
             mock(OverseasStockClassificationService.class),
             mock(OverseasClassificationCategoryService.class),
             names,
-            indexCloses);
+            indexCloses,
+            indexQuotes);
 
     private void memberIs(boolean special) {
         UserAccount user = mock(UserAccount.class);
@@ -109,5 +112,27 @@ class JapanControllerTest {
                         LocalDate.of(2026, 11, 1),
                         LocalDate.of(2026, 11, 6)))
                 .isEqualTo(closes);
+    }
+
+    @Test
+    void 일반_회원은_장중_지수를_조회하지_못한다() {
+        memberIs(false);
+
+        assertThatThrownBy(() -> controller.findIndexQuotes(
+                        new AuthenticatedUserPrincipal(1L, Role.USER), LocalDate.of(2026, 11, 13)))
+                .isInstanceOf(ResponseStatusException.class);
+        verifyNoInteractions(indexQuotes);
+    }
+
+    @Test
+    void 특별_회원은_닛케이_장중_지수를_날짜로_조회한다() {
+        memberIs(true);
+        var quotes = List.of(new OverseasIndexQuoteService.IndexQuote(
+                java.time.LocalDateTime.of(2026, 11, 13, 9, 5), new java.math.BigDecimal("0.11")));
+        when(indexQuotes.findQuotes("NIKKEI225", LocalDate.of(2026, 11, 13))).thenReturn(quotes);
+
+        assertThat(controller.findIndexQuotes(
+                        new AuthenticatedUserPrincipal(1L, Role.USER), LocalDate.of(2026, 11, 13)))
+                .isEqualTo(quotes);
     }
 }

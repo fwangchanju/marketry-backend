@@ -12,6 +12,8 @@ import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService.IndexClose;
+import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService;
+import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService.IndexQuote;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
@@ -41,6 +43,7 @@ public class JapanController {
     private final OverseasClassificationCategoryService categoryService;
     private final JapanStockKoreanNameService nameService;
     private final OverseasIndexCloseService indexCloseService;
+    private final OverseasIndexQuoteService indexQuoteService;
 
     @GetMapping("/quotes")
     public QuoteSnapshot findQuotes(
@@ -72,6 +75,14 @@ public class JapanController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         requireSpecial(principal);
         return indexCloseService.findCloses(INDEX_MARKET, from, to);
+    }
+
+    @GetMapping("/index-quotes")
+    public List<IndexQuote> findIndexQuotes(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        requireSpecial(principal);
+        return indexQuoteService.findQuotes(INDEX_MARKET, date);
     }
 
     @GetMapping("/classifications")
