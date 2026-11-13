@@ -4,10 +4,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +44,6 @@ public class UsaQuoteCollector {
     static final String INDEX_SYMBOL = "^GSPC";
     static final double MIN_SUCCESS_RATIO = 0.9;
     static final String TOO_FEW_REASON = "받은 종목이 너무 적습니다";
-    private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
     private static final LocalTime CLOSE_TIME = LocalTime.of(16, 0);
     private static final Duration REQUEST_INTERVAL = Duration.ofMillis(200);
     // 새 종목의 시가총액은 야후 기록이 몇 달 전에 멈춰 있을 수 있다. 일봉과 시가총액을 같은 구간으로 받아 기록 날짜의 종가를 찾는다.
@@ -92,10 +91,11 @@ public class UsaQuoteCollector {
     public Result collect() {
         IndexSession session = client.fetchIndexSession(INDEX_SYMBOL);
         LocalDate day = session.latestBarDate();
-        if (session.regularEnd().atZone(NEW_YORK).toLocalDate().equals(day) == false) {
-            return Result.of(Status.WAITING, day, null, 0, 0, 0, "장 종료 시각의 날짜가 최신 봉 날짜와 다릅니다");
+        Instant closeAt = UsaMarketSession.closeTimeOf(session);
+        if (closeAt == null) {
+            return Result.of(Status.WAITING, day, null, 0, 0, 0, "장 종료 시각이 최신 봉 날짜보다 앞섭니다");
         }
-        if (clock.instant().isBefore(session.regularEnd().plus(delay))) {
+        if (clock.instant().isBefore(closeAt.plus(delay))) {
             return Result.of(Status.WAITING, day, null, 0, 0, 0, "마감 후 대기 중입니다");
         }
         LocalDateTime lastSnapshotTime = repository

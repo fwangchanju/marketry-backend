@@ -4,7 +4,6 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -31,7 +30,6 @@ import org.springframework.web.client.RestClientResponseException;
 @Slf4j
 @Component
 public class UsaCloseMeasurer {
-    private static final ZoneId NEW_YORK = ZoneId.of("America/New_York");
     private static final Duration RETRY_INTERVAL = Duration.ofSeconds(15);
     private static final Duration REQUEST_INTERVAL = Duration.ofMillis(200);
 
@@ -66,12 +64,12 @@ public class UsaCloseMeasurer {
     public Measurement measure() {
         IndexSession session = client.fetchIndexSession(UsaQuoteCollector.INDEX_SYMBOL);
         LocalDate day = session.latestBarDate();
-        Instant closeAt = session.regularEnd();
-        Instant cutoff = closeAt.plus(delay);
+        Instant closeAt = UsaMarketSession.closeTimeOf(session);
         Instant startedAt = clock.instant();
-        if (closeAt.atZone(NEW_YORK).toLocalDate().equals(day) == false) {
-            return Measurement.skipped(day, startedAt, "장 종료 시각의 날짜가 최신 봉 날짜와 다릅니다");
+        if (closeAt == null) {
+            return Measurement.skipped(day, startedAt, "장 종료 시각이 최신 봉 날짜보다 앞섭니다");
         }
+        Instant cutoff = closeAt.plus(delay);
         if (day.equals(measuredDay)) {
             return Measurement.skipped(day, startedAt, "이미 측정했습니다");
         }

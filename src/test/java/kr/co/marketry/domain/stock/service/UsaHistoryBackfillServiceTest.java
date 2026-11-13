@@ -98,6 +98,16 @@ class UsaHistoryBackfillServiceTest {
     }
 
     @Test
+    void 야후가_개장_전에_종료_시각을_오늘로_넘겨_놓아도_어제_종가까지_받는다() {
+        // 2026-11-13 개장 전: 최신 일봉은 11/12, 종료 시각은 11/13 16:00 ET
+        when(client.fetchIndexSession("^GSPC"))
+                .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-13T21:00:00Z")));
+        UsaHistoryBackfillService service = service(Instant.parse("2026-11-13T14:00:00Z"), "AAPL");
+
+        assertThat(service.completedDayAtOrBefore(LocalDate.of(2026, 11, 13))).isEqualTo(DAY);
+    }
+
+    @Test
     void 시작일이_종료일보다_늦으면_거절한다() {
         UsaHistoryBackfillService service = service(CLOSE.plus(Duration.ofHours(1)), "AAPL");
 
