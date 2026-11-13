@@ -13,13 +13,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.IndexSession;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
 import kr.co.marketry.domain.stock.collector.UsaConstituents.Constituent;
+import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +45,7 @@ import org.springframework.web.client.RestClientResponseException;
 public class UsaQuoteCollector {
     static final String MARKET = "USA";
     static final String INDEX_SYMBOL = "^GSPC";
+    static final String INDEX_MARKET = "SP500";
     static final double MIN_SUCCESS_RATIO = 0.9;
     static final String TOO_FEW_REASON = "받은 종목이 너무 적습니다";
     private static final LocalTime CLOSE_TIME = LocalTime.of(16, 0);
@@ -53,6 +57,7 @@ public class UsaQuoteCollector {
 
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
+    private final MarketIndexDailyRepository indexes;
     private final UsaConstituents constituents;
     private final Duration delay;
     private final Consumer<Duration> sleeper;
@@ -62,11 +67,13 @@ public class UsaQuoteCollector {
     public UsaQuoteCollector(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
+            MarketIndexDailyRepository indexes,
             UsaConstituents constituents,
             @Value("${usa-quote.delay-minutes:30}") int delayMinutes) {
         this(
                 client,
                 repository,
+                indexes,
                 constituents,
                 Duration.ofMinutes(delayMinutes),
                 UsaQuoteCollector::sleep,
@@ -76,12 +83,14 @@ public class UsaQuoteCollector {
     UsaQuoteCollector(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
+            MarketIndexDailyRepository indexes,
             UsaConstituents constituents,
             Duration delay,
             Consumer<Duration> sleeper,
             Clock clock) {
         this.client = client;
         this.repository = repository;
+        this.indexes = indexes;
         this.constituents = constituents;
         this.delay = delay;
         this.sleeper = sleeper;
@@ -144,7 +153,38 @@ public class UsaQuoteCollector {
             return Result.of(Status.TOO_FEW, day, null, rows.size(), totalCount, failureCount, reason);
         }
         repository.saveAll(rows);
+        saveIndexClose(day);
         return Result.of(Status.SAVED, day, snapshotTime, rows.size(), totalCount, failureCount, null);
+    }
+
+    /**
+     * S&amp;P 500 지수의 그날 일봉을 market_index_daily에 저장한다. 기간 그래프의 지수 막대에 쓴다. 지수를 못 받거나 저장에 실패해도
+     * 종목 종가 저장은 이미 끝났으므로 로그만 남기고 계속한다. 같은 날짜를 다시 저장해도 같은 행을 덮어쓴다.
+     */
+    private void saveIndexClose(LocalDate day) {
+        try {
+            DailyBar bar = barOn(client.fetchDailyBars(INDEX_SYMBOL, day, day), day);
+            if (bar == null) {
+                log.warn("[미국시세] 지수 일봉이 없어 저장하지 않습니다: day={}", day);
+                return;
+            }
+            indexes.save(MarketIndexDaily.create(
+                    INDEX_MARKET,
+                    day,
+                    price(bar.open()),
+                    price(bar.high()),
+                    price(bar.low()),
+                    price(bar.close()),
+                    bar.volume(),
+                    null,
+                    KstClock.now()));
+        } catch (RuntimeException failure) {
+            log.warn("[미국시세] 지수 종가 저장 실패: day={}, {}", day, failure.getMessage());
+        }
+    }
+
+    private static BigDecimal price(BigDecimal value) {
+        return value.setScale(PRICE_SCALE, RoundingMode.HALF_UP);
     }
 
     /** 오늘 봉이나 기준이 되는 봉을 찾지 못하면 null이다. 그 종목은 저장하지 않는다. */

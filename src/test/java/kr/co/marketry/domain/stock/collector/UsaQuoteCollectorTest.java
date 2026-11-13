@@ -24,8 +24,10 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.IndexSession;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
+import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,11 +44,13 @@ class UsaQuoteCollectorTest {
 
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository repository;
+    private MarketIndexDailyRepository indexes;
 
     @BeforeEach
     void setUp() {
         client = mock(YahooFinanceQuoteClient.class);
         repository = mock(OverseasStockQuoteRepository.class);
+        indexes = mock(MarketIndexDailyRepository.class);
         when(client.fetchIndexSession("^GSPC")).thenReturn(new IndexSession(DAY, CLOSE));
     }
 
@@ -269,6 +273,47 @@ class UsaQuoteCollectorTest {
         assertThat(added.getTotalMarketValue()).isEqualByComparingTo("1100000");
     }
 
+    @Test
+    void 종목을_저장한_뒤_그날_S_P_500_지수_일봉도_저장한다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+        givenBars("^GSPC", bar("2026-11-12", "6000"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        ArgumentCaptor<MarketIndexDaily> captor = ArgumentCaptor.forClass(MarketIndexDaily.class);
+        verify(indexes).save(captor.capture());
+        assertThat(captor.getValue().getId().getMarket()).isEqualTo("SP500");
+        assertThat(captor.getValue().getId().getTradeDate()).isEqualTo(DAY);
+        assertThat(captor.getValue().getCloseValue()).isEqualByComparingTo("6000");
+    }
+
+    @Test
+    void 지수_일봉이_없으면_지수는_저장하지_않고_종목_저장은_유지한다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+        givenBars("^GSPC", bar("2026-11-11", "5900"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        verify(indexes, never()).save(any());
+    }
+
+    @Test
+    void 지수_저장이_실패해도_종목_저장_결과는_성공이다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+        givenBars("^GSPC", bar("2026-11-12", "6000"));
+        when(indexes.save(any())).thenThrow(new IllegalStateException("저장 실패"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        verify(repository).saveAll(any());
+    }
+
     private UsaQuoteCollector collector(Instant now, String... symbols) {
         StringBuilder csv = new StringBuilder("symbol,name,date_added\n");
         for (String symbol : symbols) {
@@ -279,6 +324,7 @@ class UsaQuoteCollectorTest {
         return new UsaQuoteCollector(
                 client,
                 repository,
+                indexes,
                 constituents,
                 Duration.ofMinutes(30),
                 duration -> {},
