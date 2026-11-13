@@ -1,0 +1,501 @@
+symbol,name,date_added
+MMM,3M,1957-03-04
+AOS,A. O. Smith,2017-07-26
+ABT,Abbott Laboratories,1957-03-04
+ABBV,AbbVie,2012-12-31
+ACN,Accenture,2011-07-06
+ADBE,Adobe Inc.,1997-05-05
+AMD,Advanced Micro Devices,2017-03-20
+AES,AES Corporation,1998-10-02
+AFL,Aflac,1999-05-28
+A,Agilent Technologies,2000-06-05
+APD,Air Products,1985-04-30
+ABNB,Airbnb,2023-09-18
+AKAM,Akamai Technologies,2007-07-12
+ALB,Albemarle Corporation,2016-07-01
+ARE,Alexandria Real Estate Equities,2017-03-20
+ALGN,Align Technology,2017-06-19
+ALLE,Allegion,2013-12-02
+LNT,Alliant Energy,2016-07-01
+ALL,Allstate,1995-07-13
+GOOGL,Alphabet Inc. (Class A),2006-04-03
+MO,Altria,1957-03-04
+AMZN,Amazon,2005-11-18
+AMCR,Amcor,2019-06-07
+AEE,Ameren,1991-09-19
+AEP,American Electric Power,1957-03-04
+AXP,American Express,1976-06-30
+AIG,American International Group,1980-03-31
+AMT,American Tower,2007-11-19
+AWK,American Water Works,2016-03-04
+AMP,Ameriprise Financial,2005-10-03
+AME,Ametek,2013-09-23
+AMGN,Amgen,1992-01-02
+APH,Amphenol,2008-09-30
+ADI,Analog Devices,1999-10-12
+AON,Aon plc,1996-04-23
+APA,APA Corporation,1997-07-28
+APO,Apollo Global Management,2024-12-23
+AAPL,Apple Inc.,1982-11-30
+AMAT,Applied Materials,1995-03-16
+APP,AppLovin,2025-09-22
+APTV,Aptiv,2012-12-24
+ACGL,Arch Capital Group,2022-11-01
+ADM,Archer Daniels Midland,1957-03-04
+ARES,Ares Management,2025-12-11
+ANET,Arista Networks,2018-08-28
+AJG,Arthur J. Gallagher & Co.,2016-05-31
+AIZ,Assurant,2007-04-10
+T,AT&T,1983-11-30
+ATO,Atmos Energy,2019-02-15
+ADSK,Autodesk,1989-12-01
+ADP,Automatic Data Processing,1981-03-31
+AZO,AutoZone,1997-01-02
+AVY,Avery Dennison,1987-12-31
+AXON,Axon Enterprise,2023-05-04
+BKR,Baker Hughes,2017-07-07
+BALL,Ball Corporation,1984-10-31
+BAC,Bank of America,1976-06-30
+BAX,Baxter International,1972-09-30
+BDX,Becton Dickinson,1972-09-30
+BRK-B,Berkshire Hathaway,2010-02-16
+BBY,Best Buy,1999-06-29
+TECH,Bio-Techne,2021-08-30
+BIIB,Biogen,2003-11-13
+BLK,BlackRock,2011-04-04
+BX,Blackstone Inc.,2023-09-18
+XYZ,"Block, Inc.",2025-07-23
+BE,Bloom Energy,2026-09-21
+BNY,BNY Mellon,1995-03-31
+BA,Boeing,1957-03-04
+BKNG,Booking Holdings,2009-11-06
+BSX,Boston Scientific,1995-02-24
+BMY,Bristol Myers Squibb,1957-03-04
+AVGO,Broadcom,2014-05-08
+BR,Broadridge Financial Solutions,2018-06-18
+BRO,Brown & Brown,2021-09-20
+BF-B,Brown–Forman,1982-10-31
+BG,Bunge Global,2023-03-15
+BXP,"BXP, Inc.",2006-04-03
+CHRW,C.H. Robinson,2007-03-02
+CDNS,Cadence Design Systems,2017-09-18
+CPT,Camden Property Trust,2022-04-04
+COF,Capital One,1998-07-01
+CAH,Cardinal Health,1997-05-27
+CCL,Carnival Corporation,1998-12-22
+CARR,Carrier Global,2020-04-03
+CVNA,Carvana,2025-12-22
+CASY,Casey's,2026-04-09
+CAT,Caterpillar Inc.,1957-03-04
+CBOE,Cboe Global Markets,2017-03-01
+CBRE,CBRE Group,2006-11-10
+CDW,CDW Corporation,2019-09-23
+COR,Cencora,2001-08-30
+CNC,Centene Corporation,2016-03-30
+CNP,CenterPoint Energy,1985-07-31
+CF,CF Industries,2008-08-27
+CRL,Charles River Laboratories,2021-05-14
+SCHW,Charles Schwab Corporation,1997-06-02
+CHTR,Charter Communications,2016-09-08
+CVX,Chevron Corporation,1957-03-04
+CMG,Chipotle Mexican Grill,2011-04-28
+CB,Chubb Limited,2010-07-15
+CHD,Church & Dwight,2015-12-29
+CIEN,Ciena,2026-02-09
+CI,Cigna,1976-06-30
+CINF,Cincinnati Financial,1997-12-18
+CTAS,Cintas,2001-03-01
+CSCO,Cisco,1993-12-01
+C,Citigroup,1988-05-31
+CFG,Citizens Financial Group,2016-01-29
+CLX,Clorox,1969-03-31
+CME,CME Group,2006-08-11
+CMS,CMS Energy,1957-03-04
+KO,Coca-Cola Company (The),1957-03-04
+CTSH,Cognizant,2006-11-17
+COHR,Coherent Corp.,2026-03-23
+COIN,Coinbase,2025-05-19
+CL,Colgate-Palmolive,1957-03-04
+CMCSA,Comcast,2002-11-19
+FIX,Comfort Systems USA,2025-12-22
+COP,ConocoPhillips,1957-03-04
+ED,Consolidated Edison,1957-03-04
+STZ,Constellation Brands,2005-07-01
+CEG,Constellation Energy,2022-02-02
+COO,Cooper Companies (The),2016-09-23
+CPRT,Copart,2018-07-02
+GLW,Corning Inc.,1995-02-27
+CPAY,Corpay,2018-06-20
+CSGP,CoStar Group,2022-09-19
+COST,Costco,1993-10-01
+CRH,CRH plc,2025-12-22
+CRWD,CrowdStrike,2024-06-24
+CCI,Crown Castle,2012-03-14
+CSX,CSX Corporation,1957-03-04
+CMI,Cummins,1965-03-31
+CVS,CVS Health,1957-03-04
+DHR,Danaher Corporation,1998-11-18
+DRI,Darden Restaurants,1995-05-31
+DDOG,Datadog,2025-07-09
+DVA,DaVita,2008-07-31
+DECK,Deckers Brands,2024-03-18
+DE,Deere & Company,1957-03-04
+DELL,Dell Technologies,2024-09-23
+DAL,Delta Air Lines,2013-09-11
+DVN,Devon Energy,2000-08-30
+DXCM,Dexcom,2020-05-12
+FANG,Diamondback Energy,2018-12-03
+DLR,Digital Realty,2016-05-18
+DG,Dollar General,2012-12-03
+DLTR,Dollar Tree,2011-12-19
+D,Dominion Energy,2016-11-30
+DPZ,Domino's,2020-05-12
+DASH,DoorDash,2025-03-24
+DOV,Dover Corporation,1985-10-31
+DOW,Dow Inc.,2019-04-01
+DHI,D. R. Horton,2005-06-22
+DTE,DTE Energy,1957-03-04
+DUK,Duke Energy,1976-06-30
+DD,DuPont,2019-06-03
+ETN,Eaton Corporation,1957-03-04
+EBAY,eBay Inc.,2002-07-22
+ECHO,EchoStar,2026-03-23
+ECL,Ecolab,1989-01-31
+EIX,Edison International,1957-03-04
+EW,Edwards Lifesciences,2011-04-01
+ELV,Elevance Health,2002-07-25
+EME,Emcor,2025-09-22
+EMR,Emerson Electric,1965-03-31
+ETR,Entergy,1957-03-04
+EOG,EOG Resources,2000-11-02
+EQT,EQT Corporation,2022-10-03
+EFX,Equifax,1997-06-19
+EQIX,Equinix,2015-03-20
+ERIE,Erie Indemnity,2024-09-23
+ESS,Essex Property Trust,2014-04-02
+EL,Estée Lauder Companies (The),2006-01-05
+EG,Everest Group,2017-06-19
+EVRG,Evergy,2018-06-05
+P,Everpure,2026-09-21
+ES,Eversource Energy,2009-07-24
+EXC,Exelon,1957-03-04
+EXE,Expand Energy,2025-03-24
+EXPE,Expedia Group,2007-10-02
+EXPD,Expeditors International,2007-10-10
+EXR,Extra Space Storage,2016-01-19
+XOM,ExxonMobil,1957-03-04
+FFIV,"F5, Inc.",2010-12-20
+FDS,FactSet,2021-12-20
+FICO,Fair Isaac,2023-03-20
+FAST,Fastenal,2008-09-15
+FRT,Federal Realty Investment Trust,2016-02-01
+FDX,FedEx,1980-12-31
+FDXF,FedEx Freight,2026-06-01
+FERG,Ferguson Enterprises,2026-08-05
+FIS,Fidelity National Information Services,2006-11-10
+FITB,Fifth Third Bancorp,1996-03-29
+FSLR,First Solar,2022-12-19
+FE,FirstEnergy,1997-11-28
+FISV,Fiserv,2001-04-02
+FLEX,Flex Ltd.,2026-06-22
+F,Ford Motor Company,1957-03-04
+FTNT,Fortinet,2018-10-11
+FTV,Fortive,2016-07-01
+FOXA,Fox Corporation (Class A),2019-03-19
+BEN,Franklin Resources,1998-04-30
+FCX,Freeport-McMoRan,2011-07-01
+GRMN,Garmin,2012-12-12
+IT,Gartner,2017-04-05
+GE,GE Aerospace,1957-03-04
+GEHC,GE HealthCare,2023-01-04
+GEV,GE Vernova,2024-04-02
+GEN,Gen Digital,2003-03-25
+GNRC,Generac,2021-03-22
+GD,General Dynamics,1957-03-04
+GIS,General Mills,1957-03-04
+GM,General Motors,2013-06-06
+GPC,Genuine Parts Company,1973-12-31
+GILD,Gilead Sciences,2004-07-01
+GPN,Global Payments,2016-04-25
+GL,Globe Life,1989-04-30
+GDDY,GoDaddy,2024-06-24
+GS,Goldman Sachs,2002-07-22
+HAL,Halliburton,1957-03-04
+HIG,Hartford (The),1957-03-04
+HAS,Hasbro,1984-09-30
+HCA,HCA Healthcare,2015-01-27
+DOC,Healthpeak Properties,2008-03-31
+HSIC,Henry Schein,2015-03-17
+HSY,Hershey Company (The),1957-03-04
+HPE,Hewlett Packard Enterprise,2015-11-02
+HLT,Hilton Worldwide,2017-06-19
+HD,Home Depot (The),1988-03-31
+HONA,Honeywell Aerospace,2026-06-29
+HON,Honeywell Technologies,1957-03-04
+HRL,Hormel Foods,2009-03-04
+HST,Host Hotels & Resorts,2007-03-20
+HWM,Howmet Aerospace,2016-10-21
+HPQ,HP Inc.,1974-12-31
+HUBB,Hubbell Incorporated,2023-10-18
+HUM,Humana,2012-12-10
+HBAN,Huntington Bancshares,1997-08-28
+HII,Huntington Ingalls Industries,2018-01-03
+IBM,IBM,1957-03-04
+IEX,IDEX Corporation,2019-08-09
+IDXX,Idexx Laboratories,2017-01-05
+ITW,Illinois Tool Works,1986-02-28
+ILMN,"Illumina, Inc.",2026-09-21
+INCY,Incyte,2017-02-28
+IR,Ingersoll Rand,2020-03-03
+PODD,Insulet Corporation,2023-03-15
+INTC,Intel,1976-12-31
+IBKR,Interactive Brokers,2025-08-28
+ICE,Intercontinental Exchange,2007-09-26
+IFF,International Flavors & Fragrances,1976-03-31
+IP,International Paper,1957-03-04
+INTU,Intuit,2000-12-05
+ISRG,Intuitive Surgical,2008-06-02
+IVZ,Invesco,2008-08-21
+INVH,Invitation Homes,2022-09-19
+IQV,IQVIA,2017-08-29
+IRM,Iron Mountain,2009-01-06
+JBHT,J.B. Hunt,2015-07-01
+JBL,Jabil,2023-12-18
+JKHY,Jack Henry & Associates,2018-11-13
+J,Jacobs Solutions,2007-10-26
+JNJ,Johnson & Johnson,1973-06-30
+JCI,Johnson Controls,2010-08-27
+JPM,JPMorgan Chase,1975-06-30
+KDP,Keurig Dr Pepper,2022-06-21
+KEY,KeyCorp,1994-03-01
+KEYS,Keysight Technologies,2018-11-06
+KMB,Kimberly-Clark,1957-03-04
+KIM,Kimco Realty,2006-04-04
+KMI,Kinder Morgan,2012-05-25
+KKR,KKR & Co.,2024-06-24
+KLAC,KLA Corporation,1997-09-30
+KHC,Kraft Heinz,2015-07-06
+KR,Kroger,1957-03-04
+LHX,L3Harris,2008-09-22
+LH,Labcorp,2004-11-01
+LRCX,Lam Research,2012-06-29
+LVS,Las Vegas Sands,2019-10-03
+LDOS,Leidos,2019-08-09
+LEN,Lennar,2005-10-04
+LII,Lennox International,2024-12-23
+LLY,Lilly (Eli),1970-12-31
+LIN,Linde plc,1992-07-01
+LYV,Live Nation Entertainment,2019-12-23
+LMT,Lockheed Martin,1957-03-04
+L,Loews Corporation,1995-05-31
+LOW,Lowe's,1984-02-29
+LULU,Lululemon Athletica,2023-10-18
+LITE,Lumentum,2026-03-23
+LYB,LyondellBasell,2012-09-05
+MTB,M&T Bank,2004-02-23
+MPC,Marathon Petroleum,2011-07-01
+MAR,Marriott International,1998-05-29
+MRSH,Marsh McLennan,1987-08-31
+MLM,Martin Marietta Materials,2014-07-02
+MRVL,Marvell Technology,2026-06-22
+MAS,Masco,1981-06-30
+MA,Mastercard,2008-07-18
+MKC,McCormick & Company,2003-03-20
+MCD,McDonald's,1970-06-30
+MCK,McKesson,1999-01-13
+MDT,Medtronic,1986-10-31
+MRK,Merck & Co.,1957-03-04
+META,Meta Platforms,2013-12-23
+MET,MetLife,2000-12-11
+MTD,Mettler Toledo,2016-09-06
+MGM,MGM Resorts,2017-07-26
+MCHP,Microchip Technology,2007-09-07
+MU,Micron Technology,1994-09-27
+MSFT,Microsoft,1994-06-01
+MAA,Mid-America Apartment Communities,2016-12-02
+MRNA,Moderna,2021-07-21
+MDLZ,Mondelez International,2012-10-02
+MPWR,Monolithic Power Systems,2021-02-12
+MNST,Monster Beverage,2012-06-28
+MCO,Moody's Corporation,1998-07-01
+MS,Morgan Stanley,1993-07-29
+MOS,Mosaic Company (The),2011-09-26
+MSI,Motorola Solutions,1957-03-04
+MSCI,MSCI,2018-04-04
+NDAQ,"Nasdaq, Inc.",2008-10-22
+NTAP,NetApp,1999-06-25
+NFLX,Netflix,2010-12-20
+NEM,Newmont,1969-06-30
+NWSA,News Corp (Class A),2013-08-01
+NEE,NextEra Energy,1976-06-30
+NKE,"Nike, Inc.",1988-11-30
+NI,NiSource,2000-11-02
+NDSN,Nordson Corporation,2022-02-15
+NSC,Norfolk Southern,1957-03-04
+NTRS,Northern Trust,1998-01-30
+NOC,Northrop Grumman,1957-03-04
+NCLH,Norwegian Cruise Line Holdings,2017-10-13
+NRG,NRG Energy,2010-01-29
+NUE,Nucor,1985-04-30
+NVDA,Nvidia,2001-11-30
+NVR,"NVR, Inc.",2019-09-26
+NXPI,NXP Semiconductors,2021-03-22
+ORLY,O'Reilly Automotive,2009-03-27
+OXY,Occidental Petroleum,1957-03-04
+OKTA,"Okta, Inc.",2026-11-04
+ODFL,Old Dominion,2019-12-09
+OMC,Omnicom Group,1997-12-31
+ON,ON Semiconductor,2022-06-21
+OKE,Oneok,2010-03-15
+ORCL,Oracle Corporation,1989-08-31
+OTIS,Otis Worldwide,2020-04-03
+PCAR,Paccar,1980-12-31
+PKG,Packaging Corporation of America,2017-07-26
+PLTR,Palantir Technologies,2024-09-23
+PANW,Palo Alto Networks,2023-06-20
+PH,Parker Hannifin,1985-11-30
+PAYX,Paychex,1998-10-01
+PYPL,PayPal,2015-07-20
+PNR,Pentair,2012-10-01
+PEP,PepsiCo,1957-03-04
+PFE,Pfizer,1957-03-04
+PCG,PG&E Corporation,2022-10-03
+PM,Philip Morris International,2008-03-31
+PSX,Phillips 66,2012-05-01
+PNW,Pinnacle West Capital,1999-10-04
+PNC,PNC Financial Services,1988-04-30
+PPG,PPG Industries,1957-03-04
+PPL,PPL Corporation,2001-10-01
+PFG,Principal Financial Group,2002-07-22
+PG,Procter & Gamble,1957-03-04
+PGR,Progressive Corporation,1997-08-04
+PLD,Prologis,2003-07-17
+PRU,Prudential Financial,2002-07-22
+PTC,PTC Inc.,2021-04-20
+PEG,Public Service Enterprise Group,1957-03-04
+PSA,Public Storage,2005-08-19
+PHM,PulteGroup,1984-04-30
+Q,Qnity Electronics,2025-11-03
+QCOM,Qualcomm,1999-07-22
+PWR,Quanta Services,2009-07-01
+DGX,Quest Diagnostics,2002-12-12
+RL,Ralph Lauren Corporation,2007-02-02
+RJF,Raymond James Financial,2017-03-20
+RDDT,Reddit,2026-08-18
+O,Realty Income,2015-04-07
+REG,Regency Centers,2017-03-02
+REGN,Regeneron Pharmaceuticals,2013-05-01
+RF,Regions Financial Corporation,1998-08-28
+RSG,Republic Services,2008-12-05
+RMD,ResMed,2017-07-26
+RVTY,Revvity,1985-05-31
+HOOD,Robinhood Markets,2025-09-22
+ROK,Rockwell Automation,2000-03-12
+ROL,"Rollins, Inc.",2018-10-01
+ROP,Roper Technologies,2009-12-23
+ROST,Ross Stores,2009-12-21
+RCL,Royal Caribbean Group,2014-12-05
+RTX,RTX Corporation,1957-03-04
+SPGI,S&P Global,1957-03-04
+CRM,Salesforce,2008-09-15
+SNDK,Sandisk,2025-11-28
+SBAC,SBA Communications,2017-09-01
+SLB,Schlumberger,1957-03-04
+STX,Seagate Technology,2012-07-02
+SRE,Sempra,2017-03-17
+NOW,ServiceNow,2019-11-21
+SHW,Sherwin-Williams,1964-06-30
+SPG,Simon Property Group,2002-06-26
+SKYD,Skydance,1994-09-30
+SWKS,Skyworks Solutions,2015-03-12
+SJM,J.M. Smucker Company (The),2008-11-06
+SW,Smurfit Westrock,2024-07-08
+SNA,Snap-on,1982-09-30
+SOLV,Solventum,2024-04-01
+SO,Southern Company,1957-03-04
+LUV,Southwest Airlines,1994-07-01
+SWK,Stanley Black & Decker,1982-09-30
+SBUX,Starbucks,2000-06-07
+STT,State Street Corporation,2003-03-14
+STLD,Steel Dynamics,2022-12-22
+STE,Steris,2019-12-23
+SYK,Stryker Corporation,2000-12-12
+SMCI,Supermicro,2024-03-18
+SYF,Synchrony Financial,2015-11-18
+SNPS,Synopsys,2017-03-16
+SYY,Sysco,1986-12-31
+TMUS,T-Mobile US,2019-07-15
+TROW,T. Rowe Price,2019-07-29
+TTWO,Take-Two Interactive,2018-03-19
+TPR,"Tapestry, Inc.",2004-09-01
+TRGP,Targa Resources,2022-10-12
+TGT,Target Corporation,1976-12-31
+TEL,TE Connectivity,2011-10-17
+TDY,Teledyne Technologies,2020-06-22
+TER,Teradyne,2020-09-21
+TSLA,"Tesla, Inc.",2020-12-21
+TXN,Texas Instruments,2001-03-12
+TPL,Texas Pacific Land Corporation,2024-11-26
+TXT,Textron,1978-12-31
+TMO,Thermo Fisher Scientific,2004-08-03
+TJX,TJX Companies,1985-09-30
+TKO,TKO Group Holdings,2025-03-24
+TSCO,Tractor Supply,2014-01-24
+TT,Trane Technologies,2010-11-17
+TDG,TransDigm Group,2016-06-03
+TRV,Travelers Companies (The),2002-08-21
+TRMB,Trimble Inc.,2021-01-21
+TFC,Truist Financial,1997-12-04
+TWLO,Twilio,2026-10-06
+TYL,Tyler Technologies,2020-06-22
+TSN,Tyson Foods,2005-08-10
+USB,U.S. Bancorp,1999-11-01
+UBER,Uber,2023-12-18
+UDR,"UDR, Inc.",2016-03-07
+ULTA,Ulta Beauty,2016-04-18
+UNP,Union Pacific Corporation,1957-03-04
+UAL,United Airlines Holdings,2015-09-03
+UPS,United Parcel Service,2002-07-22
+URI,United Rentals,2014-09-20
+UNH,UnitedHealth Group,1994-07-01
+UHS,Universal Health Services,2014-09-20
+VLO,Valero Energy,2002-12-20
+VEEV,Veeva Systems,2026-05-07
+VTR,Ventas,2009-03-04
+VLTO,Veralto,2023-10-02
+VRSN,Verisign,2006-02-01
+VRSK,Verisk Analytics,2015-10-08
+VZ,Verizon,1983-11-30
+VRTX,Vertex Pharmaceuticals,2013-09-23
+VRT,Vertiv,2026-03-23
+VTRS,Viatris,2004-04-23
+VICI,Vici Properties,2022-06-08
+V,Visa Inc.,2009-12-21
+VST,Vistra Corp.,2024-05-08
+VMRK,Vivmark Residential,2001-12-03
+VMC,Vulcan Materials Company,1999-06-30
+VYLR,Vylor,2026-10-01
+WRB,W. R. Berkley Corporation,2019-12-05
+GWW,W. W. Grainger,1981-06-30
+WAB,Wabtec,2019-02-27
+WMT,Walmart,1982-08-31
+DIS,Walt Disney Company (The),1976-06-30
+WM,Waste Management,1998-08-31
+WAT,Waters Corporation,2002-01-02
+WEC,WEC Energy Group,2008-10-31
+WFC,Wells Fargo,1976-06-30
+WELL,Welltower,2009-01-30
+WST,West Pharmaceutical Services,2020-05-22
+WDC,Western Digital,2009-07-01
+WY,Weyerhaeuser,1979-10-01
+WSM,"Williams-Sonoma, Inc.",2025-03-24
+WMB,Williams Companies,1975-03-31
+WTW,Willis Towers Watson,2016-01-05
+WDAY,"Workday, Inc.",2024-12-23
+WYNN,Wynn Resorts,2008-11-14
+XEL,Xcel Energy,1957-03-04
+XYL,Xylem Inc.,2011-11-01
+YUM,Yum! Brands,1997-10-06
+ZBRA,Zebra Technologies,2019-12-23
+ZBH,Zimmer Biomet,2001-08-07
+ZTS,Zoetis,2013-06-21
