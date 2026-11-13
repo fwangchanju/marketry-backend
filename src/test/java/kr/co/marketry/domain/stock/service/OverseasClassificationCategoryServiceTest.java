@@ -233,4 +233,13 @@ class OverseasClassificationCategoryServiceTest {
         when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(unclassified));
         assertThatThrownBy(() -> service.create("JAPAN", 1L, "기타")).isInstanceOf(BadRequestException.class);
     }
+
+    @Test
+    void 미국_분류_목록은_조회할_수_있지만_만들기는_막는다() {
+        var technology = category(1, null, "Technology");
+        when(categories.findAllByMarket("USA")).thenReturn(List.of(technology));
+
+        assertThat(service.findAll("USA")).hasSize(1);
+        assertThatThrownBy(() -> service.create("USA", null, "Energy")).isInstanceOf(BadRequestException.class);
+    }
 }

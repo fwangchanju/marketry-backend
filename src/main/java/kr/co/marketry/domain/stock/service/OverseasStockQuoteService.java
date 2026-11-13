@@ -44,11 +44,26 @@ public class OverseasStockQuoteService {
     @Transactional(readOnly = true)
     public LocalDate findPreviousTradingDay(String market, LocalDate date) {
         validateMarket(market);
+        if ("USA".equals(market)) {
+            return previousSavedDay(market, date);
+        }
         return kr.co.marketry.domain.stock.collector.JapanMarketReference.previousTradingDay(date);
     }
 
+    // 미국은 휴장일 목록을 코드에 두지 않는다. 저장된 날짜 중 그 앞의 가장 가까운 날을 거래일로 본다. 없으면 null이다.
+    private LocalDate previousSavedDay(String market, LocalDate date) {
+        LocalDate previous = null;
+        for (LocalDateTime time : repository.findSnapshotTimes(market)) {
+            LocalDate day = time.toLocalDate();
+            if (day.isBefore(date) && (previous == null || day.isAfter(previous))) {
+                previous = day;
+            }
+        }
+        return previous;
+    }
+
     private void validateMarket(String market) {
-        if ("JAPAN".equals(market)) return;
+        if ("JAPAN".equals(market) || "USA".equals(market)) return;
         throw new BadRequestException(ErrorCode.INVALID_INPUT);
     }
 

@@ -27,7 +27,7 @@ public class OverseasClassificationCategoryService {
 
     @Transactional(readOnly = true)
     public List<Category> findAll(String market) {
-        validateMarket(market);
+        validateReadMarket(market);
         return categories.findAllByMarket(market).stream()
                 .map(category -> new Category(category.getId(), category.getParentId(), category.getName()))
                 .toList();
@@ -195,6 +195,11 @@ public class OverseasClassificationCategoryService {
         // 국내 전용 보호 이름이다. 화면이 이 이름을 잠그므로 해외 분류에서는 만들지 못하게 한다.
         if ("신규 상장".equals(normalized) || "거래 정지".equals(normalized)) invalid();
         return normalized;
+    }
+
+    // 읽기는 일본과 미국, 쓰기는 일본만 연다. 미국 분류는 아직 관리자 화면에서 고치지 않는다.
+    private void validateReadMarket(String market) {
+        if (!"JAPAN".equals(market) && !"USA".equals(market)) invalid();
     }
 
     private void validateMarket(String market) {

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -78,5 +79,35 @@ class OverseasStockQuoteServiceTest {
                 .isEqualTo(java.time.LocalDate.parse("2026-11-06"));
         assertThat(service.findPreviousTradingDay("JAPAN", java.time.LocalDate.parse("2026-11-04")))
                 .isEqualTo(java.time.LocalDate.parse("2026-11-02"));
+    }
+
+    @Test
+    void 미국은_저장된_날짜_중_바로_앞_날짜를_직전_거래일로_돌려준다() {
+        when(repository.findSnapshotTimes("USA"))
+                .thenReturn(List.of(
+                        LocalDateTime.of(2026, 11, 9, 16, 0),
+                        LocalDateTime.of(2026, 11, 11, 16, 0),
+                        LocalDateTime.of(2026, 11, 12, 16, 0)));
+
+        assertThat(service.findPreviousTradingDay("USA", LocalDate.of(2026, 11, 12)))
+                .isEqualTo(LocalDate.of(2026, 11, 11));
+        assertThat(service.findPreviousTradingDay("USA", LocalDate.of(2026, 11, 11)))
+                .isEqualTo(LocalDate.of(2026, 11, 9));
+    }
+
+    @Test
+    void 미국은_앞선_저장_날짜가_없으면_직전_거래일이_없다() {
+        when(repository.findSnapshotTimes("USA")).thenReturn(List.of(LocalDateTime.of(2026, 11, 9, 16, 0)));
+
+        assertThat(service.findPreviousTradingDay("USA", LocalDate.of(2026, 11, 9)))
+                .isNull();
+    }
+
+    @Test
+    void 미국_시세도_조회하고_알_수_없는_시장은_거절한다() {
+        when(repository.findFirstByIdMarketOrderByIdSnapshotTimeDesc("USA")).thenReturn(Optional.empty());
+
+        assertThat(service.findQuotes("USA", null).quotes()).isEmpty();
+        assertThatThrownBy(() -> service.findQuotes("KOREA", null)).isInstanceOf(BadRequestException.class);
     }
 }

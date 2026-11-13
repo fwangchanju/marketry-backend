@@ -18,7 +18,7 @@ public class OverseasStockClassificationService {
 
     @Transactional(readOnly = true)
     public Map<String, Classification> findAll(String market) {
-        validateMarket(market);
+        validateReadMarket(market);
         return repository.findAllByIdMarket(market).stream()
                 .collect(Collectors.toMap(
                         entry -> entry.getId().getStockCode(),
@@ -43,6 +43,11 @@ public class OverseasStockClassificationService {
         else if ("industry".equals(field)) entry.updateIndustry(normalized);
         else entry.updateSubIndustry(normalized);
         repository.save(entry);
+    }
+
+    // 읽기는 일본과 미국, 쓰기는 일본만 연다. 미국 분류는 아직 관리자 화면에서 고치지 않는다.
+    private void validateReadMarket(String market) {
+        if (!"JAPAN".equals(market) && !"USA".equals(market)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
     }
 
     private void validateMarket(String market) {

@@ -62,4 +62,13 @@ class OverseasStockClassificationServiceTest {
         assertThatThrownBy(() -> service.update("JAPAN", "7203", "sector", "1234567890123"))
                 .isInstanceOf(BadRequestException.class);
     }
+
+    @Test
+    void 미국_분류는_조회할_수_있지만_수정은_막는다() {
+        when(repository.findAllByIdMarket("USA")).thenReturn(List.of());
+
+        assertThat(service.findAll("USA")).isEmpty();
+        assertThatThrownBy(() -> service.update("USA", "AAPL", "sector", "Technology"))
+                .isInstanceOf(BadRequestException.class);
+    }
 }
