@@ -22,6 +22,7 @@ import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
+import kr.co.marketry.domain.stock.service.UsaStockKoreanNameService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
@@ -33,11 +34,12 @@ class UsaControllerTest {
     private final OverseasStockClassificationService classifications = mock(OverseasStockClassificationService.class);
     private final OverseasClassificationCategoryService categories = mock(OverseasClassificationCategoryService.class);
     private final OverseasIndexCloseService indexCloses = mock(OverseasIndexCloseService.class);
+    private final UsaStockKoreanNameService names = mock(UsaStockKoreanNameService.class);
     private final UsaConstituents constituents = new UsaConstituents(new ByteArrayInputStream(
             "symbol,name,date_added\nAAPL,Apple Inc.,1982-11-30\nXYZ,\"Block, Inc.\",2025-07-23\n"
                     .getBytes(StandardCharsets.UTF_8)));
     private final UsaController controller =
-            new UsaController(guard, quotes, classifications, categories, constituents, indexCloses);
+            new UsaController(guard, quotes, classifications, categories, constituents, indexCloses, names);
 
     @Test
     void 특별_회원이_아니면_어떤_조회도_하지_못한다() {
@@ -50,10 +52,19 @@ class UsaControllerTest {
         assertThatThrownBy(() -> controller.findClassifications(principal)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> controller.findCategories(principal)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() -> controller.findStocks(principal)).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> controller.findStockNames(principal)).isInstanceOf(ResponseStatusException.class);
         assertThatThrownBy(() ->
                         controller.findIndexCloses(principal, LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 12)))
                 .isInstanceOf(ResponseStatusException.class);
-        verifyNoInteractions(quotes, classifications, categories, indexCloses);
+        verifyNoInteractions(quotes, classifications, categories, indexCloses, names);
+    }
+
+    @Test
+    void 한글_이름은_특별_회원에게_서비스_값을_그대로_준다() {
+        when(names.findAll()).thenReturn(java.util.Map.of("AAPL", "애플"));
+
+        assertThat(controller.findStockNames(principal)).containsEntry("AAPL", "애플");
+        verify(guard).require(principal);
     }
 
     @Test
