@@ -15,6 +15,7 @@ import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
+import kr.co.marketry.domain.stock.service.UsaStockKoreanNameService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-// 미국 화면의 조회 전용 API다. 관리자와 특별 회원만 본다. 수정 API는 만들지 않는다.
+// 미국 화면의 조회 API다. 관리자와 특별 회원만 본다. 수정은 /api/admin 아래 API가 맡는다.
 @RestController
 @RequestMapping("/api/usa")
 @RequiredArgsConstructor
@@ -37,6 +38,7 @@ public class UsaController {
     private final OverseasClassificationCategoryService categoryService;
     private final UsaConstituents constituents;
     private final OverseasIndexCloseService indexCloseService;
+    private final UsaStockKoreanNameService nameService;
 
     @GetMapping("/quotes")
     public QuoteSnapshot findQuotes(
@@ -92,4 +94,10 @@ public class UsaController {
     }
 
     public record StockInfo(String symbol, String name) {}
+
+    @GetMapping("/stock-names")
+    public Map<String, String> findStockNames(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        guard.require(principal);
+        return nameService.findAll();
+    }
 }

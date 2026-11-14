@@ -19,15 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OverseasClassificationCategoryService {
     private static final String UNCLASSIFIED = "미분류";
-    private static final int LEVELS = 3;
-    private static final int MAX_DEPTH = LEVELS - 1;
+    // 종목 표의 분류 열 수(섹터·업종·세부 업종). 시장마다 쓰는 단계 수는 CountryRules이 정한다.
+    private static final int COLUMNS = 3;
 
     private final OverseasClassificationCategoryRepository categories;
     private final OverseasStockClassificationRepository stocks;
 
     @Transactional(readOnly = true)
     public List<Category> findAll(String market) {
-        validateReadMarket(market);
+        CountryRules.of(market);
         return categories.findAllByMarket(market).stream()
                 .map(category -> new Category(category.getId(), category.getParentId(), category.getName()))
                 .toList();
@@ -35,12 +35,12 @@ public class OverseasClassificationCategoryService {
 
     @Transactional
     public Category create(String market, Long parentId, String name) {
-        validateMarket(market);
+        int maxDepth = CountryRules.of(market).levels() - 1;
         String normalized = normalizeName(name);
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         if (parentId != null) {
             OverseasClassificationCategory parent = find(all, parentId);
-            if (isUnclassified(parent) || path(all, parent).size() > MAX_DEPTH) invalid();
+            if (isUnclassified(parent) || path(all, parent).size() > maxDepth) invalid();
         }
         ensureUnique(all, normalized, null);
         OverseasClassificationCategory category =
@@ -50,7 +50,7 @@ public class OverseasClassificationCategoryService {
 
     @Transactional
     public void rename(String market, long id, String name) {
-        validateMarket(market);
+        CountryRules.of(market);
         String normalized = normalizeName(name);
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
@@ -68,7 +68,7 @@ public class OverseasClassificationCategoryService {
 
     @Transactional
     public void move(String market, long id, Long parentId) {
-        validateMarket(market);
+        int maxDepth = CountryRules.of(market).levels() - 1;
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
         if (isUnclassified(category)) invalid();
@@ -78,13 +78,13 @@ public class OverseasClassificationCategoryService {
         if (target != null
                 && (isUnclassified(target)
                         || isSelfOrDescendant(all, target, id)
-                        || targetPath.size() + height(all, id) > MAX_DEPTH)) invalid();
+                        || targetPath.size() + height(all, id) > maxDepth)) invalid();
         List<String> path = path(all, category);
         for (OverseasStockClassification stock : stocks.findAllByIdMarket(market)) {
             if (!isUnder(stock, path)) continue;
             List<String> next = new ArrayList<>(targetPath);
             next.add(category.getName());
-            next.addAll(values(stock).subList(path.size(), LEVELS));
+            next.addAll(values(stock).subList(path.size(), COLUMNS));
             apply(stock, next);
         }
         category.reparent(parentId);
@@ -92,7 +92,7 @@ public class OverseasClassificationCategoryService {
 
     @Transactional
     public void delete(String market, long id, int expectedMoveCount) {
-        validateMarket(market);
+        CountryRules.of(market);
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         OverseasClassificationCategory category = find(all, id);
         if (isUnclassified(category) || all.stream().anyMatch(item -> Objects.equals(item.getParentId(), id))) {
@@ -112,11 +112,11 @@ public class OverseasClassificationCategoryService {
     // 국내 종목 표와 같다. 고른 분류까지만 남고 그 아래 단계는 비워진다.
     @Transactional
     public void assign(String market, List<String> codes, long categoryId) {
-        validateMarket(market);
+        CountryRules rules = CountryRules.of(market);
         if (codes == null
                 || codes.isEmpty()
                 || codes.size() > 1000
-                || codes.stream().anyMatch(code -> code == null || !code.matches("[0-9][0-9A-Z]{3}"))) invalid();
+                || !codes.stream().allMatch(rules::isValidStockCode)) invalid();
         List<OverseasClassificationCategory> all = categories.findAllByMarket(market);
         List<String> path = path(all, find(all, categoryId));
         for (String code : codes.stream().distinct().toList()) {
@@ -195,15 +195,6 @@ public class OverseasClassificationCategoryService {
         // 국내 전용 보호 이름이다. 화면이 이 이름을 잠그므로 해외 분류에서는 만들지 못하게 한다.
         if ("신규 상장".equals(normalized) || "거래 정지".equals(normalized)) invalid();
         return normalized;
-    }
-
-    // 읽기는 일본과 미국, 쓰기는 일본만 연다. 미국 분류는 아직 관리자 화면에서 고치지 않는다.
-    private void validateReadMarket(String market) {
-        if (!"JAPAN".equals(market) && !"USA".equals(market)) invalid();
-    }
-
-    private void validateMarket(String market) {
-        if (!"JAPAN".equals(market)) invalid();
     }
 
     private void invalid() {

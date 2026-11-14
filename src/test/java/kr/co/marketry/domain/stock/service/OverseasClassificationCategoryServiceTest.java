@@ -235,11 +235,45 @@ class OverseasClassificationCategoryServiceTest {
     }
 
     @Test
-    void 미국_분류_목록은_조회할_수_있지만_만들기는_막는다() {
+    void 미국_분류는_두_단계까지만_만들_수_있다() {
         var technology = category(1, null, "Technology");
-        when(categories.findAllByMarket("USA")).thenReturn(List.of(technology));
+        var software = category(2, 1L, "Software");
+        when(categories.findAllByMarket("USA")).thenReturn(List.of(technology, software));
+        when(categories.save(any(OverseasClassificationCategory.class))).thenAnswer(call -> call.getArgument(0));
 
-        assertThat(service.findAll("USA")).hasSize(1);
-        assertThatThrownBy(() -> service.create("USA", null, "Energy")).isInstanceOf(BadRequestException.class);
+        assertThat(service.findAll("USA")).hasSize(2);
+        assertThat(service.create("USA", 1L, "Hardware").name()).isEqualTo("Hardware");
+        assertThatThrownBy(() -> service.create("USA", 2L, "Cloud")).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 일본은_세_단계까지_만들_수_있다() {
+        var sector = category(1, null, "기술");
+        var industry = category(2, 1L, "반도체");
+        when(categories.findAllByMarket("JAPAN")).thenReturn(List.of(sector, industry));
+        when(categories.save(any(OverseasClassificationCategory.class))).thenAnswer(call -> call.getArgument(0));
+
+        assertThat(service.create("JAPAN", 2L, "장비").name()).isEqualTo("장비");
+    }
+
+    @Test
+    void 미국_종목_배정은_영문_티커를_받고_일본_코드는_거부한다() {
+        var sector = category(1, null, "Technology");
+        when(categories.findAllByMarket("USA")).thenReturn(List.of(sector));
+        var id = new OverseasStockClassificationId("USA", "BRK-B");
+        var stock = OverseasStockClassification.create(id);
+        when(stocks.findById(id)).thenReturn(Optional.of(stock));
+
+        service.assign("USA", List.of("BRK-B"), 1);
+
+        assertThat(stock.getSectorName()).isEqualTo("Technology");
+        assertThatThrownBy(() -> service.assign("USA", List.of("7203"), 1)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.assign("USA", List.of("aapl"), 1)).isInstanceOf(BadRequestException.class);
+        assertThatThrownBy(() -> service.assign("JAPAN", List.of("AAPL"), 1)).isInstanceOf(BadRequestException.class);
+    }
+
+    @Test
+    void 모르는_시장은_조회도_거부한다() {
+        assertThatThrownBy(() -> service.findAll("TAIWAN")).isInstanceOf(BadRequestException.class);
     }
 }
