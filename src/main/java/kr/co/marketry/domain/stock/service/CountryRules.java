@@ -11,8 +11,8 @@ import kr.co.marketry.common.exception.ErrorCode;
 public enum CountryRules {
     // 도쿄 거래소: 대분류·중분류·소분류 세 단계, 종목코드는 숫자로 시작하는 네 글자.
     JAPAN(3, "[0-9][0-9A-Z]{3}"),
-    // 미국 S&P 500: 대분류·중분류 두 단계, 종목코드는 영문 티커(BRK-B처럼 클래스 문자가 붙을 수 있다).
-    USA(2, "[A-Z]{1,5}([.-][A-Z])?");
+    // 미국 S&P 500: 일본과 같은 대분류·중분류·소분류 세 단계, 종목코드는 영문 티커(BRK-B처럼 클래스 문자가 붙을 수 있다).
+    USA(3, "[A-Z]{1,5}([.-][A-Z])?");
 
     private final int levels;
     private final Pattern stockCode;
