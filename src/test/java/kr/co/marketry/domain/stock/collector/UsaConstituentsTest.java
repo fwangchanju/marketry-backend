@@ -42,9 +42,10 @@ class UsaConstituentsTest {
     void 쉼표가_든_회사_이름은_큰따옴표를_풀어서_읽는다() {
         assertThat(UsaConstituents.splitFields("XYZ,\"Block, Inc.\",2025-07-23"))
                 .containsExactly("XYZ", "Block, Inc.", "2025-07-23");
+        // 목록 파일의 이름에서 Inc. 같은 법인 표기를 뺐으므로 쉼표가 든 이름은 더 없다. 파일에서는 정리된 이름으로 읽히는지만 본다.
         assertThat(constituents)
                 .anyMatch(constituent ->
-                        constituent.symbol().equals("XYZ") && constituent.name().equals("Block, Inc."));
+                        constituent.symbol().equals("XYZ") && constituent.name().equals("Block"));
     }
 
     @Test
