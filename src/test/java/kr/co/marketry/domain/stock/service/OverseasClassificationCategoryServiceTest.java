@@ -235,15 +235,17 @@ class OverseasClassificationCategoryServiceTest {
     }
 
     @Test
-    void 미국_분류는_두_단계까지만_만들_수_있다() {
+    void 미국도_세_단계까지만_만들_수_있다() {
         var technology = category(1, null, "Technology");
         var software = category(2, 1L, "Software");
-        when(categories.findAllByMarket("USA")).thenReturn(List.of(technology, software));
+        var cloud = category(3, 2L, "Cloud");
+        when(categories.findAllByMarket("USA")).thenReturn(List.of(technology, software, cloud));
         when(categories.save(any(OverseasClassificationCategory.class))).thenAnswer(call -> call.getArgument(0));
 
-        assertThat(service.findAll("USA")).hasSize(2);
+        assertThat(service.findAll("USA")).hasSize(3);
         assertThat(service.create("USA", 1L, "Hardware").name()).isEqualTo("Hardware");
-        assertThatThrownBy(() -> service.create("USA", 2L, "Cloud")).isInstanceOf(BadRequestException.class);
+        assertThat(service.create("USA", 2L, "Security").name()).isEqualTo("Security");
+        assertThatThrownBy(() -> service.create("USA", 3L, "Edge")).isInstanceOf(BadRequestException.class);
     }
 
     @Test

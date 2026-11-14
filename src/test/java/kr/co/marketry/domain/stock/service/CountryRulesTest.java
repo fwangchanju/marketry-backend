@@ -11,7 +11,7 @@ class CountryRulesTest {
     @Test
     void 시장마다_분류_단계_수가_다르다() {
         assertThat(CountryRules.JAPAN.levels()).isEqualTo(3);
-        assertThat(CountryRules.USA.levels()).isEqualTo(2);
+        assertThat(CountryRules.USA.levels()).isEqualTo(3);
     }
 
     @Test
