@@ -59,6 +59,9 @@ public class JapanQuoteScheduler {
                 consecutiveFailures = 0;
             }
             if (result.saved()) {
+                if (result.reason() != null) {
+                    reportIndexFailure(result.reason());
+                }
                 log.info(
                         "[일본시세] 저장: snapshotTime={}, 오늘 시세={}/{}, 오늘 외={}, 조회 실패={}, 응답={}/{}",
                         result.snapshotTime(),
@@ -82,6 +85,17 @@ public class JapanQuoteScheduler {
         } catch (RuntimeException failure) {
             log.warn("[일본시세] 수집 실패", failure);
             recordFailure(now, failure.getClass().getSimpleName() + ": " + failure.getMessage());
+        }
+    }
+
+    // 종목 시세는 저장됐지만 닛케이 지수만 빠진 경우. 다음 기회가 없어서 바로 알린다. 알림 실패는 수집을 막지 않는다.
+    private void reportIndexFailure(String reason) {
+        try {
+            escalationPublisher.report(
+                    "일본 지수",
+                    new EscalateException(ErrorCode.JAPAN_INDEX_SAVE_FAILED, new IllegalStateException(reason)));
+        } catch (RuntimeException alertFailure) {
+            log.warn("[일본시세] 지수 실패 알림 발송 실패", alertFailure);
         }
     }
 

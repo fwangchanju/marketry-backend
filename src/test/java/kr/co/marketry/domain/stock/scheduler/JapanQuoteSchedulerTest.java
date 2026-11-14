@@ -104,4 +104,30 @@ class JapanQuoteSchedulerTest {
         scheduler.collect(LocalDateTime.of(2026, 11, 10, 9, 28));
         verify(publisher, times(1)).report(anyString(), any());
     }
+
+    @Test
+    void 종목_시세는_저장됐고_지수만_실패하면_그_사실을_한_번_알린다() {
+        JapanQuoteCollector collector = mock(JapanQuoteCollector.class);
+        EscalationPublisher publisher = mock(EscalationPublisher.class);
+        when(collector.collect())
+                .thenReturn(new JapanQuoteCollector.Result(
+                        true, LocalDateTime.of(2026, 11, 13, 15, 30), 225, 225, 225, 0, 0, "지수 값을 받지 못함"));
+        JapanQuoteScheduler scheduler = new JapanQuoteScheduler(collector, publisher);
+
+        scheduler.collect(LocalDateTime.of(2026, 11, 13, 15, 30));
+        verify(publisher, times(1)).report(anyString(), any());
+    }
+
+    @Test
+    void 지수가_정상_저장되면_알리지_않는다() {
+        JapanQuoteCollector collector = mock(JapanQuoteCollector.class);
+        EscalationPublisher publisher = mock(EscalationPublisher.class);
+        when(collector.collect())
+                .thenReturn(new JapanQuoteCollector.Result(
+                        true, LocalDateTime.of(2026, 11, 13, 15, 30), 225, 225, 225, 0, 0, null));
+        JapanQuoteScheduler scheduler = new JapanQuoteScheduler(collector, publisher);
+
+        scheduler.collect(LocalDateTime.of(2026, 11, 13, 15, 30));
+        verify(publisher, never()).report(anyString(), any());
+    }
 }

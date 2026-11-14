@@ -110,7 +110,7 @@ public class JapanQuoteCollector {
         List<OverseasStockQuote> quotes =
                 fetched.stream().map(item -> toQuote(item, snapshotTime)).toList();
         repository.saveAll(quotes);
-        saveIndexQuote(snapshotTime);
+        String indexFailure = saveIndexQuote(snapshotTime);
         return new Result(
                 true,
                 snapshotTime,
@@ -119,19 +119,20 @@ public class JapanQuoteCollector {
                 todayQuoteCount,
                 otherDateQuoteCount,
                 failureCount,
-                null);
+                indexFailure);
     }
 
     /**
      * 닛케이 225 지수의 지금 값을 종목 시세와 같은 시각으로 저장한다. 종목 시세를 먼저 저장한 뒤에 하며, 지수를 받지 못해도 종목 시세는
      * 그대로 둔다. 그 시각의 지수가 없으면 그래프가 지수 막대만 만들지 않는다.
      */
-    private void saveIndexQuote(LocalDateTime snapshotTime) {
+    /** 실패하면 사유를 돌려주고, 저장에 성공하면 null을 돌려준다. */
+    private String saveIndexQuote(LocalDateTime snapshotTime) {
         try {
             YahooFinanceQuoteClient.Quote quote = client.fetchQuote(INDEX_SYMBOL);
             if (quote == null) {
                 log.warn("[일본지수] 지수 값을 받지 못했습니다: {}", snapshotTime);
-                return;
+                return "지수 값을 받지 못함";
             }
             BigDecimal value = quote.currentPrice().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
             BigDecimal previousClose = quote.previousClose().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
@@ -140,8 +141,10 @@ public class JapanQuoteCollector {
                     value,
                     previousClose,
                     changeRateOf(value, previousClose)));
+            return null;
         } catch (RuntimeException failure) {
             log.warn("[일본지수] 지수 저장 실패: {} {}", snapshotTime, failure.getMessage());
+            return "지수 저장 실패: " + failure.getClass().getSimpleName();
         }
     }
 
