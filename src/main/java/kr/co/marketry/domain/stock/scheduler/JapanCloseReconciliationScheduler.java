@@ -10,14 +10,15 @@ import kr.co.marketry.domain.stock.collector.JapanCloseReconciler;
 import kr.co.marketry.domain.stock.collector.JapanMarketReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** 마감 뒤 야후 일봉을 다시 확인해 다음 날 지도의 기준을 보정한다. */
+/**
+ * 장 마감 뒤 저녁에 일본 종가를 야후 일봉으로 확인해 지도의 기준을 보정한다.
+ * 20:00~23:50에 10분마다 시도하고, 마지막 시도까지 실패하면 한 번 알린다. 측정 결과에 따라 시간대를 다시 정한다.
+ */
 @Slf4j
 @Component
 @Profile("prod")
@@ -26,44 +27,44 @@ public class JapanCloseReconciliationScheduler {
     private final JapanCloseReconciler reconciler;
     private final ApplicationEventPublisher events;
 
-    private static final LocalTime CLOSE_RECONCILIATION_TIME = LocalTime.of(18, 0);
+    private static final LocalTime FINAL_ATTEMPT_TIME = LocalTime.of(23, 50);
 
-    @EventListener(ApplicationReadyEvent.class)
-    public void reconcileAfterCloseOnStartup() {
-        reconcileAfterCloseOnStartup(KstClock.now());
+    @Scheduled(cron = "${japan-close-reconcile.cron:0 0/10 20-23 * * MON-FRI}", zone = "Asia/Seoul")
+    public void reconcileEvening() {
+        reconcileEvening(KstClock.now());
     }
 
-    void reconcileAfterCloseOnStartup(LocalDateTime now) {
-        if (now.toLocalTime().isBefore(CLOSE_RECONCILIATION_TIME)) return;
-        log.info("[일본 종가 확인] 장 마감 뒤 시작되어 당일 보정을 실행합니다. 날짜={}", now.toLocalDate());
-        reconcile(now.toLocalDate());
+    void reconcileEvening(LocalDateTime now) {
+        boolean finalAttempt = now.toLocalTime().isBefore(FINAL_ATTEMPT_TIME) == false;
+        reconcile(now.toLocalDate(), finalAttempt);
     }
 
-    @Scheduled(cron = "${japan-close-reconcile.cron:0 0 18 * * MON-FRI}", zone = "Asia/Seoul")
-    public void reconcile() {
-        reconcile(KstClock.now().toLocalDate());
-    }
-
-    void reconcile(LocalDate date) {
+    void reconcile(LocalDate date, boolean finalAttempt) {
         if (JapanMarketReference.isKnownHoliday(date)) {
             log.info("[일본 종가 확인] 휴장일이므로 건너뜀 날짜={}", date);
             return;
         }
         try {
             var result = reconciler.reconcile(date);
-            if (!result.failures().isEmpty()) {
-                log.warn(
-                        "[일본 종가 확인 미완료] 날짜={} 보정={} 실패={}",
-                        date,
-                        result.saved(),
-                        result.failures().size());
-                events.publishEvent(new DailyPriceCollectionFailedEvent(date, "일본 종가 확인 미완료", result.failures()));
+            if (result.failures().isEmpty()) {
+                log.info("[일본 종가 확인 완료] 날짜={} 종목={}", date, result.saved());
                 return;
             }
-            log.info("[일본 종가 확인 완료] 날짜={} 종목={}", date, result.saved());
+            if (finalAttempt == false) {
+                log.info("[일본 종가 확인 대기] 날짜={} 사유={} 다음 시도에 다시 확인", date, result.failures());
+                return;
+            }
+            log.warn(
+                    "[일본 종가 확인 미완료] 날짜={} 보정={} 실패={}",
+                    date,
+                    result.saved(),
+                    result.failures().size());
+            events.publishEvent(new DailyPriceCollectionFailedEvent(date, "일본 종가 확인 미완료", result.failures()));
         } catch (RuntimeException failure) {
             log.error("[일본 종가 확인 실패] 날짜={} 오류={}", date, failure.getClass().getSimpleName());
-            events.publishEvent(new DailyPriceCollectionFailedEvent(date, "일본 종가 확인 실행 실패", List.of()));
+            if (finalAttempt) {
+                events.publishEvent(new DailyPriceCollectionFailedEvent(date, "일본 종가 확인 실행 실패", List.of()));
+            }
         }
     }
 }
