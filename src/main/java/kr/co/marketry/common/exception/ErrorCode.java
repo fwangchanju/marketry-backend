@@ -58,6 +58,7 @@ public enum ErrorCode {
     MAP_CAPTION_BUILD_FAILED("캡션 생성에 실패했습니다."),
     MAP_QUOTE_LOOKUP_FAILED("시세 조회에 실패했습니다."),
     JAPAN_QUOTE_COLLECT_FAILED("시세 수집에 실패했습니다."),
+    JAPAN_INDEX_SAVE_FAILED("일본 지수 저장에 실패했습니다."),
     USA_QUOTE_COLLECT_FAILED("미국 시세 수집에 실패했습니다."),
     USA_QUOTE_MISSING("미국 시세가 개장 전까지 저장되지 않았습니다."),
     IMAGE_STITCH_FAILED("이미지 병합에 실패했습니다."),
