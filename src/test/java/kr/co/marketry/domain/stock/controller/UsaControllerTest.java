@@ -1,11 +1,7 @@
 package kr.co.marketry.domain.stock.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
@@ -15,7 +11,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import kr.co.marketry.domain.auth.enums.Role;
 import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
-import kr.co.marketry.domain.auth.service.SpecialMemberGuard;
 import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
@@ -24,12 +19,9 @@ import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
 import kr.co.marketry.domain.stock.service.UsaStockKoreanNameService;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 class UsaControllerTest {
     private final AuthenticatedUserPrincipal principal = new AuthenticatedUserPrincipal(1L, Role.USER);
-    private final SpecialMemberGuard guard = mock(SpecialMemberGuard.class);
     private final OverseasStockQuoteService quotes = mock(OverseasStockQuoteService.class);
     private final OverseasStockClassificationService classifications = mock(OverseasStockClassificationService.class);
     private final OverseasClassificationCategoryService categories = mock(OverseasClassificationCategoryService.class);
@@ -39,24 +31,13 @@ class UsaControllerTest {
             "symbol,name,date_added\nAAPL,Apple Inc.,1982-11-30\nXYZ,\"Block, Inc.\",2025-07-23\n"
                     .getBytes(StandardCharsets.UTF_8)));
     private final UsaController controller =
-            new UsaController(guard, quotes, classifications, categories, constituents, indexCloses, names);
+            new UsaController(quotes, classifications, categories, constituents, indexCloses, names);
 
     @Test
-    void 특별_회원이_아니면_어떤_조회도_하지_못한다() {
-        doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN)).when(guard).require(principal);
+    void 일반_회원도_미국_조회를_받는다() {
+        when(names.findAll()).thenReturn(java.util.Map.of("AAPL", "애플"));
 
-        assertThatThrownBy(() -> controller.findQuotes(principal, null)).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> controller.findSnapshotTimes(principal)).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> controller.findPreviousTradingDay(principal, LocalDate.of(2026, 11, 12)))
-                .isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> controller.findClassifications(principal)).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> controller.findCategories(principal)).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> controller.findStocks(principal)).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() -> controller.findStockNames(principal)).isInstanceOf(ResponseStatusException.class);
-        assertThatThrownBy(() ->
-                        controller.findIndexCloses(principal, LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 12)))
-                .isInstanceOf(ResponseStatusException.class);
-        verifyNoInteractions(quotes, classifications, categories, indexCloses, names);
+        assertThat(controller.findStockNames(principal)).containsEntry("AAPL", "애플");
     }
 
     @Test
@@ -64,7 +45,6 @@ class UsaControllerTest {
         when(names.findAll()).thenReturn(java.util.Map.of("AAPL", "애플"));
 
         assertThat(controller.findStockNames(principal)).containsEntry("AAPL", "애플");
-        verify(guard).require(principal);
     }
 
     @Test
@@ -74,7 +54,6 @@ class UsaControllerTest {
         when(quotes.findQuotes("USA", time)).thenReturn(snapshot);
 
         assertThat(controller.findQuotes(principal, time)).isEqualTo(snapshot);
-        verify(guard).require(principal);
     }
 
     @Test
