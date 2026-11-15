@@ -54,11 +54,10 @@ public class AuthConfiguration {
                         .hasRole("ADMIN")
                         .requestMatchers("/api/custom/**")
                         .authenticated()
-                        // 일본 조회는 로그인만 여기서 막고, 특별 회원 여부는 JapanController가 회원 정보로 확인한다.
-                        .requestMatchers("/api/japan/**")
-                        .authenticated()
-                        // 미국 조회도 로그인만 여기서 막고, 특별 회원 여부는 UsaController가 SpecialMemberGuard로 확인한다.
-                        .requestMatchers("/api/usa/**")
+                        // 일본·미국 조회(GET)는 2026-11-16부터 비로그인도 본다(사용자 결정, 전체 공개). 그 밖의 메서드는 로그인이 필요하다.
+                        .requestMatchers(HttpMethod.GET, "/api/japan/**", "/api/usa/**")
+                        .permitAll()
+                        .requestMatchers("/api/japan/**", "/api/usa/**")
                         .authenticated()
                         .requestMatchers("/api/profile", "/api/profile/**")
                         .authenticated()

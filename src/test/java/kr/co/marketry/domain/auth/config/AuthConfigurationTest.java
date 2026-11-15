@@ -80,22 +80,22 @@ class AuthConfigurationTest {
     }
 
     @Test
-    void 일본_조회는_비로그인을_막는다() throws Exception {
+    void 일본_조회는_비로그인도_허용한다() throws Exception {
         try (AnnotationConfigApplicationContext context =
                 new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
             FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
             assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/japan/quotes", null))
-                    .isEqualTo(401);
+                    .isNotEqualTo(401);
         }
     }
 
     @Test
-    void 미국_조회는_비로그인을_막는다() throws Exception {
+    void 미국_조회는_비로그인도_허용한다() throws Exception {
         try (AnnotationConfigApplicationContext context =
                 new AnnotationConfigApplicationContext(SecurityTestConfig.class)) {
             FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
             assertThat(statusOfWithToken(filterChainProxy, "GET", "/api/usa/quotes", null))
-                    .isEqualTo(401);
+                    .isNotEqualTo(401);
         }
     }
 
