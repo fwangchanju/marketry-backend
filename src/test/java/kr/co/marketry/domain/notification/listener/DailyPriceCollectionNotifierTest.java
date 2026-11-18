@@ -1,12 +1,23 @@
 package kr.co.marketry.domain.notification.listener;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import kr.co.marketry.common.event.DailyPriceCollectionFailedEvent;
+import kr.co.marketry.domain.notification.client.TelegramClient;
+import kr.co.marketry.domain.notification.exception.TelegramSendException;
+import kr.co.marketry.domain.notification.properties.TelegramProperties;
+import kr.co.marketry.domain.view.enums.AverageMode;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 class DailyPriceCollectionNotifierTest {
     @Test
@@ -31,5 +42,43 @@ class DailyPriceCollectionNotifierTest {
 
         assertThat(messages).hasSize(1);
         assertThat(messages.getFirst()).isEqualTo("[일봉 수집 미완료] 2026-10-08\n일봉 수집을 제한 시간 내에 완료하지 못했습니다\n");
+    }
+
+    private final TelegramClient telegramClient = Mockito.mock(TelegramClient.class);
+
+    private DailyPriceCollectionNotifier notifierFor(String developerChatId) {
+        return new DailyPriceCollectionNotifier(
+                telegramClient,
+                new TelegramProperties("token", "chat", developerChatId, 10, 15, 15, AverageMode.SIMPLE, true));
+    }
+
+    private DailyPriceCollectionFailedEvent failedEvent() {
+        return new DailyPriceCollectionFailedEvent(LocalDate.of(2026, 10, 8), "INCOMPLETE", List.of("005930(삼성전자)"));
+    }
+
+    @Test
+    void onFailure_개발자_채팅방이_여러_곳이면_모두에게_보낸다() {
+        notifierFor("dev-1,dev-2").onFailure(failedEvent());
+
+        verify(telegramClient).sendMessage(eq("dev-1"), anyString());
+        verify(telegramClient).sendMessage(eq("dev-2"), anyString());
+    }
+
+    @Test
+    void onFailure_앞_채팅방_발송이_실패해도_뒤_채팅방에는_보낸다() {
+        doThrow(new TelegramSendException("RestClientException", "발송 실패"))
+                .when(telegramClient)
+                .sendMessage(eq("dev-1"), anyString());
+
+        notifierFor("dev-1,dev-2").onFailure(failedEvent());
+
+        verify(telegramClient, times(1)).sendMessage(eq("dev-2"), anyString());
+    }
+
+    @Test
+    void onFailure_개발자_채팅방이_없으면_보내지_않는다() {
+        notifierFor("").onFailure(failedEvent());
+
+        verify(telegramClient, never()).sendMessage(anyString(), anyString());
     }
 }
