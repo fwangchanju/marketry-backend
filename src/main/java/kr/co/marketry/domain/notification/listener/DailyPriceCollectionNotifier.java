@@ -24,18 +24,21 @@ public class DailyPriceCollectionNotifier {
     @Async
     @EventListener
     public void onFailure(DailyPriceCollectionFailedEvent event) {
-        String chatId = properties.developerChatId();
-        if (chatId == null || chatId.isBlank()) {
+        List<String> chatIds = properties.developerChatIds();
+        if (chatIds.isEmpty()) {
             return;
         }
-        for (String message : createMessages(event)) {
-            try {
-                telegramClient.sendMessage(chatId, message);
-            } catch (RuntimeException failure) {
-                log.error(
-                        "[일봉 누락 알림 실패] | context : {}|{}",
-                        event.targetDate(),
-                        failure.getClass().getSimpleName());
+        List<String> messages = createMessages(event);
+        for (String chatId : chatIds) {
+            for (String message : messages) {
+                try {
+                    telegramClient.sendMessage(chatId, message);
+                } catch (RuntimeException failure) {
+                    log.error(
+                            "[일봉 누락 알림 실패] | context : {}|{}",
+                            event.targetDate(),
+                            failure.getClass().getSimpleName());
+                }
             }
         }
     }

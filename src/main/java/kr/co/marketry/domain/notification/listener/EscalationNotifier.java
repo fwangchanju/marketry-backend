@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-/** 개발자(DEVELOPER_CHAT_ID)에게 에스컬레이션 알림을 발송하는 리스너. {@link EscalationEvent} 수신 → 텔레그램. */
+/** 개발자(DEVELOPER_CHAT_ID, 쉼표로 여러 채팅방)에게 에스컬레이션 알림을 발송하는 리스너. {@link EscalationEvent} 수신 → 텔레그램. */
 @Slf4j
 @Component
 @Profile("prod")
@@ -21,8 +21,7 @@ public class EscalationNotifier {
 
     @EventListener
     public void onEscalation(EscalationEvent event) {
-        String chatId = properties.developerChatId();
-        if (chatId != null && chatId.isBlank() == false) {
+        for (String chatId : properties.developerChatIds()) {
             sendBestEffort(chatId, event.message());
         }
         if (event.channelMessage() != null

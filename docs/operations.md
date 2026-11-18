@@ -190,6 +190,7 @@ V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다
 | `AUTH_JWT_SECRET` | 토큰 서명 키, 32바이트 이상. **바꾸면 전원 로그아웃** |
 | `TUNNEL_TOKEN` | Cloudflare Tunnel 토큰. nginx 배포 때 cloudflared 컨테이너에만 전달한다 |
 | `MARKETRY_PROXY_HOST`, `MARKETRY_PROXY_PORT` | 키움 호출만 거치는 HTTP 프록시. 비우면 직접 연결한다. 포트 기본값 8888 |
+| `DEVELOPER_CHAT_ID` | 개발자 알림을 받을 텔레그램 채팅방 ID. 쉼표로 여러 개를 적으면 모두에게 보낸다(예: `111,222`). 각 계정이 봇에게 먼저 시작(Start)을 눌러 두어야 한다 |
 
 환경변수는 컨테이너를 새로 만들 때만 읽힌다. 파일을 고친 뒤 배포(또는 `docker compose up -d`)해야 반영된다.
 로그인 복귀 주소는 `application-prod.properties`의 `marketry.base-url`을 따른다.

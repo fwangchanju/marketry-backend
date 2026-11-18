@@ -54,4 +54,28 @@ class EscalationNotifierTest {
         verify(telegramClient).sendMessage("dev-chat", "상세 오류");
         verify(telegramClient).sendMessage("chat", "간략 오류");
     }
+
+    @Test
+    void onEscalation_개발자_채팅방이_여러_곳이면_모두에게_보낸다() {
+        TelegramProperties twoDevChats =
+                new TelegramProperties("token", "chat", "dev-1, dev-2", 10, 15, 15, AverageMode.SIMPLE, true);
+
+        new EscalationNotifier(telegramClient, twoDevChats).onEscalation(new EscalationEvent("장애 발생"));
+
+        verify(telegramClient).sendMessage("dev-1", "장애 발생");
+        verify(telegramClient).sendMessage("dev-2", "장애 발생");
+    }
+
+    @Test
+    void onEscalation_앞_채팅방_발송이_실패해도_뒤_채팅방에는_보낸다() {
+        TelegramProperties twoDevChats =
+                new TelegramProperties("token", "chat", "dev-1,dev-2", 10, 15, 15, AverageMode.SIMPLE, true);
+        doThrow(new TelegramSendException("RestClientException", "발송 실패"))
+                .when(telegramClient)
+                .sendMessage("dev-1", "장애 발생");
+
+        new EscalationNotifier(telegramClient, twoDevChats).onEscalation(new EscalationEvent("장애 발생"));
+
+        verify(telegramClient).sendMessage("dev-2", "장애 발생");
+    }
 }
