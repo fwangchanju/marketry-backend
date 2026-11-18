@@ -30,8 +30,14 @@ class UsaControllerTest {
     private final UsaConstituents constituents = new UsaConstituents(new ByteArrayInputStream(
             "symbol,name,date_added\nAAPL,Apple Inc.,1982-11-30\nXYZ,\"Block, Inc.\",2025-07-23\n"
                     .getBytes(StandardCharsets.UTF_8)));
-    private final UsaController controller =
-            new UsaController(quotes, classifications, categories, constituents, indexCloses, names);
+    private final UsaController controller = new UsaController(
+            quotes,
+            classifications,
+            categories,
+            mock(kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService.class),
+            constituents,
+            indexCloses,
+            names);
 
     @Test
     void 일반_회원도_미국_조회를_받는다() {
