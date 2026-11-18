@@ -8,4 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface OverseasStockClassificationRepository
         extends JpaRepository<OverseasStockClassification, OverseasStockClassificationId> {
     List<OverseasStockClassification> findAllByIdMarket(String market);
+
+    void deleteAllByIdMarket(String market);
 }
