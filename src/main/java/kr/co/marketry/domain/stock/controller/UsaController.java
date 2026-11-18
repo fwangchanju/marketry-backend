@@ -15,7 +15,6 @@ import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
-import kr.co.marketry.domain.stock.service.UsaGicsClassificationService;
 import kr.co.marketry.domain.stock.service.UsaStockKoreanNameService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -37,7 +36,6 @@ public class UsaController {
     private final OverseasStockClassificationService classificationService;
     private final OverseasClassificationCategoryService categoryService;
     private final OverseasClassificationPublicationService publications;
-    private final UsaGicsClassificationService gics;
     private final UsaConstituents constituents;
     private final OverseasIndexCloseService indexCloseService;
     private final UsaStockKoreanNameService nameService;
@@ -83,12 +81,6 @@ public class UsaController {
     }
 
     public record PublishedAt(LocalDateTime publishedAt) {}
-
-    // 미국 S&P 500 종목의 GICS 분류(읽기 전용). 운영 분류와 따로 두고, 가운데 칸 GICS 모드가 쓴다.
-    @GetMapping("/gics-classifications")
-    public Map<String, UsaGicsClassificationService.Gics> findGicsClassifications() {
-        return gics.findAll();
-    }
 
     @GetMapping("/categories")
     public List<Category> findCategories(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
