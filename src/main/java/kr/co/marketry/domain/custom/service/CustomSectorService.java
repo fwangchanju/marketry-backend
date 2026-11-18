@@ -85,10 +85,6 @@ public class CustomSectorService {
         target.include();
     }
 
-    public void resetExcludes() {
-        findAllSectors(CurrentUser.requireId()).forEach(CustomSector::include);
-    }
-
     public void rename(Long sectorId, String name) {
         Long userId = CurrentUser.requireId();
         CustomSector target = findOwnedSector(sectorId, userId);

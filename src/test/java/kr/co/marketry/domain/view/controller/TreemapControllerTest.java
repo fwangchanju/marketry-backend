@@ -16,13 +16,11 @@ import kr.co.marketry.domain.custom.service.CustomScaleService;
 import kr.co.marketry.domain.custom.service.CustomSectorService;
 import kr.co.marketry.domain.custom.service.CustomValueTierThresholdService;
 import kr.co.marketry.domain.stock.enums.MarketCalendarStatus;
-import kr.co.marketry.domain.view.dto.MarketNoticeResponse;
 import kr.co.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import kr.co.marketry.domain.view.dto.MarketTradingScheduleResponse.TimeWindow;
 import kr.co.marketry.domain.view.dto.TreemapResponse;
 import kr.co.marketry.domain.view.enums.ChangeRateMode;
 import kr.co.marketry.domain.view.enums.MarketQuery;
-import kr.co.marketry.domain.view.service.MarketNoticeService;
 import kr.co.marketry.domain.view.service.MarketTradingScheduleService;
 import kr.co.marketry.domain.view.service.TreemapQueryService;
 import org.junit.jupiter.api.Test;
@@ -35,15 +33,13 @@ class TreemapControllerTest {
 
     private final TreemapQueryService treemapQueryService = mock(TreemapQueryService.class);
     private final MarketTradingScheduleService tradingScheduleService = mock(MarketTradingScheduleService.class);
-    private final MarketNoticeService marketNoticeService = mock(MarketNoticeService.class);
     private final MockMvc mockMvc = MockMvcBuilders.standaloneSetup(new TreemapController(
                     treemapQueryService,
                     mock(kr.co.marketry.domain.stock.service.PriceAdjustmentService.class),
                     mock(CustomSectorService.class),
                     mock(CustomScaleService.class),
                     mock(CustomValueTierThresholdService.class),
-                    tradingScheduleService,
-                    marketNoticeService))
+                    tradingScheduleService))
             .build();
 
     @Test
@@ -66,44 +62,6 @@ class TreemapControllerTest {
                 .andExpect(jsonPath("$.regularMarket.endTime").value("2025-11-13T16:30:00"))
                 .andExpect(jsonPath("$.nxtOnlyWindows[0].startTime").value("2025-11-13T16:40:00"))
                 .andExpect(jsonPath("$.nxtOnlyWindows[0].endTime").value("2025-11-13T17:00:00"));
-    }
-
-    @Test
-    void 안내_조회는_날짜를_바인딩하고_종목_안내를_내려준다() throws Exception {
-        LocalDate date = LocalDate.of(2026, 10, 14);
-        when(marketNoticeService.getNotices(date))
-                .thenReturn(new MarketNoticeResponse(
-                        date,
-                        List.of(new kr.co.marketry.domain.view.dto.MarketNoticeItem(
-                                kr.co.marketry.domain.view.enums.MarketNoticeType.TRADING_SUSPENSION,
-                                "005930",
-                                "삼성전자",
-                                kr.co.marketry.common.enums.Market.KOSPI,
-                                date)),
-                        3,
-                        2,
-                        123_000_000L,
-                        45_000_000L));
-
-        mockMvc.perform(get("/api/map/notices?date=2026-10-14"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.date").value("2026-10-14"))
-                .andExpect(jsonPath("$.items[0].type").value("TRADING_SUSPENSION"))
-                .andExpect(jsonPath("$.items[0].stockCode").value("005930"))
-                .andExpect(jsonPath("$.recentNewListingCount").value(3))
-                .andExpect(jsonPath("$.currentSuspensionCount").value(2))
-                .andExpect(jsonPath("$.recentNewListingMarketValue").value(123_000_000L))
-                .andExpect(jsonPath("$.currentSuspensionMarketValue").value(45_000_000L));
-    }
-
-    @Test
-    void 안내_조회는_날짜가_없으면_오늘_날짜로_조회한다() throws Exception {
-        when(marketNoticeService.getNotices(org.mockito.ArgumentMatchers.any(LocalDate.class)))
-                .thenReturn(new MarketNoticeResponse(LocalDate.of(2026, 10, 14), List.of(), 0, 0, 0L, 0L));
-
-        mockMvc.perform(get("/api/map/notices")).andExpect(status().isOk());
-
-        verify(marketNoticeService).getNotices(org.mockito.ArgumentMatchers.any(LocalDate.class));
     }
 
     @Test
