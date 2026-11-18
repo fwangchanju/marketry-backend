@@ -40,7 +40,14 @@ class OverseasClassificationDraftServiceTest {
     private final OverseasClassificationPublicationService publications =
             mock(OverseasClassificationPublicationService.class);
     private final OverseasClassificationDraftService service = new OverseasClassificationDraftService(
-            draftCategories, draftStocks, liveCategories, liveStocks, backups, publications, new ObjectMapper());
+            draftCategories,
+            draftStocks,
+            liveCategories,
+            liveStocks,
+            backups,
+            publications,
+            mock(OverseasClassificationDraftEditService.class),
+            new ObjectMapper());
 
     private OverseasClassificationCategory live(long id, Long parentId, String name) {
         OverseasClassificationCategory category = mock(OverseasClassificationCategory.class);
