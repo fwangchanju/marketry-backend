@@ -3,12 +3,10 @@ package kr.co.marketry.domain.stock.scheduler;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.concurrent.atomic.AtomicBoolean;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.notification.listener.EscalationPublisher;
-import kr.co.marketry.domain.stock.collector.UsaCloseMeasurer;
 import kr.co.marketry.domain.stock.collector.UsaQuoteCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,9 +16,6 @@ import org.springframework.stereotype.Component;
 /**
  * 미국 시세 수집: 화~토 05:00~08:50(한국 시각), 5분 간격으로 시도하고 하루에 한 번 저장한다. 정규장 종료 + 대기 시간이 지나기
  * 전 회차는 저장하지 않는다(겨울 마감 06:00, 여름 마감 05:00). 일본 수집과 묶지 않는다.
- *
- * <p>측정기가 도는 동안에는 수집 회차를 건너뛴다. 스케줄러 스레드가 3개뿐이라 락을 기다리게 하지 않는다. 측정이 끝나면 다음 5분 회차에
- * 수집한다.
  */
 @Slf4j
 @Component
@@ -33,26 +28,19 @@ public class UsaQuoteScheduler {
     private static final String ALERT_SOURCE = "미국";
 
     private final UsaQuoteCollector collector;
-    private final UsaCloseMeasurer measurer;
     private final EscalationPublisher escalationPublisher;
     private final boolean collectEnabled;
-    private final boolean measureEnabled;
-    private final AtomicBoolean measuring = new AtomicBoolean(false);
     private int consecutiveFailures;
     private LocalDate failureDate;
     private String missingAlertedKey;
 
     public UsaQuoteScheduler(
             UsaQuoteCollector collector,
-            UsaCloseMeasurer measurer,
             EscalationPublisher escalationPublisher,
-            @Value("${usa-quote.enabled:false}") boolean collectEnabled,
-            @Value("${usa-close-measure.enabled:false}") boolean measureEnabled) {
+            @Value("${usa-quote.enabled:false}") boolean collectEnabled) {
         this.collector = collector;
-        this.measurer = measurer;
         this.escalationPublisher = escalationPublisher;
         this.collectEnabled = collectEnabled;
-        this.measureEnabled = measureEnabled;
     }
 
     @Scheduled(cron = "${usa-quote.cron:0 0/5 5-8 * * TUE-SAT}", zone = "Asia/Seoul")
@@ -60,39 +48,8 @@ public class UsaQuoteScheduler {
         collect(KstClock.now());
     }
 
-    /** 겨울(마감 06:00)과 여름(마감 05:00) 모두 잡도록 두 번 두고, 측정기가 마감 전이거나 구간이 지났으면 알아서 건너뛴다. */
-    @Scheduled(cron = "0 0 5,6 * * TUE-SAT", zone = "Asia/Seoul")
-    public void measureClose() {
-        if (measureEnabled == false) {
-            return;
-        }
-        measuring.set(true);
-        try {
-            UsaCloseMeasurer.Measurement result = measurer.measure();
-            if (result.wasSkipped()) {
-                log.info("[미국종가측정] 건너뜀: day={}, {}", result.day(), result.reason());
-                return;
-            }
-            log.info(
-                    "[미국종가측정] 시작={}, 종료={}, 마감={}, 확인={}/{}, 요청={}, 첫 확인={}, 90% 도달={}, 결과={}",
-                    result.startedAt(),
-                    result.finishedAt(),
-                    result.closeAt(),
-                    result.confirmedCount(),
-                    result.totalCount(),
-                    result.requestCount(),
-                    result.firstConfirmedAt(),
-                    result.thresholdReachedAt(),
-                    result.reason() == null ? "도달" : result.reason());
-        } catch (RuntimeException failure) {
-            log.warn("[미국종가측정] 실패", failure);
-        } finally {
-            measuring.set(false);
-        }
-    }
-
     void collect(LocalDateTime now) {
-        if (collectEnabled == false || measuring.get() || now.toLocalTime().isAfter(LAST_COLLECTION_TIME)) {
+        if (collectEnabled == false || now.toLocalTime().isAfter(LAST_COLLECTION_TIME)) {
             return;
         }
         UsaQuoteCollector.Result result = null;
