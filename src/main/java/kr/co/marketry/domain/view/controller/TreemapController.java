@@ -6,14 +6,12 @@ import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
-import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.custom.dto.CustomScaleResponse;
 import kr.co.marketry.domain.custom.dto.CustomValueTierItem;
 import kr.co.marketry.domain.custom.service.CustomScaleService;
 import kr.co.marketry.domain.custom.service.CustomSectorService;
 import kr.co.marketry.domain.custom.service.CustomValueTierThresholdService;
 import kr.co.marketry.domain.stock.service.PriceAdjustmentService;
-import kr.co.marketry.domain.view.dto.MarketNoticeResponse;
 import kr.co.marketry.domain.view.dto.MarketTradingScheduleResponse;
 import kr.co.marketry.domain.view.dto.StockCatalogItem;
 import kr.co.marketry.domain.view.dto.TradingDayGapResponse;
@@ -22,7 +20,6 @@ import kr.co.marketry.domain.view.dto.TreemapSnapshotDay;
 import kr.co.marketry.domain.view.enums.ChangeRateMode;
 import kr.co.marketry.domain.view.enums.ClassificationSource;
 import kr.co.marketry.domain.view.enums.MarketQuery;
-import kr.co.marketry.domain.view.service.MarketNoticeService;
 import kr.co.marketry.domain.view.service.MarketTradingScheduleService;
 import kr.co.marketry.domain.view.service.TreemapQueryService;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +43,6 @@ public class TreemapController {
     private final CustomScaleService customScaleService;
     private final CustomValueTierThresholdService customValueTierThresholdService;
     private final MarketTradingScheduleService marketTradingScheduleService;
-    private final MarketNoticeService marketNoticeService;
 
     @GetMapping
     public TreemapResponse getTreemap(
@@ -72,14 +68,6 @@ public class TreemapController {
             case MINE ->
                 treemapQueryService.getCustomTreemap(market, snapshotTime, nxtOnly, changeRateMode, includeSuspended);
         };
-    }
-
-    /** 홈의 안내 틀에 띄울 그날의 특수한 종목(거래정지로 빠지기 시작한 종목, 신규 상장) — date가 없으면 오늘(KST)이다. */
-    @GetMapping("/notices")
-    public MarketNoticeResponse getNotices(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        return marketNoticeService.getNotices(
-                date != null ? date : KstClock.now().toLocalDate());
     }
 
     /** 달력에 쓰는 날짜 목록 — month는 yyyy-MM. */
@@ -133,15 +121,5 @@ public class TreemapController {
     @DeleteMapping("/excluded-sectors/{sectorId}")
     public void unregisterExcludedSector(@PathVariable Long sectorId) {
         customSectorService.include(sectorId);
-    }
-
-    @DeleteMapping("/excluded-sectors")
-    public void deleteExcludedSectors() {
-        customSectorService.resetExcludes();
-    }
-
-    @DeleteMapping("/reset")
-    public void resetTreemapCustomizations() {
-        customSectorService.resetExcludes();
     }
 }
