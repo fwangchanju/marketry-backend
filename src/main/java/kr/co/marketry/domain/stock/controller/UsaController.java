@@ -86,7 +86,7 @@ public class UsaController {
 
     // 미국 S&P 500 종목의 GICS 분류(읽기 전용). 운영 분류와 따로 두고, 가운데 칸 GICS 모드가 쓴다.
     @GetMapping("/gics-classifications")
-    public Map<String, Classification> findGicsClassifications() {
+    public Map<String, UsaGicsClassificationService.Gics> findGicsClassifications() {
         return gics.findAll();
     }
 
