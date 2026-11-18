@@ -194,6 +194,59 @@ class OverseasClassificationDraftServiceTest {
     }
 
     @Test
+    void 초안이_운영_분류와_같으면_반영하지_않고_백업도_건드리지_않는다() {
+        var liveTech = live(1, null, "기술");
+        var liveChip = live(2, 1L, "반도체");
+        when(liveCategories.findAllByMarket("JAPAN")).thenReturn(List.of(liveTech, liveChip));
+        var liveStockRow = liveStock("7203", "기술", "반도체");
+        when(liveStocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(liveStockRow));
+        var draftTech = draft(11, 1L, null, "기술");
+        var draftChip = draft(12, 2L, 11L, "반도체");
+        when(draftCategories.findAllByMarket("JAPAN")).thenReturn(List.of(draftTech, draftChip));
+        var draftStockRow = draftStock("7203", "기술", "반도체");
+        when(draftStocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(draftStockRow));
+
+        var result = service.publish("JAPAN");
+
+        assertThat(result.changed()).isFalse();
+        verify(backups, never()).save(any());
+        verify(liveStocks, never()).deleteAllByIdMarket("JAPAN");
+        verify(liveTech, never()).rename(any());
+    }
+
+    @Test
+    void 종목_분류만_달라도_반영한다() {
+        var liveTech = live(1, null, "기술");
+        when(liveCategories.findAllByMarket("JAPAN")).thenReturn(List.of(liveTech));
+        var liveStockRow = liveStock("7203", "기술", null);
+        when(liveStocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(liveStockRow));
+        var draftTech = draft(11, 1L, null, "기술");
+        when(draftCategories.findAllByMarket("JAPAN")).thenReturn(List.of(draftTech));
+        var draftStockRow = draftStock("7203", "기술", "반도체");
+        when(draftStocks.findAllByIdMarket("JAPAN")).thenReturn(List.of(draftStockRow));
+        when(backups.findById("JAPAN")).thenReturn(Optional.empty());
+
+        var result = service.publish("JAPAN");
+
+        assertThat(result.changed()).isTrue();
+        verify(backups).save(any(OverseasClassificationBackup.class));
+    }
+
+    @Test
+    void 업종_이름만_달라도_반영한다() {
+        var liveTech = live(1, null, "기술");
+        when(liveCategories.findAllByMarket("JAPAN")).thenReturn(List.of(liveTech));
+        when(liveStocks.findAllByIdMarket("JAPAN")).thenReturn(List.of());
+        var draftTech = draft(11, 1L, null, "IT");
+        when(draftCategories.findAllByMarket("JAPAN")).thenReturn(List.of(draftTech));
+        when(draftStocks.findAllByIdMarket("JAPAN")).thenReturn(List.of());
+        when(backups.findById("JAPAN")).thenReturn(Optional.empty());
+
+        assertThat(service.publish("JAPAN").changed()).isTrue();
+        verify(liveTech).rename("IT");
+    }
+
+    @Test
     void 초안이_비어_있으면_반영할_수_없다() {
         when(draftCategories.findAllByMarket("JAPAN")).thenReturn(List.of());
 

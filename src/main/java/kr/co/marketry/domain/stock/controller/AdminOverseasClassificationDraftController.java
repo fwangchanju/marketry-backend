@@ -4,6 +4,7 @@ import java.util.List;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
 import kr.co.marketry.domain.stock.service.OverseasClassificationDraftService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationDraftService.DraftView;
+import kr.co.marketry.domain.stock.service.OverseasClassificationDraftService.PublishResult;
 import kr.co.marketry.domain.stock.service.OverseasClassificationDraftService.Status;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -38,8 +39,8 @@ public class AdminOverseasClassificationDraftController {
     }
 
     @PostMapping("/{market}/publish")
-    public void publish(@PathVariable String market) {
-        service.publish(market);
+    public PublishResult publish(@PathVariable String market) {
+        return service.publish(market);
     }
 
     @PostMapping("/{market}/rollback")
