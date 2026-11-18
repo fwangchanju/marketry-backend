@@ -15,12 +15,14 @@ class UsaGicsClassificationServiceTest {
     }
 
     @Test
-    void 종목의_GICS_섹터와_업종을_그대로_돌려준다() {
+    void 종목의_GICS_4단계를_모두_돌려준다() {
         var apple = service.findAll().get("AAPL");
 
         assertThat(apple.sector()).isEqualTo("Information Technology");
-        assertThat(apple.industry()).isEqualTo("Tech Hardware, Storage & Peripherals");
-        assertThat(apple.subIndustry()).isNull();
+        assertThat(apple.industryGroup()).isEqualTo("Technology Hardware & Equipment");
+        assertThat(apple.industry()).isEqualTo("Technology Hardware, Storage & Peripherals");
+        assertThat(apple.subIndustry()).isEqualTo("Technology Hardware, Storage & Peripherals");
+        assertThat(apple.gicsCode()).isEqualTo("45202030");
     }
 
     @Test

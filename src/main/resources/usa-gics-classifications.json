@@ -1,2502 +1,3502 @@
 {
  "A": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "AAPL": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "ABBV": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "ABNB": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "ABT": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "ACGL": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "ACN": {
-  "industry": "IT Consulting & Other Services",
+  "gicsCode": "45102010",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "IT Consulting & Other Services"
  },
  "ADBE": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "ADI": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "ADM": {
-  "industry": "Agricultural Products & Services",
+  "gicsCode": "30202010",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Agricultural Products & Services"
  },
  "ADP": {
-  "industry": "Human Resource & Employment Services",
+  "gicsCode": "20202010",
+  "industry": "Professional Services",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Human Resource & Employment Services"
  },
  "ADSK": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "AEE": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "AEP": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "AES": {
-  "industry": "Independent Power & Energy Traders",
+  "gicsCode": "55105010",
+  "industry": "Independent Power and Renewable Electricity Producers",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Independent Power Producers & Energy Traders"
  },
  "AFL": {
-  "industry": "Life & Health Insurance",
+  "gicsCode": "40301020",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Life & Health Insurance"
  },
  "AIG": {
-  "industry": "Multi-line Insurance",
+  "gicsCode": "40301030",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Multi-line Insurance"
  },
  "AIZ": {
-  "industry": "Multi-line Insurance",
+  "gicsCode": "40301030",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Multi-line Insurance"
  },
  "AJG": {
-  "industry": "Insurance Brokers",
+  "gicsCode": "40301010",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Insurance Brokers"
  },
  "AKAM": {
-  "industry": "Internet Services & Infrastructure",
+  "gicsCode": "45102030",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Internet Services & Infrastructure"
  },
  "ALB": {
-  "industry": "Specialty Chemicals",
+  "gicsCode": "15101050",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Specialty Chemicals"
  },
  "ALGN": {
-  "industry": "Health Care Supplies",
+  "gicsCode": "35101020",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Supplies"
  },
  "ALL": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "ALLE": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "AMAT": {
-  "industry": "Semiconductor Materials & Equipment",
+  "gicsCode": "45301010",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductor Materials & Equipment"
  },
  "AMCR": {
-  "industry": "Paper & Plastic Packaging",
+  "gicsCode": "15103020",
+  "industry": "Containers & Packaging",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Paper & Plastic Packaging Products & Materials"
  },
  "AMD": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "AME": {
-  "industry": "Electrical Components & Equipment",
+  "gicsCode": "20104010",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Electrical Components & Equipment"
  },
  "AMGN": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "AMP": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "AMT": {
-  "industry": "Telecom Tower REITs",
+  "gicsCode": "60108030",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Telecom Tower REITs"
  },
  "AMZN": {
+  "gicsCode": "25503030",
   "industry": "Broadline Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Broadline Retail"
  },
  "ANET": {
+  "gicsCode": "45201020",
   "industry": "Communications Equipment",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Communications Equipment"
  },
  "AON": {
-  "industry": "Insurance Brokers",
+  "gicsCode": "40301010",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Insurance Brokers"
  },
  "AOS": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "APA": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "APD": {
-  "industry": "Industrial Gases",
+  "gicsCode": "15101040",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Industrial Gases"
  },
  "APH": {
-  "industry": "Electronic Components",
+  "gicsCode": "45203015",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Components"
  },
  "APO": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "APP": {
-  "industry": "Advertising",
+  "gicsCode": "50201010",
+  "industry": "Media",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Advertising"
  },
  "APTV": {
-  "industry": "Automotive Parts & Equipment",
+  "gicsCode": "25101010",
+  "industry": "Automobile Components",
+  "industryGroup": "Automobiles & Components",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automotive Parts & Equipment"
  },
  "ARE": {
+  "gicsCode": "60104010",
   "industry": "Office REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Office REITs"
  },
  "ARES": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "ATO": {
+  "gicsCode": "55102010",
   "industry": "Gas Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Gas Utilities"
  },
  "AVGO": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "AVY": {
-  "industry": "Paper & Plastic Packaging",
+  "gicsCode": "15103020",
+  "industry": "Containers & Packaging",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Paper & Plastic Packaging Products & Materials"
  },
  "AWK": {
+  "gicsCode": "55104010",
   "industry": "Water Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Water Utilities"
  },
  "AXON": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "AXP": {
+  "gicsCode": "40202010",
   "industry": "Consumer Finance",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Consumer Finance"
  },
  "AZO": {
-  "industry": "Automotive Retail",
+  "gicsCode": "25504050",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automotive Retail"
  },
  "BA": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "BAC": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "BALL": {
-  "industry": "Metal, Glass & Plastic Containers",
+  "gicsCode": "15103010",
+  "industry": "Containers & Packaging",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Metal, Glass & Plastic Containers"
  },
  "BAX": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "BBY": {
-  "industry": "Computer & Electronics Retail",
+  "gicsCode": "25504020",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Computer & Electronics Retail"
  },
  "BDX": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "BE": {
-  "industry": "Electrical Components & Equipment",
+  "gicsCode": "20104010",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Electrical Components & Equipment"
  },
  "BEN": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "BF-B": {
-  "industry": "Distillers & Vintners",
+  "gicsCode": "30201020",
+  "industry": "Beverages",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Distillers & Vintners"
  },
  "BG": {
-  "industry": "Agricultural Products & Services",
+  "gicsCode": "30202010",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Agricultural Products & Services"
  },
  "BIIB": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "BKNG": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "BKR": {
-  "industry": "Oil & Gas Equipment & Services",
+  "gicsCode": "10101020",
+  "industry": "Energy Equipment & Services",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Equipment & Services"
  },
  "BLK": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "BMY": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  },
  "BNY": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "BR": {
-  "industry": "Data Processing & Outsourced Services",
+  "gicsCode": "20202030",
+  "industry": "Professional Services",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Data Processing & Outsourced Services"
  },
  "BRK-B": {
-  "industry": "Multi-Sector Holdings",
+  "gicsCode": "40201030",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Multi-Sector Holdings"
  },
  "BRO": {
-  "industry": "Insurance Brokers",
+  "gicsCode": "40301010",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Insurance Brokers"
  },
  "BSX": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "BX": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "BXP": {
+  "gicsCode": "60104010",
   "industry": "Office REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Office REITs"
  },
  "C": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "CAH": {
-  "industry": "Health Care Distributors",
+  "gicsCode": "35102010",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Distributors"
  },
  "CARR": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "CASY": {
-  "industry": "Food Retail",
+  "gicsCode": "30101030",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Food Retail"
  },
  "CAT": {
-  "industry": "Construction Machinery & Heavy Trucks",
+  "gicsCode": "20106010",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction Machinery & Heavy Transportation Equipment"
  },
  "CB": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "CBOE": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "CBRE": {
-  "industry": "Real Estate Services",
+  "gicsCode": "60201040",
+  "industry": "Real Estate Management & Development",
+  "industryGroup": "Real Estate Management & Development",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Real Estate Services"
  },
  "CCI": {
-  "industry": "Telecom Tower REITs",
+  "gicsCode": "60108030",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Telecom Tower REITs"
  },
  "CCL": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "CDNS": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "CDW": {
-  "industry": "Technology Distributors",
+  "gicsCode": "45203030",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Distributors"
  },
  "CEG": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "CF": {
-  "industry": "Fertilizers & Agricultural Chemicals",
+  "gicsCode": "15101030",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Fertilizers & Agricultural Chemicals"
  },
  "CFG": {
-  "industry": "Regional Banks",
+  "gicsCode": "40101015",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Regional Banks"
  },
  "CHD": {
+  "gicsCode": "30301010",
   "industry": "Household Products",
+  "industryGroup": "Household & Personal Products",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Household Products"
  },
  "CHRW": {
+  "gicsCode": "20301010",
   "industry": "Air Freight & Logistics",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Air Freight & Logistics"
  },
  "CHTR": {
-  "industry": "Cable & Satellite",
+  "gicsCode": "50201030",
+  "industry": "Media",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Cable & Satellite"
  },
  "CI": {
-  "industry": "Health Care Services",
+  "gicsCode": "35102015",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Services"
  },
  "CIEN": {
+  "gicsCode": "45201020",
   "industry": "Communications Equipment",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Communications Equipment"
  },
  "CINF": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "CL": {
+  "gicsCode": "30301010",
   "industry": "Household Products",
+  "industryGroup": "Household & Personal Products",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Household Products"
  },
  "CLX": {
+  "gicsCode": "30301010",
   "industry": "Household Products",
+  "industryGroup": "Household & Personal Products",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Household Products"
  },
  "CMCSA": {
-  "industry": "Cable & Satellite",
+  "gicsCode": "50201030",
+  "industry": "Media",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Cable & Satellite"
  },
  "CME": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "CMG": {
-  "industry": "Restaurants",
+  "gicsCode": "25301040",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Restaurants"
  },
  "CMI": {
-  "industry": "Construction Machinery & Heavy Trucks",
+  "gicsCode": "20106010",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction Machinery & Heavy Transportation Equipment"
  },
  "CMS": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "CNC": {
-  "industry": "Managed Health Care",
+  "gicsCode": "35102030",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Managed Health Care"
  },
  "CNP": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "COF": {
+  "gicsCode": "40202010",
   "industry": "Consumer Finance",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Consumer Finance"
  },
  "COHR": {
-  "industry": "Electronic Components",
+  "gicsCode": "45203015",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Components"
  },
  "COIN": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "COO": {
-  "industry": "Health Care Supplies",
+  "gicsCode": "35101020",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Supplies"
  },
  "COP": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "COR": {
-  "industry": "Health Care Distributors",
+  "gicsCode": "35102010",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Distributors"
  },
  "COST": {
-  "industry": "Consumer Staples Merchandise Retail",
+  "gicsCode": "30101040",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Consumer Staples Merchandise Retail"
  },
  "CPAY": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "CPRT": {
-  "industry": "Diversified Support Services",
+  "gicsCode": "20201070",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Diversified Support Services"
  },
  "CPT": {
-  "industry": "Multi-Family Residential REITs",
+  "gicsCode": "60106010",
+  "industry": "Residential REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Multi-Family Residential REITs"
  },
  "CRH": {
+  "gicsCode": "15102010",
   "industry": "Construction Materials",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Construction Materials"
  },
  "CRL": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "CRM": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "CRWD": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "CSCO": {
+  "gicsCode": "45201020",
   "industry": "Communications Equipment",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Communications Equipment"
  },
  "CSGP": {
-  "industry": "Real Estate Services",
+  "gicsCode": "60201040",
+  "industry": "Real Estate Management & Development",
+  "industryGroup": "Real Estate Management & Development",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Real Estate Services"
  },
  "CSX": {
-  "industry": "Rail Transportation",
+  "gicsCode": "20304010",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Rail Transportation"
  },
  "CTAS": {
-  "industry": "Diversified Support Services",
+  "gicsCode": "20201070",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Diversified Support Services"
  },
  "CTSH": {
-  "industry": "IT Consulting & Other Services",
+  "gicsCode": "45102010",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "IT Consulting & Other Services"
  },
  "CVNA": {
-  "industry": "Automotive Retail",
+  "gicsCode": "25504050",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automotive Retail"
  },
  "CVS": {
-  "industry": "Health Care Services",
+  "gicsCode": "35102015",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Services"
  },
  "CVX": {
-  "industry": "Integrated Oil & Gas",
+  "gicsCode": "10102010",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Integrated Oil & Gas"
  },
  "D": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "DAL": {
+  "gicsCode": "20302010",
   "industry": "Passenger Airlines",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Passenger Airlines"
  },
  "DASH": {
-  "industry": "Specialized Consumer Services",
+  "gicsCode": "25302020",
+  "industry": "Diversified Consumer Services",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Specialized Consumer Services"
  },
  "DD": {
+  "gicsCode": "20105010",
   "industry": "Industrial Conglomerates",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Conglomerates"
  },
  "DDOG": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "DE": {
-  "industry": "Agricultural & Farm Machinery",
+  "gicsCode": "20106015",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Agricultural & Farm Machinery"
  },
  "DECK": {
-  "industry": "Footwear",
+  "gicsCode": "25203020",
+  "industry": "Textiles, Apparel & Luxury Goods",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Footwear"
  },
  "DELL": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "DG": {
-  "industry": "Consumer Staples Merchandise Retail",
+  "gicsCode": "30101040",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Consumer Staples Merchandise Retail"
  },
  "DGX": {
-  "industry": "Health Care Services",
+  "gicsCode": "35102015",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Services"
  },
  "DHI": {
-  "industry": "Homebuilding",
+  "gicsCode": "25201030",
+  "industry": "Household Durables",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Homebuilding"
  },
  "DHR": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "DIS": {
-  "industry": "Movies & Entertainment",
+  "gicsCode": "50202010",
+  "industry": "Entertainment",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Movies & Entertainment"
  },
  "DLR": {
-  "industry": "Data Center REITs",
+  "gicsCode": "60108050",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Data Center REITs"
  },
  "DLTR": {
-  "industry": "Consumer Staples Merchandise Retail",
+  "gicsCode": "30101040",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Consumer Staples Merchandise Retail"
  },
  "DOC": {
+  "gicsCode": "60105010",
   "industry": "Health Care REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Health Care REITs"
  },
  "DOV": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "DOW": {
-  "industry": "Commodity Chemicals",
+  "gicsCode": "15101010",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Commodity Chemicals"
  },
  "DPZ": {
-  "industry": "Restaurants",
+  "gicsCode": "25301040",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Restaurants"
  },
  "DRI": {
-  "industry": "Restaurants",
+  "gicsCode": "25301040",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Restaurants"
  },
  "DTE": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "DUK": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "DVA": {
-  "industry": "Health Care Services",
+  "gicsCode": "35102015",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Services"
  },
  "DVN": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "DXCM": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "EBAY": {
+  "gicsCode": "25503030",
   "industry": "Broadline Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Broadline Retail"
  },
  "ECHO": {
+  "gicsCode": "50102010",
   "industry": "Wireless Telecommunication Services",
+  "industryGroup": "Telecommunication Services",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Wireless Telecommunication Services"
  },
  "ECL": {
-  "industry": "Specialty Chemicals",
+  "gicsCode": "15101050",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Specialty Chemicals"
  },
  "ED": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "EFX": {
-  "industry": "Research & Consulting Services",
+  "gicsCode": "20202020",
+  "industry": "Professional Services",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Research & Consulting Services"
  },
  "EG": {
-  "industry": "Reinsurance",
+  "gicsCode": "40301050",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Reinsurance"
  },
  "EIX": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "EL": {
+  "gicsCode": "30302010",
   "industry": "Personal Care Products",
+  "industryGroup": "Household & Personal Products",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Personal Care Products"
  },
  "ELV": {
-  "industry": "Managed Health Care",
+  "gicsCode": "35102030",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Managed Health Care"
  },
  "EME": {
+  "gicsCode": "20103010",
   "industry": "Construction & Engineering",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction & Engineering"
  },
  "EMR": {
-  "industry": "Electrical Components & Equipment",
+  "gicsCode": "20104010",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Electrical Components & Equipment"
  },
  "EOG": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "EQIX": {
-  "industry": "Data Center REITs",
+  "gicsCode": "60108050",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Data Center REITs"
  },
  "EQT": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "ERIE": {
-  "industry": "Insurance Brokers",
+  "gicsCode": "40301010",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Insurance Brokers"
  },
  "ES": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "ESS": {
-  "industry": "Multi-Family Residential REITs",
+  "gicsCode": "60106010",
+  "industry": "Residential REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Multi-Family Residential REITs"
  },
  "ETN": {
-  "industry": "Electrical Components & Equipment",
+  "gicsCode": "20104010",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Electrical Components & Equipment"
  },
  "ETR": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "EVRG": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "EW": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "EXC": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "EXE": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "EXPD": {
+  "gicsCode": "20301010",
   "industry": "Air Freight & Logistics",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Air Freight & Logistics"
  },
  "EXPE": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "EXR": {
-  "industry": "Self-Storage REITs",
+  "gicsCode": "60108020",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Self-Storage REITs"
  },
  "F": {
-  "industry": "Automobile Manufacturers",
+  "gicsCode": "25102010",
+  "industry": "Automobiles",
+  "industryGroup": "Automobiles & Components",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automobile Manufacturers"
  },
  "FANG": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "FAST": {
+  "gicsCode": "20107010",
   "industry": "Trading Companies & Distributors",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Trading Companies & Distributors"
  },
  "FCX": {
-  "industry": "Copper",
+  "gicsCode": "15104025",
+  "industry": "Metals & Mining",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Copper"
  },
  "FDS": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "FDX": {
+  "gicsCode": "20301010",
   "industry": "Air Freight & Logistics",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Air Freight & Logistics"
  },
  "FDXF": {
-  "industry": "Cargo Ground Transportation",
+  "gicsCode": "20304030",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Cargo Ground Transportation"
  },
  "FE": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "FERG": {
+  "gicsCode": "20107010",
   "industry": "Trading Companies & Distributors",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Trading Companies & Distributors"
  },
  "FFIV": {
+  "gicsCode": "45201020",
   "industry": "Communications Equipment",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Communications Equipment"
  },
  "FICO": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "FIS": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "FISV": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "FITB": {
-  "industry": "Regional Banks",
+  "gicsCode": "40101015",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Regional Banks"
  },
  "FIX": {
+  "gicsCode": "20103010",
   "industry": "Construction & Engineering",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction & Engineering"
  },
  "FLEX": {
-  "industry": "Electronic Manufacturing Services",
+  "gicsCode": "45203020",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Manufacturing Services"
  },
  "FOXA": {
-  "industry": "Broadcasting",
+  "gicsCode": "50201020",
+  "industry": "Media",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Broadcasting"
  },
  "FRT": {
+  "gicsCode": "60107010",
   "industry": "Retail REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Retail REITs"
  },
  "FSLR": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "FTNT": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "FTV": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "GD": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "GDDY": {
-  "industry": "Internet Services & Infrastructure",
+  "gicsCode": "45102030",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Internet Services & Infrastructure"
  },
  "GE": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "GEHC": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "GEN": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "GEV": {
-  "industry": "Heavy Electrical Equipment",
+  "gicsCode": "20104020",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Heavy Electrical Equipment"
  },
  "GILD": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "GIS": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "GL": {
-  "industry": "Life & Health Insurance",
+  "gicsCode": "40301020",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Life & Health Insurance"
  },
  "GLW": {
-  "industry": "Electronic Components",
+  "gicsCode": "45203015",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Components"
  },
  "GM": {
-  "industry": "Automobile Manufacturers",
+  "gicsCode": "25102010",
+  "industry": "Automobiles",
+  "industryGroup": "Automobiles & Components",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automobile Manufacturers"
  },
  "GNRC": {
-  "industry": "Heavy Electrical Equipment",
+  "gicsCode": "20104020",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Heavy Electrical Equipment"
  },
  "GOOGL": {
+  "gicsCode": "50203010",
   "industry": "Interactive Media & Services",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Interactive Media & Services"
  },
  "GPC": {
+  "gicsCode": "25501010",
   "industry": "Distributors",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Distributors"
  },
  "GPN": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "GRMN": {
-  "industry": "Consumer Electronics",
+  "gicsCode": "25201010",
+  "industry": "Household Durables",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Consumer Electronics"
  },
  "GS": {
-  "industry": "Investment Banking & Brokerage",
+  "gicsCode": "40203020",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Investment Banking & Brokerage"
  },
  "GWW": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "HAL": {
-  "industry": "Oil & Gas Equipment & Services",
+  "gicsCode": "10101020",
+  "industry": "Energy Equipment & Services",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Equipment & Services"
  },
  "HAS": {
+  "gicsCode": "25202010",
   "industry": "Leisure Products",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Leisure Products"
  },
  "HBAN": {
-  "industry": "Regional Banks",
+  "gicsCode": "40101015",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Regional Banks"
  },
  "HCA": {
-  "industry": "Health Care Facilities",
+  "gicsCode": "35102020",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Facilities"
  },
  "HD": {
-  "industry": "Home Improvement Retail",
+  "gicsCode": "25504030",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Home Improvement Retail"
  },
  "HIG": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "HII": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "HLT": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "HON": {
+  "gicsCode": "20105010",
   "industry": "Industrial Conglomerates",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Conglomerates"
  },
  "HONA": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "HOOD": {
-  "industry": "Investment Banking & Brokerage",
+  "gicsCode": "40203020",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Investment Banking & Brokerage"
  },
  "HPE": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "HPQ": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "HRL": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "HSIC": {
-  "industry": "Health Care Distributors",
+  "gicsCode": "35102010",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Distributors"
  },
  "HST": {
+  "gicsCode": "60103010",
   "industry": "Hotel & Resort REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Hotel & Resort REITs"
  },
  "HSY": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "HUBB": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "HUM": {
-  "industry": "Managed Health Care",
+  "gicsCode": "35102030",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Managed Health Care"
  },
  "HWM": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "IBKR": {
-  "industry": "Investment Banking & Brokerage",
+  "gicsCode": "40203020",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Investment Banking & Brokerage"
  },
  "IBM": {
-  "industry": "IT Consulting & Other Services",
+  "gicsCode": "45102010",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "IT Consulting & Other Services"
  },
  "ICE": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "IDXX": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "IEX": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "IFF": {
-  "industry": "Specialty Chemicals",
+  "gicsCode": "15101050",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Specialty Chemicals"
  },
  "ILMN": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "INCY": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "INTC": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "INTU": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "INVH": {
-  "industry": "Single-Family Residential REITs",
+  "gicsCode": "60106020",
+  "industry": "Residential REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Single-Family Residential REITs"
  },
  "IP": {
-  "industry": "Paper & Plastic Packaging",
+  "gicsCode": "15103020",
+  "industry": "Containers & Packaging",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Paper & Plastic Packaging Products & Materials"
  },
  "IQV": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "IR": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "IRM": {
-  "industry": "Other Specialized REITs",
+  "gicsCode": "60108010",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Other Specialized REITs"
  },
  "ISRG": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "IT": {
-  "industry": "IT Consulting & Other Services",
+  "gicsCode": "45102010",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "IT Consulting & Other Services"
  },
  "ITW": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "IVZ": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "J": {
+  "gicsCode": "20103010",
   "industry": "Construction & Engineering",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction & Engineering"
  },
  "JBHT": {
-  "industry": "Cargo Ground Transportation",
+  "gicsCode": "20304030",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Cargo Ground Transportation"
  },
  "JBL": {
-  "industry": "Electronic Manufacturing Services",
+  "gicsCode": "45203020",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Manufacturing Services"
  },
  "JCI": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "JKHY": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "JNJ": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  },
  "JPM": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "KDP": {
-  "industry": "Soft Drinks & Non-alcoholic Beverages",
+  "gicsCode": "30201030",
+  "industry": "Beverages",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Soft Drinks & Non-alcoholic Beverages"
  },
  "KEY": {
-  "industry": "Regional Banks",
+  "gicsCode": "40101015",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Regional Banks"
  },
  "KEYS": {
-  "industry": "Electronic Equipment & Instruments",
+  "gicsCode": "45203010",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Equipment & Instruments"
  },
  "KHC": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "KIM": {
+  "gicsCode": "60107010",
   "industry": "Retail REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Retail REITs"
  },
  "KKR": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "KLAC": {
-  "industry": "Semiconductor Materials & Equipment",
+  "gicsCode": "45301010",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductor Materials & Equipment"
  },
  "KMB": {
+  "gicsCode": "30301010",
   "industry": "Household Products",
+  "industryGroup": "Household & Personal Products",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Household Products"
  },
  "KMI": {
-  "industry": "Oil & Gas Storage & Transportation",
+  "gicsCode": "10102040",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Storage & Transportation"
  },
  "KO": {
-  "industry": "Soft Drinks & Non-alcoholic Beverages",
+  "gicsCode": "30201030",
+  "industry": "Beverages",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Soft Drinks & Non-alcoholic Beverages"
  },
  "KR": {
-  "industry": "Food Retail",
+  "gicsCode": "30101030",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Food Retail"
  },
  "L": {
-  "industry": "Multi-line Insurance",
+  "gicsCode": "40301030",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Multi-line Insurance"
  },
  "LDOS": {
-  "industry": "Diversified Support Services",
+  "gicsCode": "20201070",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Diversified Support Services"
  },
  "LEN": {
-  "industry": "Homebuilding",
+  "gicsCode": "25201030",
+  "industry": "Household Durables",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Homebuilding"
  },
  "LH": {
-  "industry": "Health Care Services",
+  "gicsCode": "35102015",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Services"
  },
  "LHX": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "LII": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "LIN": {
-  "industry": "Industrial Gases",
+  "gicsCode": "15101040",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Industrial Gases"
  },
  "LITE": {
+  "gicsCode": "45201020",
   "industry": "Communications Equipment",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Communications Equipment"
  },
  "LLY": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  },
  "LMT": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "LNT": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "LOW": {
-  "industry": "Home Improvement Retail",
+  "gicsCode": "25504030",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Home Improvement Retail"
  },
  "LRCX": {
-  "industry": "Semiconductor Materials & Equipment",
+  "gicsCode": "45301010",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductor Materials & Equipment"
  },
  "LULU": {
-  "industry": "Apparel, Accessories & Luxury Goods",
+  "gicsCode": "25203010",
+  "industry": "Textiles, Apparel & Luxury Goods",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Apparel, Accessories & Luxury Goods"
  },
  "LUV": {
+  "gicsCode": "20302010",
   "industry": "Passenger Airlines",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Passenger Airlines"
  },
  "LVS": {
-  "industry": "Casinos & Gaming",
+  "gicsCode": "25301010",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Casinos & Gaming"
  },
  "LYB": {
-  "industry": "Specialty Chemicals",
+  "gicsCode": "15101050",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Specialty Chemicals"
  },
  "LYV": {
-  "industry": "Movies & Entertainment",
+  "gicsCode": "50202010",
+  "industry": "Entertainment",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Movies & Entertainment"
  },
  "MA": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "MAA": {
-  "industry": "Multi-Family Residential REITs",
+  "gicsCode": "60106010",
+  "industry": "Residential REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Multi-Family Residential REITs"
  },
  "MAR": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "MAS": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "MCD": {
-  "industry": "Restaurants",
+  "gicsCode": "25301040",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Restaurants"
  },
  "MCHP": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "MCK": {
-  "industry": "Health Care Distributors",
+  "gicsCode": "35102010",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Distributors"
  },
  "MCO": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "MDLZ": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "MDT": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "MET": {
-  "industry": "Life & Health Insurance",
+  "gicsCode": "40301020",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Life & Health Insurance"
  },
  "META": {
+  "gicsCode": "50203010",
   "industry": "Interactive Media & Services",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Interactive Media & Services"
  },
  "MGM": {
-  "industry": "Casinos & Gaming",
+  "gicsCode": "25301010",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Casinos & Gaming"
  },
  "MKC": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "MLM": {
+  "gicsCode": "15102010",
   "industry": "Construction Materials",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Construction Materials"
  },
  "MMM": {
+  "gicsCode": "20105010",
   "industry": "Industrial Conglomerates",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Conglomerates"
  },
  "MNST": {
-  "industry": "Soft Drinks & Non-alcoholic Beverages",
+  "gicsCode": "30201030",
+  "industry": "Beverages",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Soft Drinks & Non-alcoholic Beverages"
  },
  "MO": {
+  "gicsCode": "30203010",
   "industry": "Tobacco",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Tobacco"
  },
  "MOS": {
-  "industry": "Fertilizers & Agricultural Chemicals",
+  "gicsCode": "15101030",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Fertilizers & Agricultural Chemicals"
  },
  "MPC": {
-  "industry": "Oil & Gas Refining & Marketing",
+  "gicsCode": "10102030",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Refining & Marketing"
  },
  "MPWR": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "MRK": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  },
  "MRNA": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "MRSH": {
-  "industry": "Insurance Brokers",
+  "gicsCode": "40301010",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Insurance Brokers"
  },
  "MRVL": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "MS": {
-  "industry": "Investment Banking & Brokerage",
+  "gicsCode": "40203020",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Investment Banking & Brokerage"
  },
  "MSCI": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "MSFT": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "MSI": {
+  "gicsCode": "45201020",
   "industry": "Communications Equipment",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Communications Equipment"
  },
  "MTB": {
-  "industry": "Regional Banks",
+  "gicsCode": "40101015",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Regional Banks"
  },
  "MTD": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "MU": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "NCLH": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "NDAQ": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "NDSN": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "NEE": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "NEM": {
-  "industry": "Gold",
+  "gicsCode": "15104030",
+  "industry": "Metals & Mining",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Gold"
  },
  "NFLX": {
-  "industry": "Movies & Entertainment",
+  "gicsCode": "50202010",
+  "industry": "Entertainment",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Movies & Entertainment"
  },
  "NI": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "NKE": {
-  "industry": "Apparel, Accessories & Luxury Goods",
+  "gicsCode": "25203010",
+  "industry": "Textiles, Apparel & Luxury Goods",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Apparel, Accessories & Luxury Goods"
  },
  "NOC": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "NOW": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "NRG": {
-  "industry": "Independent Power & Energy Traders",
+  "gicsCode": "55105010",
+  "industry": "Independent Power and Renewable Electricity Producers",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Independent Power Producers & Energy Traders"
  },
  "NSC": {
-  "industry": "Rail Transportation",
+  "gicsCode": "20304010",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Rail Transportation"
  },
  "NTAP": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "NTRS": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "NUE": {
-  "industry": "Steel",
+  "gicsCode": "15104050",
+  "industry": "Metals & Mining",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Steel"
  },
  "NVDA": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "NVR": {
-  "industry": "Homebuilding",
+  "gicsCode": "25201030",
+  "industry": "Household Durables",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Homebuilding"
  },
  "NWSA": {
-  "industry": "Publishing",
+  "gicsCode": "50201040",
+  "industry": "Media",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Publishing"
  },
  "NXPI": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "O": {
+  "gicsCode": "60107010",
   "industry": "Retail REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Retail REITs"
  },
  "ODFL": {
-  "industry": "Cargo Ground Transportation",
+  "gicsCode": "20304030",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Cargo Ground Transportation"
  },
  "OKE": {
-  "industry": "Oil & Gas Storage & Transportation",
+  "gicsCode": "10102040",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Storage & Transportation"
  },
  "OKTA": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "OMC": {
-  "industry": "Advertising",
+  "gicsCode": "50201010",
+  "industry": "Media",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Advertising"
  },
  "ON": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "ORCL": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "ORLY": {
-  "industry": "Automotive Retail",
+  "gicsCode": "25504050",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automotive Retail"
  },
  "OTIS": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "OXY": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "P": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "PANW": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "PAYX": {
-  "industry": "Human Resource & Employment Services",
+  "gicsCode": "20202010",
+  "industry": "Professional Services",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Human Resource & Employment Services"
  },
  "PCAR": {
-  "industry": "Construction Machinery & Heavy Trucks",
+  "gicsCode": "20106010",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction Machinery & Heavy Transportation Equipment"
  },
  "PCG": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "PEG": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "PEP": {
-  "industry": "Soft Drinks & Non-alcoholic Beverages",
+  "gicsCode": "30201030",
+  "industry": "Beverages",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Soft Drinks & Non-alcoholic Beverages"
  },
  "PFE": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  },
  "PFG": {
-  "industry": "Life & Health Insurance",
+  "gicsCode": "40301020",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Life & Health Insurance"
  },
  "PG": {
+  "gicsCode": "30302010",
   "industry": "Personal Care Products",
+  "industryGroup": "Household & Personal Products",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Personal Care Products"
  },
  "PGR": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "PH": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "PHM": {
-  "industry": "Homebuilding",
+  "gicsCode": "25201030",
+  "industry": "Household Durables",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Homebuilding"
  },
  "PKG": {
-  "industry": "Paper & Plastic Packaging",
+  "gicsCode": "15103020",
+  "industry": "Containers & Packaging",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Paper & Plastic Packaging Products & Materials"
  },
  "PLD": {
+  "gicsCode": "60102510",
   "industry": "Industrial REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Industrial REITs"
  },
  "PLTR": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "PM": {
+  "gicsCode": "30203010",
   "industry": "Tobacco",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Tobacco"
  },
  "PNC": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "PNR": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "PNW": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "PODD": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "PPG": {
-  "industry": "Specialty Chemicals",
+  "gicsCode": "15101050",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Specialty Chemicals"
  },
  "PPL": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "PRU": {
-  "industry": "Life & Health Insurance",
+  "gicsCode": "40301020",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Life & Health Insurance"
  },
  "PSA": {
-  "industry": "Self-Storage REITs",
+  "gicsCode": "60108020",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Self-Storage REITs"
  },
  "PSX": {
-  "industry": "Oil & Gas Refining & Marketing",
+  "gicsCode": "10102030",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Refining & Marketing"
  },
  "PTC": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "PWR": {
+  "gicsCode": "20103010",
   "industry": "Construction & Engineering",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction & Engineering"
  },
  "PYPL": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "Q": {
-  "industry": "Semiconductor Materials & Equipment",
+  "gicsCode": "45301010",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductor Materials & Equipment"
  },
  "QCOM": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "RCL": {
-  "industry": "Hotels, Resorts & Cruise Lines",
+  "gicsCode": "25301020",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Hotels, Resorts & Cruise Lines"
  },
  "RDDT": {
+  "gicsCode": "50203010",
   "industry": "Interactive Media & Services",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Interactive Media & Services"
  },
  "REG": {
+  "gicsCode": "60107010",
   "industry": "Retail REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Retail REITs"
  },
  "REGN": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "RF": {
-  "industry": "Regional Banks",
+  "gicsCode": "40101015",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Regional Banks"
  },
  "RJF": {
-  "industry": "Investment Banking & Brokerage",
+  "gicsCode": "40203020",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Investment Banking & Brokerage"
  },
  "RL": {
-  "industry": "Apparel, Accessories & Luxury Goods",
+  "gicsCode": "25203010",
+  "industry": "Textiles, Apparel & Luxury Goods",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Apparel, Accessories & Luxury Goods"
  },
  "RMD": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "ROK": {
-  "industry": "Electrical Components & Equipment",
+  "gicsCode": "20104010",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Electrical Components & Equipment"
  },
  "ROL": {
-  "industry": "Environmental & Facilities Services",
+  "gicsCode": "20201050",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Environmental & Facilities Services"
  },
  "ROP": {
-  "industry": "Electronic Equipment & Instruments",
+  "gicsCode": "45203010",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Equipment & Instruments"
  },
  "ROST": {
-  "industry": "Apparel Retail",
+  "gicsCode": "25504010",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Apparel Retail"
  },
  "RSG": {
-  "industry": "Environmental & Facilities Services",
+  "gicsCode": "20201050",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Environmental & Facilities Services"
  },
  "RTX": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "RVTY": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "SBAC": {
-  "industry": "Telecom Tower REITs",
+  "gicsCode": "60108030",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Telecom Tower REITs"
  },
  "SBUX": {
-  "industry": "Restaurants",
+  "gicsCode": "25301040",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Restaurants"
  },
  "SCHW": {
-  "industry": "Investment Banking & Brokerage",
+  "gicsCode": "40203020",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Investment Banking & Brokerage"
  },
  "SHW": {
-  "industry": "Specialty Chemicals",
+  "gicsCode": "15101050",
+  "industry": "Chemicals",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Specialty Chemicals"
  },
  "SJM": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "SKYD": {
-  "industry": "Movies & Entertainment",
+  "gicsCode": "50202010",
+  "industry": "Entertainment",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Movies & Entertainment"
  },
  "SLB": {
-  "industry": "Oil & Gas Equipment & Services",
+  "gicsCode": "10101020",
+  "industry": "Energy Equipment & Services",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Equipment & Services"
  },
  "SMCI": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "SNA": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "SNDK": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "SNPS": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "SO": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "SOLV": {
+  "gicsCode": "35103010",
   "industry": "Health Care Technology",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Technology"
  },
  "SPG": {
+  "gicsCode": "60107010",
   "industry": "Retail REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Retail REITs"
  },
  "SPGI": {
-  "industry": "Financial Exchanges & Data",
+  "gicsCode": "40203040",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Financial Exchanges & Data"
  },
  "SRE": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "STE": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "STLD": {
-  "industry": "Steel",
+  "gicsCode": "15104050",
+  "industry": "Metals & Mining",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Steel"
  },
  "STT": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "STX": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "STZ": {
-  "industry": "Distillers & Vintners",
+  "gicsCode": "30201020",
+  "industry": "Beverages",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Distillers & Vintners"
  },
  "SW": {
-  "industry": "Paper & Plastic Packaging",
+  "gicsCode": "15103020",
+  "industry": "Containers & Packaging",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Paper & Plastic Packaging Products & Materials"
  },
  "SWK": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "SWKS": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "SYF": {
+  "gicsCode": "40202010",
   "industry": "Consumer Finance",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Consumer Finance"
  },
  "SYK": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "SYY": {
-  "industry": "Food Distributors",
+  "gicsCode": "30101020",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Food Distributors"
  },
  "T": {
-  "industry": "Integrated Telecommunication Services",
+  "gicsCode": "50101020",
+  "industry": "Diversified Telecommunication Services",
+  "industryGroup": "Telecommunication Services",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Integrated Telecommunication Services"
  },
  "TDG": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "TDY": {
-  "industry": "Electronic Equipment & Instruments",
+  "gicsCode": "45203010",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Equipment & Instruments"
  },
  "TECH": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "TEL": {
-  "industry": "Electronic Manufacturing Services",
+  "gicsCode": "45203020",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Manufacturing Services"
  },
  "TER": {
-  "industry": "Semiconductor Materials & Equipment",
+  "gicsCode": "45301010",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductor Materials & Equipment"
  },
  "TFC": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "TGT": {
-  "industry": "Consumer Staples Merchandise Retail",
+  "gicsCode": "30101040",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Consumer Staples Merchandise Retail"
  },
  "TJX": {
-  "industry": "Apparel Retail",
+  "gicsCode": "25504010",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Apparel Retail"
  },
  "TKO": {
-  "industry": "Movies & Entertainment",
+  "gicsCode": "50202010",
+  "industry": "Entertainment",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Movies & Entertainment"
  },
  "TMO": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "TMUS": {
+  "gicsCode": "50102010",
   "industry": "Wireless Telecommunication Services",
+  "industryGroup": "Telecommunication Services",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Wireless Telecommunication Services"
  },
  "TPL": {
-  "industry": "Oil & Gas Exploration & Production",
+  "gicsCode": "10102020",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Exploration & Production"
  },
  "TPR": {
-  "industry": "Apparel, Accessories & Luxury Goods",
+  "gicsCode": "25203010",
+  "industry": "Textiles, Apparel & Luxury Goods",
+  "industryGroup": "Consumer Durables & Apparel",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Apparel, Accessories & Luxury Goods"
  },
  "TRGP": {
-  "industry": "Oil & Gas Storage & Transportation",
+  "gicsCode": "10102040",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Storage & Transportation"
  },
  "TRMB": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "TROW": {
-  "industry": "Asset Management & Custody Banks",
+  "gicsCode": "40203010",
+  "industry": "Capital Markets",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Asset Management & Custody Banks"
  },
  "TRV": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "TSCO": {
-  "industry": "Other Specialty Retail",
+  "gicsCode": "25504040",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Other Specialty Retail"
  },
  "TSLA": {
-  "industry": "Automobile Manufacturers",
+  "gicsCode": "25102010",
+  "industry": "Automobiles",
+  "industryGroup": "Automobiles & Components",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Automobile Manufacturers"
  },
  "TSN": {
-  "industry": "Packaged Foods & Meats",
+  "gicsCode": "30202030",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Packaged Foods & Meats"
  },
  "TT": {
+  "gicsCode": "20102010",
   "industry": "Building Products",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Building Products"
  },
  "TTWO": {
-  "industry": "Interactive Home Entertainment",
+  "gicsCode": "50202020",
+  "industry": "Entertainment",
+  "industryGroup": "Media & Entertainment",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Interactive Home Entertainment"
  },
  "TWLO": {
-  "industry": "Systems Software",
+  "gicsCode": "45103020",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Systems Software"
  },
  "TXN": {
-  "industry": "Semiconductors",
+  "gicsCode": "45301020",
+  "industry": "Semiconductors & Semiconductor Equipment",
+  "industryGroup": "Semiconductors & Semiconductor Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Semiconductors"
  },
  "TXT": {
+  "gicsCode": "20101010",
   "industry": "Aerospace & Defense",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Aerospace & Defense"
  },
  "TYL": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "UAL": {
+  "gicsCode": "20302010",
   "industry": "Passenger Airlines",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Passenger Airlines"
  },
  "UBER": {
-  "industry": "Passenger Ground Transportation",
+  "gicsCode": "20304040",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Passenger Ground Transportation"
  },
  "UDR": {
-  "industry": "Multi-Family Residential REITs",
+  "gicsCode": "60106010",
+  "industry": "Residential REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Multi-Family Residential REITs"
  },
  "UHS": {
-  "industry": "Health Care Facilities",
+  "gicsCode": "35102020",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Facilities"
  },
  "ULTA": {
-  "industry": "Other Specialty Retail",
+  "gicsCode": "25504040",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Other Specialty Retail"
  },
  "UNH": {
-  "industry": "Managed Health Care",
+  "gicsCode": "35102030",
+  "industry": "Health Care Providers & Services",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Managed Health Care"
  },
  "UNP": {
-  "industry": "Rail Transportation",
+  "gicsCode": "20304010",
+  "industry": "Ground Transportation",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Rail Transportation"
  },
  "UPS": {
+  "gicsCode": "20301010",
   "industry": "Air Freight & Logistics",
+  "industryGroup": "Transportation",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Air Freight & Logistics"
  },
  "URI": {
+  "gicsCode": "20107010",
   "industry": "Trading Companies & Distributors",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Trading Companies & Distributors"
  },
  "USB": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "V": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "VEEV": {
+  "gicsCode": "35103010",
   "industry": "Health Care Technology",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Technology"
  },
  "VICI": {
+  "gicsCode": "60103010",
   "industry": "Hotel & Resort REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Hotel & Resort REITs"
  },
  "VLO": {
-  "industry": "Oil & Gas Refining & Marketing",
+  "gicsCode": "10102030",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Refining & Marketing"
  },
  "VLTO": {
-  "industry": "Environmental & Facilities Services",
+  "gicsCode": "20201050",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Environmental & Facilities Services"
  },
  "VMC": {
+  "gicsCode": "15102010",
   "industry": "Construction Materials",
+  "industryGroup": "Materials",
   "sector": "Materials",
-  "subIndustry": null
+  "subIndustry": "Construction Materials"
  },
  "VMRK": {
-  "industry": "Multi-Family Residential REITs",
+  "gicsCode": "60106010",
+  "industry": "Residential REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Multi-Family Residential REITs"
  },
  "VRSK": {
-  "industry": "Research & Consulting Services",
+  "gicsCode": "20202020",
+  "industry": "Professional Services",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Research & Consulting Services"
  },
  "VRSN": {
-  "industry": "Internet Services & Infrastructure",
+  "gicsCode": "45102030",
+  "industry": "IT Services",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Internet Services & Infrastructure"
  },
  "VRT": {
-  "industry": "Electrical Components & Equipment",
+  "gicsCode": "20104010",
+  "industry": "Electrical Equipment",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Electrical Components & Equipment"
  },
  "VRTX": {
+  "gicsCode": "35201010",
   "industry": "Biotechnology",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Biotechnology"
  },
  "VST": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "VTR": {
+  "gicsCode": "60105010",
   "industry": "Health Care REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Health Care REITs"
  },
  "VTRS": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  },
  "VYLR": {
-  "industry": "Agricultural Products & Services",
+  "gicsCode": "30202010",
+  "industry": "Food Products",
+  "industryGroup": "Food, Beverage & Tobacco",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Agricultural Products & Services"
  },
  "VZ": {
-  "industry": "Integrated Telecommunication Services",
+  "gicsCode": "50101020",
+  "industry": "Diversified Telecommunication Services",
+  "industryGroup": "Telecommunication Services",
   "sector": "Communication Services",
-  "subIndustry": null
+  "subIndustry": "Integrated Telecommunication Services"
  },
  "WAB": {
-  "industry": "Construction Machinery & Heavy Trucks",
+  "gicsCode": "20106010",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Construction Machinery & Heavy Transportation Equipment"
  },
  "WAT": {
+  "gicsCode": "35203010",
   "industry": "Life Sciences Tools & Services",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Life Sciences Tools & Services"
  },
  "WDAY": {
-  "industry": "Application Software",
+  "gicsCode": "45103010",
+  "industry": "Software",
+  "industryGroup": "Software & Services",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Application Software"
  },
  "WDC": {
-  "industry": "Tech Hardware, Storage & Peripherals",
+  "gicsCode": "45202030",
+  "industry": "Technology Hardware, Storage & Peripherals",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Technology Hardware, Storage & Peripherals"
  },
  "WEC": {
+  "gicsCode": "55101010",
   "industry": "Electric Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Electric Utilities"
  },
  "WELL": {
+  "gicsCode": "60105010",
   "industry": "Health Care REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Health Care REITs"
  },
  "WFC": {
-  "industry": "Diversified Banks",
+  "gicsCode": "40101010",
+  "industry": "Banks",
+  "industryGroup": "Banks",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Diversified Banks"
  },
  "WM": {
-  "industry": "Environmental & Facilities Services",
+  "gicsCode": "20201050",
+  "industry": "Commercial Services & Supplies",
+  "industryGroup": "Commercial & Professional Services",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Environmental & Facilities Services"
  },
  "WMB": {
-  "industry": "Oil & Gas Storage & Transportation",
+  "gicsCode": "10102040",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Oil & Gas Storage & Transportation"
  },
  "WMT": {
-  "industry": "Consumer Staples Merchandise Retail",
+  "gicsCode": "30101040",
+  "industry": "Consumer Staples Distribution & Retail",
+  "industryGroup": "Consumer Staples Distribution & Retail",
   "sector": "Consumer Staples",
-  "subIndustry": null
+  "subIndustry": "Consumer Staples Merchandise Retail"
  },
  "WRB": {
-  "industry": "Property & Casualty Insurance",
+  "gicsCode": "40301040",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Property & Casualty Insurance"
  },
  "WSM": {
-  "industry": "Homefurnishing Retail",
+  "gicsCode": "25504060",
+  "industry": "Specialty Retail",
+  "industryGroup": "Consumer Discretionary Distribution & Retail",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Homefurnishing Retail"
  },
  "WST": {
-  "industry": "Health Care Supplies",
+  "gicsCode": "35101020",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Supplies"
  },
  "WTW": {
-  "industry": "Insurance Brokers",
+  "gicsCode": "40301010",
+  "industry": "Insurance",
+  "industryGroup": "Insurance",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Insurance Brokers"
  },
  "WY": {
-  "industry": "Timber REITs",
+  "gicsCode": "60108040",
+  "industry": "Specialized REITs",
+  "industryGroup": "Equity Real Estate Investment Trusts (REITs)",
   "sector": "Real Estate",
-  "subIndustry": null
+  "subIndustry": "Timber REITs"
  },
  "WYNN": {
-  "industry": "Casinos & Gaming",
+  "gicsCode": "25301010",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Casinos & Gaming"
  },
  "XEL": {
+  "gicsCode": "55103010",
   "industry": "Multi-Utilities",
+  "industryGroup": "Utilities",
   "sector": "Utilities",
-  "subIndustry": null
+  "subIndustry": "Multi-Utilities"
  },
  "XOM": {
-  "industry": "Integrated Oil & Gas",
+  "gicsCode": "10102010",
+  "industry": "Oil, Gas & Consumable Fuels",
+  "industryGroup": "Energy",
   "sector": "Energy",
-  "subIndustry": null
+  "subIndustry": "Integrated Oil & Gas"
  },
  "XYL": {
-  "industry": "Industrial Machinery & Components",
+  "gicsCode": "20106020",
+  "industry": "Machinery",
+  "industryGroup": "Capital Goods",
   "sector": "Industrials",
-  "subIndustry": null
+  "subIndustry": "Industrial Machinery & Supplies & Components"
  },
  "XYZ": {
-  "industry": "Payment Processing Services",
+  "gicsCode": "40201060",
+  "industry": "Financial Services",
+  "industryGroup": "Financial Services",
   "sector": "Financials",
-  "subIndustry": null
+  "subIndustry": "Transaction & Payment Processing Services"
  },
  "YUM": {
-  "industry": "Restaurants",
+  "gicsCode": "25301040",
+  "industry": "Hotels, Restaurants & Leisure",
+  "industryGroup": "Consumer Services",
   "sector": "Consumer Discretionary",
-  "subIndustry": null
+  "subIndustry": "Restaurants"
  },
  "ZBH": {
-  "industry": "Health Care Equipment",
+  "gicsCode": "35101010",
+  "industry": "Health Care Equipment & Supplies",
+  "industryGroup": "Health Care Equipment & Services",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Health Care Equipment"
  },
  "ZBRA": {
-  "industry": "Electronic Equipment & Instruments",
+  "gicsCode": "45203010",
+  "industry": "Electronic Equipment, Instruments & Components",
+  "industryGroup": "Technology Hardware & Equipment",
   "sector": "Information Technology",
-  "subIndustry": null
+  "subIndustry": "Electronic Equipment & Instruments"
  },
  "ZTS": {
+  "gicsCode": "35202010",
   "industry": "Pharmaceuticals",
+  "industryGroup": "Pharmaceuticals, Biotechnology & Life Sciences",
   "sector": "Health Care",
-  "subIndustry": null
+  "subIndustry": "Pharmaceuticals"
  }
 }
