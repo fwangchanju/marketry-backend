@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import kr.co.marketry.common.exception.BadRequestException;
@@ -57,8 +58,14 @@ public class OverseasClassificationDraftService {
     private final OverseasStockClassificationRepository liveStocks;
     private final OverseasClassificationBackupRepository backups;
     private final OverseasClassificationPublicationService publications;
+    private final OverseasClassificationDraftEditService editTime;
     private final ObjectMapper objectMapper;
     private final Clock clock = Clock.system(ZoneId.of("Asia/Seoul"));
+
+    @Transactional(readOnly = true)
+    public Optional<LocalDateTime> findEditedAt(String market) {
+        return editTime.findEditedAt(market);
+    }
 
     @Transactional
     public DraftView findDraft(String market) {
@@ -78,6 +85,7 @@ public class OverseasClassificationDraftService {
     // 고치던 초안을 버리고 지금 운영 분류에서 다시 복사한다.
     @Transactional
     public DraftView discard(String market) {
+        editTime.recordEdited(market);
         CountryRules.of(market);
         draftStocks.deleteAllByIdMarket(market);
         draftStocks.flush();
@@ -88,6 +96,7 @@ public class OverseasClassificationDraftService {
 
     @Transactional
     public Category createCategory(String market, Long parentId, String name) {
+        editTime.recordEdited(market);
         int maxDepth = CountryRules.of(market).levels() - 1;
         String normalized = normalizeName(name);
         List<OverseasClassificationCategoryDraft> all = draftCategories.findAllByMarket(market);
@@ -103,6 +112,7 @@ public class OverseasClassificationDraftService {
 
     @Transactional
     public void rename(String market, long id, String name) {
+        editTime.recordEdited(market);
         CountryRules.of(market);
         String normalized = normalizeName(name);
         List<OverseasClassificationCategoryDraft> all = draftCategories.findAllByMarket(market);
@@ -121,6 +131,7 @@ public class OverseasClassificationDraftService {
 
     @Transactional
     public void move(String market, long id, Long parentId) {
+        editTime.recordEdited(market);
         int maxDepth = CountryRules.of(market).levels() - 1;
         List<OverseasClassificationCategoryDraft> all = draftCategories.findAllByMarket(market);
         OverseasClassificationCategoryDraft category = find(all, id);
@@ -145,6 +156,7 @@ public class OverseasClassificationDraftService {
 
     @Transactional
     public void delete(String market, long id, int expectedMoveCount) {
+        editTime.recordEdited(market);
         CountryRules.of(market);
         List<OverseasClassificationCategoryDraft> all = draftCategories.findAllByMarket(market);
         OverseasClassificationCategoryDraft category = find(all, id);
@@ -165,6 +177,7 @@ public class OverseasClassificationDraftService {
     // 고른 분류까지만 남고 그 아래 단계는 비워진다(운영 분류 배정과 같다).
     @Transactional
     public void assign(String market, List<String> codes, long categoryId) {
+        editTime.recordEdited(market);
         CountryRules rules = CountryRules.of(market);
         if (codes == null
                 || codes.isEmpty()

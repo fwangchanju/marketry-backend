@@ -28,6 +28,14 @@ public class AdminOverseasClassificationDraftController {
         return service.findDraft(market);
     }
 
+    // 내 기준을 마지막으로 고친 시각(없으면 null). 설정창 맨 아래 시각에 쓴다(관리자 전용).
+    @GetMapping("/{market}/edited-at")
+    public EditedAt findEditedAt(@PathVariable String market) {
+        return new EditedAt(service.findEditedAt(market).orElse(null));
+    }
+
+    public record EditedAt(java.time.LocalDateTime editedAt) {}
+
     @GetMapping("/{market}/status")
     public Status findStatus(@PathVariable String market) {
         return service.findStatus(market);
