@@ -181,13 +181,16 @@ public class OverseasClassificationDraftService {
     }
 
     // MARKETRY에 반영한다. 반영 직전 운영 분류는 백업해 두고, 초안이 가리키는 운영 업종 id는 그대로 유지한다.
+    // 초안이 운영 분류와 같으면 아무것도 하지 않는다 — 변경 없이 한 번 더 눌러서 직전 백업이 "변경 없는 상태"로 덮이는 일을 막는다.
     @Transactional
-    public void publish(String market) {
+    public PublishResult publish(String market) {
         CountryRules.of(market);
         List<OverseasClassificationCategoryDraft> drafts = draftCategories.findAllByMarket(market);
         if (drafts.isEmpty()) invalid();
         List<OverseasClassificationCategory> live = liveCategories.findAllByMarket(market);
         List<OverseasStockClassification> stocks = liveStocks.findAllByIdMarket(market);
+        List<OverseasStockClassificationDraft> draftStockRows = draftStocks.findAllByIdMarket(market);
+        if (isSameAsLive(drafts, draftStockRows, live, stocks)) return new PublishResult(false);
         saveBackup(market, live, stocks);
 
         List<DesiredCategory> desired = drafts.stream()
@@ -200,13 +203,14 @@ public class OverseasClassificationDraftService {
         }
         replaceLiveStocks(
                 market,
-                draftStocks.findAllByIdMarket(market).stream()
+                draftStockRows.stream()
                         .map(stock -> new StockRow(
                                 stock.getId().getStockCode(),
                                 stock.getSectorName(),
                                 stock.getIndustryName(),
                                 stock.getSubIndustryName()))
                         .toList());
+        return new PublishResult(true);
     }
 
     // 직전에 반영하기 전 운영 분류로 되돌린다. 되돌리면 백업은 지운다(한 번만 되돌릴 수 있다).
@@ -224,6 +228,43 @@ public class OverseasClassificationDraftService {
         applyCategories(market, live, desired);
         replaceLiveStocks(market, payload.stocks());
         backups.delete(backup);
+    }
+
+    // 초안의 업종 구성과 종목 분류가 운영 분류와 모두 같은지. 초안 업종은 가리키는 운영 업종(liveId)의 이름·부모와 비교한다.
+    private boolean isSameAsLive(
+            List<OverseasClassificationCategoryDraft> drafts,
+            List<OverseasStockClassificationDraft> draftStockRows,
+            List<OverseasClassificationCategory> live,
+            List<OverseasStockClassification> stocks) {
+        if (drafts.size() != live.size() || draftStockRows.size() != stocks.size()) return false;
+        Map<Long, OverseasClassificationCategory> liveById =
+                live.stream().collect(Collectors.toMap(OverseasClassificationCategory::getId, Function.identity()));
+        Map<Long, Long> liveIdByDraftId = new HashMap<>();
+        for (OverseasClassificationCategoryDraft draft : drafts) {
+            if (draft.getLiveId() == null || liveById.containsKey(draft.getLiveId()) == false) return false;
+            liveIdByDraftId.put(draft.getId(), draft.getLiveId());
+        }
+        for (OverseasClassificationCategoryDraft draft : drafts) {
+            OverseasClassificationCategory row = liveById.get(draft.getLiveId());
+            Long expectedParentId = draft.getParentId() == null ? null : liveIdByDraftId.get(draft.getParentId());
+            if (row.getName().equals(draft.getName()) == false
+                    || Objects.equals(row.getParentId(), expectedParentId) == false) {
+                return false;
+            }
+        }
+        Map<String, OverseasStockClassification> liveStockByCode =
+                stocks.stream().collect(Collectors.toMap(stock -> stock.getId().getStockCode(), Function.identity()));
+        for (OverseasStockClassificationDraft draft : draftStockRows) {
+            OverseasStockClassification stock =
+                    liveStockByCode.get(draft.getId().getStockCode());
+            if (stock == null
+                    || Objects.equals(stock.getSectorName(), draft.getSectorName()) == false
+                    || Objects.equals(stock.getIndustryName(), draft.getIndustryName()) == false
+                    || Objects.equals(stock.getSubIndustryName(), draft.getSubIndustryName()) == false) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private void copyLiveToDraft(String market) {
@@ -448,6 +489,9 @@ public class OverseasClassificationDraftService {
     public record DraftView(List<Category> categories, Map<String, Classification> classifications) {}
 
     public record Status(boolean hasDraft, boolean canRollback, LocalDateTime backupCreatedAt) {}
+
+    /** changed가 false면 초안이 운영 분류와 같아서 반영하지 않았다는 뜻이다. */
+    public record PublishResult(boolean changed) {}
 
     record StockRow(String code, String sector, String industry, String subIndustry) {}
 
