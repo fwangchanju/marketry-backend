@@ -27,6 +27,7 @@ class JapanControllerTest {
             mock(OverseasStockQuoteService.class),
             mock(OverseasStockClassificationService.class),
             mock(OverseasClassificationCategoryService.class),
+            mock(kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService.class),
             names,
             indexCloses,
             indexQuotes);

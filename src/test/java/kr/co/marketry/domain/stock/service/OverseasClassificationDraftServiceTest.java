@@ -37,8 +37,10 @@ class OverseasClassificationDraftServiceTest {
             mock(OverseasClassificationCategoryRepository.class);
     private final OverseasStockClassificationRepository liveStocks = mock(OverseasStockClassificationRepository.class);
     private final OverseasClassificationBackupRepository backups = mock(OverseasClassificationBackupRepository.class);
+    private final OverseasClassificationPublicationService publications =
+            mock(OverseasClassificationPublicationService.class);
     private final OverseasClassificationDraftService service = new OverseasClassificationDraftService(
-            draftCategories, draftStocks, liveCategories, liveStocks, backups, new ObjectMapper());
+            draftCategories, draftStocks, liveCategories, liveStocks, backups, publications, new ObjectMapper());
 
     private OverseasClassificationCategory live(long id, Long parentId, String name) {
         OverseasClassificationCategory category = mock(OverseasClassificationCategory.class);
@@ -190,6 +192,7 @@ class OverseasClassificationDraftServiceTest {
         ArgumentCaptor<OverseasClassificationBackup> backup =
                 ArgumentCaptor.forClass(OverseasClassificationBackup.class);
         verify(backups).save(backup.capture());
+        verify(publications).recordPublished("JAPAN");
         assertThat(backup.getValue().getPayload()).contains("기술").contains("금융").contains("7203");
     }
 
@@ -212,6 +215,7 @@ class OverseasClassificationDraftServiceTest {
         verify(backups, never()).save(any());
         verify(liveStocks, never()).deleteAllByIdMarket("JAPAN");
         verify(liveTech, never()).rename(any());
+        verify(publications, never()).recordPublished(any());
     }
 
     @Test
@@ -279,5 +283,6 @@ class OverseasClassificationDraftServiceTest {
         verify(liveStocks).save(stocks.capture());
         assertThat(stocks.getValue().getSectorName()).isEqualTo("기술");
         verify(backups).delete(backup);
+        verify(publications).recordPublished("JAPAN");
     }
 }

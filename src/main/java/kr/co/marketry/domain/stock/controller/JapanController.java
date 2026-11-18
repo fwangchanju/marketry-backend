@@ -8,6 +8,7 @@ import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.stock.service.JapanStockKoreanNameService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
+import kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService.IndexClose;
 import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService;
@@ -36,6 +37,7 @@ public class JapanController {
     private final OverseasStockQuoteService quoteService;
     private final OverseasStockClassificationService classificationService;
     private final OverseasClassificationCategoryService categoryService;
+    private final OverseasClassificationPublicationService publications;
     private final JapanStockKoreanNameService nameService;
     private final OverseasIndexCloseService indexCloseService;
     private final OverseasIndexQuoteService indexQuoteService;
@@ -80,6 +82,14 @@ public class JapanController {
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
         return classificationService.findAll(MARKET);
     }
+
+    // 설정창 맨 아래 "업데이트" 시각 — MARKETRY 분류를 마지막으로 업데이트하거나 롤백한 시각(없으면 null). 모든 사용자에게 보인다.
+    @GetMapping("/classification-published-at")
+    public PublishedAt findClassificationPublishedAt() {
+        return new PublishedAt(publications.findPublishedAt(MARKET).orElse(null));
+    }
+
+    public record PublishedAt(LocalDateTime publishedAt) {}
 
     @GetMapping("/categories")
     public List<Category> findCategories(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {

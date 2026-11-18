@@ -56,6 +56,7 @@ public class OverseasClassificationDraftService {
     private final OverseasClassificationCategoryRepository liveCategories;
     private final OverseasStockClassificationRepository liveStocks;
     private final OverseasClassificationBackupRepository backups;
+    private final OverseasClassificationPublicationService publications;
     private final ObjectMapper objectMapper;
     private final Clock clock = Clock.system(ZoneId.of("Asia/Seoul"));
 
@@ -192,6 +193,7 @@ public class OverseasClassificationDraftService {
         List<OverseasStockClassificationDraft> draftStockRows = draftStocks.findAllByIdMarket(market);
         if (isSameAsLive(drafts, draftStockRows, live, stocks)) return new PublishResult(false);
         saveBackup(market, live, stocks);
+        publications.recordPublished(market);
 
         List<DesiredCategory> desired = drafts.stream()
                 .map(draft ->
@@ -228,6 +230,7 @@ public class OverseasClassificationDraftService {
         applyCategories(market, live, desired);
         replaceLiveStocks(market, payload.stocks());
         backups.delete(backup);
+        publications.recordPublished(market);
     }
 
     // 초안의 업종 구성과 종목 분류가 운영 분류와 모두 같은지. 초안 업종은 가리키는 운영 업종(liveId)의 이름·부모와 비교한다.
