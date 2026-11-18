@@ -35,6 +35,7 @@ class UsaControllerTest {
             classifications,
             categories,
             mock(kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService.class),
+            mock(kr.co.marketry.domain.stock.service.UsaGicsClassificationService.class),
             constituents,
             indexCloses,
             names);
