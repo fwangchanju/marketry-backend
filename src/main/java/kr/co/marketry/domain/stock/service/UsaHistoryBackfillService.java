@@ -27,6 +27,7 @@ import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.HistoryBackfillProgressRepository;
 import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,6 +57,7 @@ public class UsaHistoryBackfillService {
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository quotes;
     private final MarketIndexDailyRepository indexes;
+    private final OverseasStockDailyRepository dailies;
     private final HistoryBackfillProgressRepository progress;
     private final UsaConstituents constituents;
     private final Clock clock;
@@ -67,21 +69,24 @@ public class UsaHistoryBackfillService {
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository quotes,
             MarketIndexDailyRepository indexes,
+            OverseasStockDailyRepository dailies,
             HistoryBackfillProgressRepository progress,
             UsaConstituents constituents) {
-        this(client, quotes, indexes, progress, constituents, Clock.system(ZoneId.of("Asia/Seoul")));
+        this(client, quotes, indexes, dailies, progress, constituents, Clock.system(ZoneId.of("Asia/Seoul")));
     }
 
     UsaHistoryBackfillService(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository quotes,
             MarketIndexDailyRepository indexes,
+            OverseasStockDailyRepository dailies,
             HistoryBackfillProgressRepository progress,
             UsaConstituents constituents,
             Clock clock) {
         this.client = client;
         this.quotes = quotes;
         this.indexes = indexes;
+        this.dailies = dailies;
         this.progress = progress;
         this.constituents = constituents;
         this.clock = clock;
@@ -197,6 +202,7 @@ public class UsaHistoryBackfillService {
         BigDecimal baseClose = JapanHistoryBackfillService.closeOn(bars, marketValue.date());
         List<OverseasStockQuote> rows = toQuotes(symbol, bars, marketValue.value(), baseClose, from);
         quotes.saveAll(rows);
+        dailies.saveAll(JapanHistoryBackfillService.toDailies(MARKET, symbol, bars, from, LocalDateTime.now(clock)));
         return rows.size();
     }
 

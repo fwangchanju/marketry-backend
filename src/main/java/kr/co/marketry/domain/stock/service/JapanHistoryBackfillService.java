@@ -155,7 +155,7 @@ public class JapanHistoryBackfillService {
         BigDecimal baseClose = closeOn(bars, marketValue.date());
         List<OverseasStockQuote> rows = toQuotes(stockCode, bars, marketValue.value(), baseClose, from);
         quotes.saveAll(rows);
-        dailies.saveAll(toDailies(stockCode, bars, from, LocalDateTime.now(clock)));
+        dailies.saveAll(toDailies(MARKET, stockCode, bars, from, LocalDateTime.now(clock)));
         // 이미 쌓인 이후 5분 시세의 시가총액도 같은 기준으로 맞춘다.
         List<OverseasStockQuote> later =
                 quotes.findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(MARKET, stockCode, to.atTime(CLOSE_TIME));
@@ -167,11 +167,11 @@ public class JapanHistoryBackfillService {
 
     /** 종목 차트용 일봉. 시작일 앞의 봉은 전일 종가를 위해서만 받은 것이라 저장하지 않는다. */
     static List<OverseasStockDaily> toDailies(
-            String stockCode, List<DailyBar> bars, LocalDate from, LocalDateTime collectedAt) {
+            String market, String stockCode, List<DailyBar> bars, LocalDate from, LocalDateTime collectedAt) {
         return bars.stream()
                 .filter(bar -> bar.date().isBefore(from) == false)
                 .map(bar -> OverseasStockDaily.create(
-                        MARKET,
+                        market,
                         stockCode,
                         bar.date(),
                         price(bar.open()),

@@ -72,7 +72,7 @@ class JapanHistoryBackfillServiceTest {
                         5000));
 
         var rows = JapanHistoryBackfillService.toDailies(
-                "7203", bars, LocalDate.of(2019, 12, 27), LocalDateTime.of(2026, 11, 19, 20, 0));
+                "JAPAN", "7203", bars, LocalDate.of(2019, 12, 27), LocalDateTime.of(2026, 11, 19, 20, 0));
 
         assertThat(rows).hasSize(1);
         assertThat(rows.getFirst().getId().getTradeDate()).isEqualTo(LocalDate.of(2019, 12, 27));

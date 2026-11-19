@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class StockChartQueryService {
     public static final int MAX_DAYS = 3650;
     private static final String JAPAN_MARKET = "JAPAN";
+    private static final String USA_MARKET = "USA";
 
     private final StockDailyPriceRepository stockDailyPriceRepository;
     private final OverseasStockDailyRepository overseasStockDailyRepository;
@@ -37,10 +38,19 @@ public class StockChartQueryService {
 
     /** 최근 days일 안의 일본 종목 일봉을 오래된 날부터 준다. */
     public List<StockDailyCandle> getJapanDailyCandles(String stockCode, int days) {
+        return getOverseasDailyCandles(JAPAN_MARKET, stockCode, days);
+    }
+
+    /** 최근 days일 안의 미국 종목 일봉을 오래된 날부터 준다. */
+    public List<StockDailyCandle> getUsaDailyCandles(String stockCode, int days) {
+        return getOverseasDailyCandles(USA_MARKET, stockCode, days);
+    }
+
+    private List<StockDailyCandle> getOverseasDailyCandles(String market, String stockCode, int days) {
         LocalDate startDate = LocalDate.now(Zone.KST.zoneId()).minusDays(Math.min(days, MAX_DAYS));
         return overseasStockDailyRepository
                 .findByIdMarketAndIdStockCodeAndIdTradeDateGreaterThanEqualOrderByIdTradeDateAsc(
-                        JAPAN_MARKET, stockCode, startDate)
+                        market, stockCode, startDate)
                 .stream()
                 .map(StockChartQueryService::toCandle)
                 .toList();
