@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
 import org.junit.jupiter.api.Test;
@@ -56,5 +57,28 @@ class JapanHistoryBackfillServiceTest {
                 .isEqualByComparingTo("110");
         assertThat(JapanHistoryBackfillService.closeOn(bars, LocalDate.of(2026, 11, 5)))
                 .isEqualByComparingTo("100");
+    }
+
+    @Test
+    void 일봉은_시작일_앞의_봉을_빼고_시가_고가_저가_거래량까지_저장한다() {
+        List<DailyBar> bars = List.of(
+                bar("2019-12-26", "90"),
+                new DailyBar(
+                        LocalDate.parse("2019-12-27"),
+                        new BigDecimal("98"),
+                        new BigDecimal("103"),
+                        new BigDecimal("97"),
+                        new BigDecimal("100"),
+                        5000));
+
+        var rows = JapanHistoryBackfillService.toDailies(
+                "7203", bars, LocalDate.of(2019, 12, 27), LocalDateTime.of(2026, 11, 19, 20, 0));
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.getFirst().getId().getTradeDate()).isEqualTo(LocalDate.of(2019, 12, 27));
+        assertThat(rows.getFirst().getOpenPrice()).isEqualByComparingTo("98");
+        assertThat(rows.getFirst().getHighPrice()).isEqualByComparingTo("103");
+        assertThat(rows.getFirst().getLowPrice()).isEqualByComparingTo("97");
+        assertThat(rows.getFirst().getVolume()).isEqualTo(5000);
     }
 }
