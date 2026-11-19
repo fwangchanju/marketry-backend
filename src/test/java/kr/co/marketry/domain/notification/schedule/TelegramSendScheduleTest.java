@@ -116,11 +116,29 @@ class TelegramSendScheduleTest {
         assertThatCode(() -> validate(SEND_MINUTE, SEND_INTERVAL_MINUTES, 15)).doesNotThrowAnyException();
     }
 
+    @Test
+    void japanDue_발송_격자의_시각에는_국내_수집과_상관없이_발송한다() {
+        assertThat(japanDue(DATE.withHour(8).withMinute(10))).isTrue();
+        assertThat(japanDue(DATE.withHour(9).withMinute(10))).isTrue();
+        assertThat(japanDue(DATE.withHour(9).withMinute(25))).isTrue();
+    }
+
+    @Test
+    void japanDue_격자에_안_맞거나_기준점_이전이면_발송하지_않는다() {
+        assertThat(japanDue(DATE.withHour(9).withMinute(20))).isFalse();
+        assertThat(japanDue(DATE.withHour(8).withMinute(0))).isFalse();
+        assertThat(japanDue(DATE.withHour(7).withMinute(55))).isFalse();
+    }
+
     private boolean due(LocalDateTime now, boolean shouldCollect) {
         return TelegramSendSchedule.due(now, shouldCollect, START_HOUR, END_HOUR, SEND_MINUTE, SEND_INTERVAL_MINUTES);
     }
 
     private void validate(int sendMinute, int sendIntervalMinutes, int beforeMinutes) {
         TelegramSendSchedule.validate(sendMinute, sendIntervalMinutes, beforeMinutes, COLLECT_INTERVAL_MINUTES);
+    }
+
+    private boolean japanDue(LocalDateTime now) {
+        return TelegramSendSchedule.japanDue(now, START_HOUR, SEND_MINUTE, SEND_INTERVAL_MINUTES);
     }
 }

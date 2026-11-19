@@ -59,7 +59,9 @@ public class CollectionScheduler {
     void collectMarketData(LocalDateTime snapshotTime) {
         CalendarDayTimes dayTimes = marketCalendarTimeService.resolveForCollection(snapshotTime.toLocalDate());
         if (dayTimes.holiday()) {
+            // 국내 휴장일에는 국내 수집과 국내 지도 발송만 쉰다. 일본장은 한국 휴장과 무관하게 열리므로 일본 지도는 보낸다.
             log.info("[휴장일 수집 생략] | context : KR|{}", snapshotTime.toLocalDate());
+            sendJapanMapIfDue(snapshotTime);
             return;
         }
 
@@ -75,6 +77,20 @@ public class CollectionScheduler {
             log.info("장중 시장 데이터 수집 완료: snapshotTime={}", snapshotTime);
         }
 
+        sendKoreaReportIfDue(snapshotTime, shouldCollect);
+        sendJapanMapIfDue(snapshotTime);
+    }
+
+    // 일본 지도는 국내 발송과 별개로 같은 발송 격자에서 따로 보낸다 — 국내가 지연 개장하거나 휴장하는 날(수능일 등)에도
+    // 일본장은 평소대로 열리기 때문이다. 같은 시세는 발송기가 다시 보내지 않는다.
+    private void sendJapanMapIfDue(LocalDateTime snapshotTime) {
+        if (telegramSendSchedule.japanDue(snapshotTime) && telegramSendSchedule.sendEnabled()) {
+            run("일본텔레그램발송", () -> telegramReportDispatcher.sendJapanIfNew(snapshotTime));
+        }
+    }
+
+    /** 정기 발송 시각이면 국내 지도를 보낸다. 수집이 실패했으면 실패 알림을 보낸다. */
+    private void sendKoreaReportIfDue(LocalDateTime snapshotTime, boolean shouldCollect) {
         CollectionResult collection = lastCollection;
         if (collection == null || collection.snapshotTime().toLocalDate().equals(snapshotTime.toLocalDate()) == false) {
             return;

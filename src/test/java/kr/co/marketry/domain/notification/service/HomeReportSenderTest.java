@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -230,72 +229,64 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 정기_발송은_당일_일본_시세가_있으면_국내_지도_뒤에_일본_지도를_별도_사진으로_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
-        when(overseasStockQuoteService.findQuotes("JAPAN", null))
-                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
-        when(screenshotClient.captureWithRows(
-                        RenderTarget.JAPAN_MAP_MOBILE.path(),
-                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
-                        JAPAN_ROW_SELECTOR))
-                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), JAPAN_ROWS));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
-                .thenReturn("기술 +4.5%\n금융 +4.2%");
+    void 일본_지도는_당일_일본_시세가_있으면_국내_지도와_별개로_보낸다() {
+        givenJapanSnapshot(DATA_TIME);
+        givenJapanCapture();
 
-        assertThat(sender.send(DATA_TIME)).isTrue();
+        sender.sendJapanIfNew(DATA_TIME);
 
-        var order = inOrder(telegramClient);
-        order.verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        order.verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        verify(telegramClient, never()).sendPhoto(eq("chat"), eq(MAP_IMAGE), anyString());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
     }
 
     @Test
-    void 같은_일본_시세로는_일본_지도를_다시_보내지_않는다() {
+    void 국내_정기_발송은_일본_지도를_보내지_않는다() {
         givenTodaySnapshot();
         givenKoreaMapCapture(ROWS);
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        assertThat(sender.send(DATA_TIME)).isTrue();
+
+        verify(overseasStockQuoteService, never()).findQuotes(any(), any());
+        verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
+    }
+
+    @Test
+    void 같은_일본_시세로는_일본_지도를_다시_보내지_않는다() {
         givenJapanSnapshot(DATA_TIME);
         givenJapanCapture();
 
-        sender.send(DATA_TIME);
-        sender.send(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
 
-        verify(telegramClient, times(2)).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
         verify(telegramClient, times(1)).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
     }
 
     @Test
     void 새_일본_시세가_저장되면_다음_발송에서_일본_지도를_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
         givenJapanSnapshot(DATA_TIME);
         givenJapanCapture();
 
-        sender.send(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
         givenJapanSnapshot(DATA_TIME.plusMinutes(5));
-        sender.send(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
 
         verify(telegramClient, times(2)).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
     void 일본_15시30분_시세는_마감을_붙여_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
         givenJapanSnapshot(DATA_TIME.toLocalDate().atTime(15, 30));
         givenJapanCapture();
 
-        sender.send(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
 
         verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 #마감 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
     }
 
     @Test
     void 일본_지도_전송이_실패하면_같은_시세로_다음_발송에서_다시_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
         givenJapanSnapshot(DATA_TIME);
         givenJapanCapture();
         org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
@@ -303,8 +294,8 @@ class HomeReportSenderTest {
                 .when(telegramClient)
                 .sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
 
-        sender.send(DATA_TIME);
-        sender.send(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
 
         verify(telegramClient, times(2)).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
     }
@@ -326,55 +317,43 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 일본_당일_시세가_없으면_국내_지도만_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
-        when(overseasStockQuoteService.findQuotes("JAPAN", null))
-                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME.minusDays(1), List.of()));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+    void 일본_당일_시세가_없으면_일본_지도를_보내지_않는다() {
+        givenJapanSnapshot(DATA_TIME.minusDays(1));
 
-        sender.send(DATA_TIME);
+        sender.sendJapanIfNew(DATA_TIME);
 
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
     }
 
     @Test
-    void 일본_지도_캡처가_실패해도_국내_지도는_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
-        when(overseasStockQuoteService.findQuotes("JAPAN", null))
-                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+    void 일본_지도_캡처가_실패하면_일본_지도로_알리고_보내지_않는다() {
+        givenJapanSnapshot(DATA_TIME);
         when(screenshotClient.captureWithRows(
                         RenderTarget.JAPAN_MAP_MOBILE.path(),
                         RenderTarget.JAPAN_MAP_MOBILE.selector(),
                         JAPAN_ROW_SELECTOR))
                 .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
-        assertThat(sender.send(DATA_TIME)).isTrue();
+        sender.sendJapanIfNew(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
         verify(escalationPublisher).report(eq("일본 지도"), any(EscalateException.class));
-        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
     }
 
     @Test
-    void 일본_시세_조회가_실패해도_국내_지도는_보낸다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
+    void 일본_시세_조회가_실패하면_일본_지도로_알리고_캡처하지_않는다() {
         when(overseasStockQuoteService.findQuotes("JAPAN", null)).thenThrow(new RuntimeException("조회 실패"));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
 
-        assertThat(sender.send(DATA_TIME)).isTrue();
+        sender.sendJapanIfNew(DATA_TIME);
 
         verify(screenshotClient, never())
                 .capture(RenderTarget.JAPAN_MAP_MOBILE.path(), RenderTarget.JAPAN_MAP_MOBILE.selector());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
         var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
         verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
         assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.MAP_QUOTE_LOOKUP_FAILED);
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
     }
 
     @Test
@@ -391,50 +370,36 @@ class HomeReportSenderTest {
 
     @Test
     void 일본_지도에서_TOP2를_읽지_못하면_일본_지도_캡션_실패를_알린다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
-        when(overseasStockQuoteService.findQuotes("JAPAN", null))
-                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
+        givenJapanSnapshot(DATA_TIME);
         when(screenshotClient.captureWithRows(
                         RenderTarget.JAPAN_MAP_MOBILE.path(),
                         RenderTarget.JAPAN_MAP_MOBILE.selector(),
                         JAPAN_ROW_SELECTOR))
                 .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), List.of()));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(List.of(), 2))
                 .thenReturn(null);
 
-        assertThat(sender.send(DATA_TIME)).isTrue();
+        sender.sendJapanIfNew(DATA_TIME);
 
         var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
         verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
         assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.MAP_CAPTION_BUILD_FAILED);
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
         verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), anyString());
     }
 
     @Test
-    void 일본_사진_전송이_실패해도_국내_사진_전송은_성공으로_유지한다() {
-        givenTodaySnapshot();
-        givenKoreaMapCapture(ROWS);
-        when(overseasStockQuoteService.findQuotes("JAPAN", null))
-                .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
-        when(screenshotClient.captureWithRows(
-                        RenderTarget.JAPAN_MAP_MOBILE.path(),
-                        RenderTarget.JAPAN_MAP_MOBILE.selector(),
-                        JAPAN_ROW_SELECTOR))
-                .thenReturn(new CaptureResult(List.of(JAPAN_MAP_IMAGE), JAPAN_ROWS));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(JAPAN_ROWS, 2))
-                .thenReturn("기술 +4.5%\n금융 +4.2%");
+    void 일본_사진_전송이_실패하면_일본_지도로_알린다() {
+        givenJapanSnapshot(DATA_TIME);
+        givenJapanCapture();
         org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
                 .when(telegramClient)
                 .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
 
-        assertThat(sender.send(DATA_TIME)).isTrue();
+        sender.sendJapanIfNew(DATA_TIME);
 
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥\n캡션");
-        verify(telegramClient).sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%");
+        var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
+        verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
+        assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.TELEGRAM_IMAGE_SEND_FAILED);
     }
 
     @Test
