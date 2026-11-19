@@ -45,7 +45,7 @@ public class MapReportSender {
     private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
     private static final String USA_MAP_ERROR_SOURCE = "미국 지도";
-    private static final String USA_HEADER = "#S&P500 #마감";
+    private static final String USA_HEADER = "#SNP500 #마감";
     // 지도 모바일 캡처 판 안의 첫 화면 업종 헤더. 보내는 지도 이미지에 그려진 업종과 등락률을 그대로 캡션에 쓴다(국내·일본 공통).
     private static final String MAP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
 
