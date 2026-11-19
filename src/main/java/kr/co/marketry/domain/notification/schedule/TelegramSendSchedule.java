@@ -52,6 +52,17 @@ public class TelegramSendSchedule {
         return due(now, shouldCollect, startHour, endHour, plan.sendMinute(), plan.sendIntervalMinutes());
     }
 
+    /**
+     * 지금 일본 지도를 보낼 때인가. 국내 수집·발송과 무관하게 같은 발송 격자(그날 startHour:sendMinute부터
+     * send-interval-minutes 간격)를 쓴다. 국내가 지연 개장하는 날(수능일 등)처럼 국내 발송이 없는 시각에도
+     * 일본장은 평소대로 열리므로, 일본 지도가 국내 발송에 얹혀 막히지 않게 따로 판정한다.
+     * 새 일본 시세가 있는지와 오늘 날짜인지는 발송기가 확인한다.
+     */
+    public boolean japanDue(LocalDateTime now) {
+        TelegramSendPlan plan = telegramSendSettingService.current();
+        return japanDue(now, startHour, plan.sendMinute(), plan.sendIntervalMinutes());
+    }
+
     /** 관리자 메시지 페이지의 발송 스위치. 꺼져 있으면 정기 리포트를 보내지 않는다(수집 실패 알림은 따로 간다). */
     public boolean sendEnabled() {
         return telegramSendSettingService.current().enabled();
@@ -74,6 +85,12 @@ public class TelegramSendSchedule {
         }
 
         return now.getHour() == endHour && now.getMinute() == sendMinute;
+    }
+
+    static boolean japanDue(LocalDateTime now, int startHour, int sendMinute, int sendIntervalMinutes) {
+        LocalDateTime baseTime = now.toLocalDate().atTime(startHour, sendMinute);
+        long elapsedMinutes = Duration.between(baseTime, now).toMinutes();
+        return elapsedMinutes >= 0 && elapsedMinutes % sendIntervalMinutes == 0;
     }
 
     // 기동 실패 자체가 신호라 EscalateException을 쓰지 않는다 — @PostConstruct에서 던지면

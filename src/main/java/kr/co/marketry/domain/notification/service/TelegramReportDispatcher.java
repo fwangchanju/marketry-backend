@@ -17,6 +17,10 @@ public class TelegramReportDispatcher {
         return homeReportSender.send(dataTime);
     }
 
+    public void sendJapanIfNew(LocalDateTime dataTime) {
+        homeReportSender.sendJapanIfNew(dataTime);
+    }
+
     public boolean sendLatestKorea() {
         return homeReportSender.sendLatestKorea();
     }

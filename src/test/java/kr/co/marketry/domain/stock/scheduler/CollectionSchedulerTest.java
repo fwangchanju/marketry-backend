@@ -99,14 +99,80 @@ class CollectionSchedulerTest {
     }
 
     @Test
-    void 휴장일에는_수집과_모든_리포트를_생략한다() {
+    void 국내_휴장일에는_국내_수집과_국내_리포트를_생략한다() {
         when(timeService.resolveForCollection(DATE))
                 .thenReturn(new CalendarDayTimes(true, null, null, null, null, null));
 
         scheduler.collectMarketData(DATE.atTime(8, 15));
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
-        verifyNoInteractions(snapshotCollector, dispatcher, failureNotifier, schedule);
+        verifyNoInteractions(snapshotCollector, dispatcher, failureNotifier);
+        verify(schedule, never()).due(any(), anyBoolean());
+    }
+
+    @Test
+    void 국내_휴장일에도_일본_발송_시각이면_일본_지도를_보낸다() {
+        LocalDateTime tick = DATE.atTime(9, 5);
+        when(timeService.resolveForCollection(DATE))
+                .thenReturn(new CalendarDayTimes(true, null, null, null, null, null));
+        when(schedule.japanDue(tick)).thenReturn(true);
+
+        scheduler.collectMarketData(tick);
+
+        verify(dispatcher).sendJapanIfNew(tick);
+        verify(dispatcher, never()).sendHome(any());
+        verifyNoInteractions(snapshotCollector, failureNotifier);
+    }
+
+    @Test
+    void 지연개장일은_국내_수집_전이라도_일본_발송_시각이면_일본_지도만_보낸다() {
+        LocalDateTime tick = DATE.atTime(9, 5);
+        when(timeService.resolveForCollection(DATE))
+                .thenReturn(new CalendarDayTimes(
+                        false,
+                        DATE.atTime(10, 0),
+                        DATE.atTime(20, 0),
+                        DATE.atTime(16, 30),
+                        DATE.atTime(16, 30),
+                        DATE.atTime(16, 40)));
+        when(schedule.japanDue(tick)).thenReturn(true);
+
+        scheduler.collectMarketData(tick);
+
+        verify(dispatcher).sendJapanIfNew(tick);
+        verify(dispatcher, never()).sendHome(any());
+        verifyNoInteractions(snapshotCollector);
+    }
+
+    @Test
+    void 일본_발송_시각이_아니면_일본_지도를_보내지_않는다() {
+        scheduler.collectMarketData(DATE.atTime(9, 15));
+
+        verify(dispatcher, never()).sendJapanIfNew(any());
+    }
+
+    @Test
+    void 발송_스위치가_꺼져_있으면_일본_지도도_보내지_않는다() {
+        LocalDateTime tick = DATE.atTime(9, 5);
+        when(schedule.sendEnabled()).thenReturn(false);
+        when(schedule.japanDue(tick)).thenReturn(true);
+
+        scheduler.collectMarketData(tick);
+
+        verify(dispatcher, never()).sendJapanIfNew(any());
+    }
+
+    @Test
+    void 국내_지도를_보내는_tick에도_일본_지도는_국내_결과와_무관하게_따로_요청한다() {
+        LocalDateTime tick = DATE.atTime(9, 5);
+        when(schedule.due(tick, true)).thenReturn(true);
+        when(schedule.japanDue(tick)).thenReturn(true);
+        when(dispatcher.sendHome(tick)).thenReturn(false);
+
+        scheduler.collectMarketData(tick);
+
+        verify(dispatcher).sendHome(tick);
+        verify(dispatcher).sendJapanIfNew(tick);
     }
 
     @Test

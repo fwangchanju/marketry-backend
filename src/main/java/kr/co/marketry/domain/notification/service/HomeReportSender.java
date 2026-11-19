@@ -71,6 +71,11 @@ public class HomeReportSender {
                 .orElse(false);
     }
 
+    /** 국내 정기 발송과 별개로 일본 지도만 보낸다. 오늘 새 일본 시세가 있을 때만 나가고, 같은 시세는 다시 보내지 않는다. */
+    public void sendJapanIfNew(LocalDateTime dataTime) {
+        sendNewJapanMap(dataTime);
+    }
+
     public boolean sendLatestKorea() {
         return sectorPriceSnapshotService
                 .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
@@ -132,7 +137,6 @@ public class HomeReportSender {
         String caption = koreaCaption(map.get().rows(), basis, dataTime);
         telegramClient.sendPhoto(telegramProperties.chatId(), map.get().images().get(0), caption);
         log.info("홈 리포트 발송 완료: 국내 시장 지도 1장");
-        sendNewJapanMap(dataTime);
         return true;
     }
 
@@ -167,7 +171,7 @@ public class HomeReportSender {
         }
     }
 
-    // 일본 지도는 국내 정기 발송 뒤에 별도 사진으로 보낸다. 지난 일본 발송 뒤 새 일본 시세가 저장됐을 때만 보낸다.
+    // 일본 지도는 국내 발송과 별개로 일본 발송 시각마다 따로 보낸다(CollectionScheduler). 지난 일본 발송 뒤 새 일본 시세가 저장됐을 때만 보낸다.
     // 일본 수집은 점심(11:58~12:48)과 마감 뒤에 멈추므로 그 시간에는 같은 지도를 반복하지 않는다.
     // 15:30 시세는 종가라 #마감을 붙이고, 그 뒤로는 새 시세가 없어 그날 일본 발송이 끝난다.
     private void sendNewJapanMap(LocalDateTime dataTime) {
