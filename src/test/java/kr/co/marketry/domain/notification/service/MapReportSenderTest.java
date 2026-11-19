@@ -598,7 +598,6 @@ class MapReportSenderTest {
 
         sender.send(DATA_TIME);
 
-        verify(screenshotClient, never()).captureWithRows(any(), eq(RenderTarget.HOME_MOBILE.selector()), any());
         verify(screenshotClient, never()).capture(any(), any());
         verify(screenshotClient, times(1))
                 .captureWithRows(
@@ -608,9 +607,7 @@ class MapReportSenderTest {
     }
 
     @Test
-    void 캡처_주소와_캡처_이름은_프론트의_3대4_판과_맞다() {
-        assertThat(RenderTarget.HOME_MOBILE.path()).isEqualTo("/summary/korea?capture=mobile");
-        assertThat(RenderTarget.HOME_MOBILE.selector()).isEqualTo("[data-captureid='summary-capture']");
+    void 캡처_주소와_캡처_이름은_프론트와_맞다() {
         assertThat(RenderTarget.MAP_MOBILE.path()).isEqualTo("/map/korea?capture=mobile");
         assertThat(RenderTarget.MAP_MOBILE.selector()).isEqualTo("[data-captureid='map-mobile-capture']");
         assertThat(RenderTarget.JAPAN_MAP_MOBILE.path()).isEqualTo("/map/japan?capture=mobile");
@@ -628,9 +625,9 @@ class MapReportSenderTest {
 
     @Test
     void 등락률_기준이_없으면_주소는_그대로이고_있으면_기준을_붙인다() {
-        assertThat(RenderTarget.HOME_MOBILE.path(Optional.empty())).isEqualTo("/summary/korea?capture=mobile");
-        assertThat(RenderTarget.HOME_MOBILE.path(Optional.of(RenderBasis.CLOSE)))
-                .isEqualTo("/summary/korea?capture=mobile&basis=close");
+        assertThat(RenderTarget.MAP_MOBILE.path(Optional.empty())).isEqualTo("/map/korea?capture=mobile");
+        assertThat(RenderTarget.MAP_MOBILE.path(Optional.of(RenderBasis.CLOSE)))
+                .isEqualTo("/map/korea?capture=mobile&basis=close");
         assertThat(RenderTarget.MAP_MOBILE.path(Optional.of(RenderBasis.AFTER_HOURS)))
                 .isEqualTo("/map/korea?capture=mobile&basis=afterHours");
     }
