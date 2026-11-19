@@ -120,7 +120,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(tick);
 
         verify(dispatcher).sendJapanIfNew(tick);
-        verify(dispatcher, never()).sendHome(any());
+        verify(dispatcher, never()).sendReport(any());
         verifyNoInteractions(snapshotCollector, failureNotifier);
     }
 
@@ -140,7 +140,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(tick);
 
         verify(dispatcher).sendJapanIfNew(tick);
-        verify(dispatcher, never()).sendHome(any());
+        verify(dispatcher, never()).sendReport(any());
         verifyNoInteractions(snapshotCollector);
     }
 
@@ -167,22 +167,22 @@ class CollectionSchedulerTest {
         LocalDateTime tick = DATE.atTime(9, 5);
         when(schedule.due(tick, true)).thenReturn(true);
         when(schedule.japanDue(tick)).thenReturn(true);
-        when(dispatcher.sendHome(tick)).thenReturn(false);
+        when(dispatcher.sendReport(tick)).thenReturn(false);
 
         scheduler.collectMarketData(tick);
 
-        verify(dispatcher).sendHome(tick);
+        verify(dispatcher).sendReport(tick);
         verify(dispatcher).sendJapanIfNew(tick);
     }
 
     @Test
-    void 마지막_20시10분_홈발송은_실제_당일_수집시각을_사용한다() {
+    void 마지막_20시10분_국내_지도_발송은_실제_당일_수집시각을_사용한다() {
         when(schedule.due(DATE.atTime(20, 10), false)).thenReturn(true);
 
         scheduler.collectMarketData(DATE.atTime(19, 55));
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
-        verify(dispatcher).sendHome(DATE.atTime(19, 55));
+        verify(dispatcher).sendReport(DATE.atTime(19, 55));
         verify(snapshotCollector, never()).collect(DATE.atTime(20, 10));
     }
 
@@ -211,7 +211,7 @@ class CollectionSchedulerTest {
         scheduler.collectMarketData(DATE.atTime(20, 10));
 
         verify(failureNotifier).notify(DATE.atTime(20, 0));
-        verify(dispatcher, never()).sendHome(any());
+        verify(dispatcher, never()).sendReport(any());
     }
 
     @Test
@@ -238,12 +238,12 @@ class CollectionSchedulerTest {
 
         scheduler.collectMarketData(DATE.atTime(8, 10));
 
-        verify(dispatcher).sendHome(DATE.atTime(8, 10));
+        verify(dispatcher).sendReport(DATE.atTime(8, 10));
         verifyNoInteractions(failureNotifier);
     }
 
     @Test
-    void 발송_스위치가_꺼져_있으면_홈을_보내지_않는다() {
+    void 발송_스위치가_꺼져_있으면_국내_지도를_보내지_않는다() {
         LocalDateTime tick = DATE.atTime(8, 15);
         when(schedule.sendEnabled()).thenReturn(false);
         when(schedule.due(tick, true)).thenReturn(true);
@@ -274,7 +274,7 @@ class CollectionSchedulerTest {
         when(schedule.due(tick, true)).thenReturn(true);
         doThrow(new TelegramSendException("HttpServerErrorException", "502"))
                 .when(dispatcher)
-                .sendHome(tick);
+                .sendReport(tick);
 
         scheduler.collectMarketData(tick);
 
@@ -286,7 +286,7 @@ class CollectionSchedulerTest {
     void 정기_발송의_다른_오류는_기존_수집기_실패로_알린다() {
         LocalDateTime tick = DATE.atTime(8, 5);
         when(schedule.due(tick, true)).thenReturn(true);
-        doThrow(new RuntimeException("boom")).when(dispatcher).sendHome(tick);
+        doThrow(new RuntimeException("boom")).when(dispatcher).sendReport(tick);
 
         scheduler.collectMarketData(tick);
 

@@ -35,7 +35,7 @@ import kr.co.marketry.domain.view.service.MarketTradingScheduleService;
 import kr.co.marketry.domain.view.service.TreemapQueryService;
 import org.junit.jupiter.api.Test;
 
-class HomeReportSenderTest {
+class MapReportSenderTest {
 
     private static final LocalDateTime DATA_TIME = LocalDateTime.of(2026, 10, 22, 8, 5);
     private static final byte[] MAP_IMAGE = {4, 5, 6};
@@ -57,7 +57,7 @@ class HomeReportSenderTest {
     private final RenderBasisResolver renderBasisResolver = mock(RenderBasisResolver.class);
     private final TelegramProperties properties =
             new TelegramProperties("token", "chat", "developer", 5, 30, 15, AverageMode.SIMPLE, true);
-    private final HomeReportSender sender = new HomeReportSender(
+    private final MapReportSender sender = new MapReportSender(
             screenshotClient,
             telegramClient,
             properties,
@@ -120,37 +120,6 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 일회성_국내_발송은_최근_공통_스냅샷으로_국내지도만_보낸다() {
-        LocalDateTime latestSnapshot = DATA_TIME.minusDays(1);
-        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList()))
-                .thenReturn(Optional.of(latestSnapshot));
-        when(renderBasisResolver.resolve(latestSnapshot)).thenReturn(Optional.of(RenderBasis.AFTER_HOURS));
-        when(screenshotClient.captureWithRows(
-                        "/map/korea?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector(), ROW_SELECTOR))
-                .thenReturn(new CaptureResult(List.of(MAP_IMAGE), ROWS));
-        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
-
-        assertThat(sender.sendLatest()).isTrue();
-
-        verify(screenshotClient)
-                .captureWithRows(
-                        "/map/korea?capture=mobile&basis=afterHours", RenderTarget.MAP_MOBILE.selector(), ROW_SELECTOR);
-        verify(screenshotClient, never()).captureWithRows(any(), eq(RenderTarget.HOME_MOBILE.selector()), any());
-        verify(telegramClient).sendPhoto("chat", MAP_IMAGE, "#코스피 #코스닥 #애프터마켓\n캡션");
-        verify(telegramClient, never()).sendPhoto(eq("chat"), eq(JAPAN_MAP_IMAGE), any());
-    }
-
-    @Test
-    void 일회성_발송은_공통_스냅샷이_없으면_보내지_않는다() {
-        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.empty());
-
-        assertThat(sender.sendLatest()).isFalse();
-
-        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
-        verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
-    }
-
-    @Test
     void 일본_일회성_발송은_일본_지도와_대분류_TOP2만_보낸다() {
         when(overseasStockQuoteService.findQuotes("JAPAN", null))
                 .thenReturn(new OverseasStockQuoteService.QuoteSnapshot(DATA_TIME, List.of()));
@@ -181,7 +150,7 @@ class HomeReportSenderTest {
                         JAPAN_ROW_SELECTOR))
                 .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
 
-        assertThat(sender.sendLatestJapanOnce()).isEqualTo(HomeReportSender.JapanSendResult.MAP_CAPTURE_FAILED);
+        assertThat(sender.sendLatestJapanOnce()).isEqualTo(MapReportSender.JapanSendResult.MAP_CAPTURE_FAILED);
 
         verify(escalationPublisher).report(eq("일본 지도"), any(EscalateException.class));
         verify(telegramClient, never()).sendPhoto(any(), any(), any());
@@ -202,7 +171,7 @@ class HomeReportSenderTest {
                 .when(telegramClient)
                 .sendPhoto("chat", JAPAN_MAP_IMAGE, "#니케이 (20분 지연)\n기술 +4.5%\n금융 +4.2%\n\n테스트 발송");
 
-        assertThat(sender.sendLatestJapanOnce()).isEqualTo(HomeReportSender.JapanSendResult.TELEGRAM_SEND_FAILED);
+        assertThat(sender.sendLatestJapanOnce()).isEqualTo(MapReportSender.JapanSendResult.TELEGRAM_SEND_FAILED);
 
         verify(escalationPublisher).report(eq("일본 지도"), any(EscalateException.class));
     }
@@ -360,7 +329,7 @@ class HomeReportSenderTest {
     void 일본_테스트_발송에서_시세_조회가_실패하면_일본_지도로_알린다() {
         when(overseasStockQuoteService.findQuotes("JAPAN", null)).thenThrow(new RuntimeException("조회 실패"));
 
-        assertThat(sender.sendLatestJapanOnce()).isEqualTo(HomeReportSender.JapanSendResult.QUOTE_LOOKUP_FAILED);
+        assertThat(sender.sendLatestJapanOnce()).isEqualTo(MapReportSender.JapanSendResult.QUOTE_LOOKUP_FAILED);
 
         var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
         verify(escalationPublisher).report(eq("일본 지도"), failure.capture());
@@ -574,7 +543,7 @@ class HomeReportSenderTest {
     }
 
     @Test
-    void 국내_발송은_홈_요약_화면을_열지_않고_지도만_한_번_찍는다() {
+    void 국내_발송은_서머리_화면을_열지_않고_지도만_한_번_찍는다() {
         givenTodaySnapshot();
         givenKoreaMapCapture(ROWS);
         when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");

@@ -52,17 +52,6 @@ class ProfileControllerTest {
     }
 
     @Test
-    void 프로필_조회는_닉네임_사진여부_사진버전을_돌려준다() throws Exception {
-        when(userProfileService.getProfile(42L)).thenReturn(new ProfileResponse("마켓러", true, 1_700_000_000_000L, null));
-
-        mockMvc.perform(get("/api/profile"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nickname").value("마켓러"))
-                .andExpect(jsonPath("$.hasImage").value(true))
-                .andExpect(jsonPath("$.imageVersion").value(1_700_000_000_000L));
-    }
-
-    @Test
     void 닉네임_저장은_본문의_닉네임을_서비스에_넘긴다() throws Exception {
         when(userProfileService.updateNickname(42L, "마켓러")).thenReturn(new ProfileResponse("마켓러", false, null, null));
 

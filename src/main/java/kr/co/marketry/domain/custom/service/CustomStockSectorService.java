@@ -90,12 +90,6 @@ public class CustomStockSectorService {
                 userId);
     }
 
-    public void unassign(String stockCode) {
-        Long userId = CurrentUser.requireId();
-        requireNotLocked(userId, stockCode);
-        customStockSectorRepository.deleteByIdUserIdAndIdStockCode(userId, stockCode);
-    }
-
     /** 요청에 있는 유효 종목은 배정 행 유무와 관계없이 upsert한다. */
     public BulkAssignResponse bulkAssign(List<String> stockCodes, Long sectorId) {
         Long userId = CurrentUser.requireId();

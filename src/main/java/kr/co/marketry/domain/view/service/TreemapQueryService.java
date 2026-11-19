@@ -426,29 +426,6 @@ public class TreemapQueryService {
     }
 
     /**
-     * 텔레그램 캡션용 섹터 TOP2 랭킹 — 위와 같은 필터·TOP2 규칙이되 **등락률(now, %) 기준**, 마켓별.
-     * 매일 첫 발송(전날 대비 before가 없는 tick)의 변화율 폴백 전용이다. getSectorChangeRates가
-     * before도 항상 같이 조회하지만 여기서는 now만 쓰고 버린다 — docs/backlog.md의 「텔레그램 경로가
-     * before를 조회하고 버린다」 항목, 이번에 고치지 않는다.
-     */
-    public List<SectorRankingSummary> getTopSectorRankingsByChangeRate(
-            MarketQuery marketQuery,
-            LocalDateTime snapshotTime,
-            int beforeMinutes,
-            AverageMode averageMode,
-            boolean sectorFilter) {
-        SnapshotResponse<SectorChangeRateMarketRanking> ranking =
-                getSectorChangeRates(marketQuery, snapshotTime, beforeMinutes);
-        Long userId = customDataUserId();
-        Set<Long> excludedTierIds = excludedTierIds(userId);
-        Map<Long, CustomSector> sectorById = findSectorById(userId);
-        return ranking.items().stream()
-                .map(marketRanking -> toSectorRankingSummaryByChangeRate(
-                        marketRanking, excludedTierIds, averageMode, sectorFilter, sectorById))
-                .toList();
-    }
-
-    /**
      * 맵 발송(코스피+코스닥 앨범) 캡션용 — 두 마켓의 섹터별 breakdown을 먼저 합친 뒤 가중평균을 낸
      * **등락률(now, %) 기준** TOP2. 마켓 구분이 없어 반환 타입도 마켓별 랭킹(SectorRankingSummary)이
      * 아니라 List&lt;TopSectorItem&gt; 하나다. buildCustomTreemap의 All Stocks 병합과 같은 패턴
@@ -469,7 +446,7 @@ public class TreemapQueryService {
     }
 
     /**
-     * {@link #getMergedTopSectorRanking}과 같은 조건의 전체 순위 — 등락률이 높은 순이고 개수를 자르지 않는다. 홈 발송 캡션이 맨 위(상위)와
+     * {@link #getMergedTopSectorRanking}과 같은 조건의 전체 순위 — 등락률이 높은 순이고 개수를 자르지 않는다. 정기 발송 캡션이 맨 위(상위)와
      * 맨 아래(하위) 한 개씩 고르는 데 쓴다.
      */
     public List<TopSectorItem> getMergedSectorRanking(
@@ -573,25 +550,6 @@ public class TreemapQueryService {
                 .toList();
         // 지수는 캡션 본문과 달리 현재 등락률 그대로다 — 이 값을 쓰는 buildRankingText 쪽 서식이
         // "#코스피 +x.xx%"라 델타가 아니라 현재값을 기대한다.
-        BigDecimal indexChangeRate =
-                marketRanking.index() != null ? marketRanking.index().now() : null;
-        return new SectorRankingSummary(marketRanking.market(), indexChangeRate, topSectors);
-    }
-
-    private SectorRankingSummary toSectorRankingSummaryByChangeRate(
-            SectorChangeRateMarketRanking marketRanking,
-            Set<Long> excludedTierIds,
-            AverageMode averageMode,
-            boolean sectorFilter,
-            Map<Long, CustomSector> sectorById) {
-        List<TopSectorItem> topSectors = marketRanking.items().stream()
-                .filter(item -> item.depth() == 0)
-                .filter(item -> isSectorIncluded(item.sectorId(), sectorFilter, sectorById))
-                .map(item -> toTopSectorItemByChangeRate(item.sectorName(), item.now(), excludedTierIds, averageMode))
-                .filter(Objects::nonNull)
-                .sorted(Comparator.comparing(TopSectorItem::changeRate).reversed())
-                .limit(TOP_N)
-                .toList();
         BigDecimal indexChangeRate =
                 marketRanking.index() != null ? marketRanking.index().now() : null;
         return new SectorRankingSummary(marketRanking.market(), indexChangeRate, topSectors);

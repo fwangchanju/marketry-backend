@@ -5,10 +5,6 @@ import java.util.List;
 
 public interface CustomStockSectorRepositoryCustom {
 
-    /** PK(userId, stockCode) 단건 삭제지만 파생 {@code deleteBy}로 바꾸지 않는다 — 파생 삭제는 엔티티를
-     * 로드한 뒤 remove()로 지워 flush 시점까지 지연되는데, 여기는 즉시 실행되는 단일 DELETE가 필요하다. */
-    void deleteByIdUserIdAndIdStockCode(Long userId, String stockCode);
-
     /** sectorId 하위 트리를 지울 때 그 섹터를 참조하는 배정 행을 custom_sector 삭제보다 먼저,
      * 그리고 즉시 지워야 FK 위반을 피한다(CustomSectorService.delete). 파생 deleteBy는 flush 시점까지
      * 지연돼 순서를 보장하지 못한다. */

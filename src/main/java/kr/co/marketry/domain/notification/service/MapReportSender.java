@@ -30,9 +30,9 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class HomeReportSender {
+public class MapReportSender {
 
-    private static final MarketQuery HOME_MARKETS = MarketQuery.ALL_STOCK;
+    private static final MarketQuery REPORT_MARKETS = MarketQuery.ALL_STOCK;
     private static final int CAPTION_SECTOR_COUNT = 2;
     private static final String KOREA_HEADER = "#코스피 #코스닥";
     private static final String KOREA_CLOSE_HEADER = "#코스피 #코스닥 #마감";
@@ -64,13 +64,6 @@ public class HomeReportSender {
     // 앱이 재시작되면 비워지므로 재시작 직후 첫 발송에서 같은 지도가 한 번 더 나갈 수 있다.
     private volatile LocalDateTime lastSentJapanSnapshotTime;
 
-    public boolean sendLatest() {
-        return sectorPriceSnapshotService
-                .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
-                .map(this::sendReport)
-                .orElse(false);
-    }
-
     /** 국내 정기 발송과 별개로 일본 지도만 보낸다. 오늘 새 일본 시세가 있을 때만 나가고, 같은 시세는 다시 보내지 않는다. */
     public void sendJapanIfNew(LocalDateTime dataTime) {
         sendNewJapanMap(dataTime);
@@ -78,7 +71,7 @@ public class HomeReportSender {
 
     public boolean sendLatestKorea() {
         return sectorPriceSnapshotService
-                .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
+                .findLatestCommonSnapshotTime(REPORT_MARKETS.toMarkets())
                 .map(this::sendKoreaTestReport)
                 .orElse(false);
     }
@@ -117,7 +110,7 @@ public class HomeReportSender {
 
     public boolean send(LocalDateTime dataTime) {
         if (sectorPriceSnapshotService
-                .findLatestCommonSnapshotTime(HOME_MARKETS.toMarkets())
+                .findLatestCommonSnapshotTime(REPORT_MARKETS.toMarkets())
                 .filter(dataTime::equals)
                 .isEmpty()) {
             log.warn("[홈리포트] 기준 시각의 최신 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
@@ -318,7 +311,7 @@ public class HomeReportSender {
     private String buildCaption(LocalDateTime dataTime) {
         // NXT 단독 시간대(프리·애프터 마켓)에는 화면이 NXT 종목만 보여 주므로 캡션도 같은 종목으로 계산해야 이미지와 숫자가 맞는다.
         List<TopSectorItem> ranking = treemapQueryService.getMergedSectorRanking(
-                HOME_MARKETS,
+                REPORT_MARKETS,
                 dataTime,
                 telegramProperties.averageMode(),
                 telegramProperties.sectorFilter(),

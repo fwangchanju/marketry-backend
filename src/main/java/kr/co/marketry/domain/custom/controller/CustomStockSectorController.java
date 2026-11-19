@@ -11,7 +11,6 @@ import kr.co.marketry.domain.custom.dto.StockSectorListItem;
 import kr.co.marketry.domain.custom.service.CustomStockSectorService;
 import kr.co.marketry.domain.view.dto.SnapshotResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,11 +37,6 @@ public class CustomStockSectorController {
         customStockSectorService.assign(stockCode, request.sectorId());
     }
 
-    @DeleteMapping("/{stockCode}")
-    public void unassign(@PathVariable String stockCode) {
-        customStockSectorService.unassign(stockCode);
-    }
-
     @PatchMapping("/bulk")
     public BulkAssignResponse bulkAssign(@RequestBody @Valid BulkAssignRequest request) {
         return customStockSectorService.bulkAssign(request.stockCodes(), request.sectorId());
@@ -56,10 +50,5 @@ public class CustomStockSectorController {
     @PatchMapping("/{stockCode}/alias")
     public void updateAlias(@PathVariable String stockCode, @RequestBody @Valid AliasRequest request) {
         customStockSectorService.updateAlias(stockCode, request.alias());
-    }
-
-    @DeleteMapping("/{stockCode}/alias")
-    public void deleteAlias(@PathVariable String stockCode) {
-        customStockSectorService.updateAlias(stockCode, null);
     }
 }

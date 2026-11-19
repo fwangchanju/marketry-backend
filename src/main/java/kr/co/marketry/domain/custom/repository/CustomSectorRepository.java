@@ -14,8 +14,6 @@ public interface CustomSectorRepository extends JpaRepository<CustomSector, Long
 
     List<CustomSector> findAllByUserId(Long userId);
 
-    List<CustomSector> findByUserIdAndParentId(Long userId, Long parentId);
-
     Optional<CustomSector> findFirstByUserIdOrderByIdAsc(Long userId);
 
     Optional<CustomSector> findByIdAndUserId(Long id, Long userId);
