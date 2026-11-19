@@ -185,6 +185,7 @@ V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다
 ### 필요한 환경변수 (`~/Projects/marketry/env/marketry.env`)
 
 맥미니 운영 파일이며 `deploy` 계정 소유다. 배포 게이트(`infra/prod/gate.sh`)가 이 파일을 읽는다.
+오라클 비상 복구 서버는 옛 배포 스크립트(`infra/scripts/env.sh`)를 쓰며 옛 경로 `~/env/market-monitor.env`를 가리킨다. 오라클의 실제 파일 위치는 확인하지 않았다.
 
 | 변수 | 쓰임 |
 |---|---|
