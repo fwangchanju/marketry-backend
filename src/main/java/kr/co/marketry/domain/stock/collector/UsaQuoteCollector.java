@@ -20,9 +20,11 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.IndexSession;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
 import kr.co.marketry.domain.stock.collector.UsaConstituents.Constituent;
 import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,6 +60,7 @@ public class UsaQuoteCollector {
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
     private final MarketIndexDailyRepository indexes;
+    private final OverseasStockDailyRepository dailies;
     private final UsaConstituents constituents;
     private final Duration delay;
     private final Consumer<Duration> sleeper;
@@ -68,12 +71,14 @@ public class UsaQuoteCollector {
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
             MarketIndexDailyRepository indexes,
+            OverseasStockDailyRepository dailies,
             UsaConstituents constituents,
             @Value("${usa-quote.delay-minutes:30}") int delayMinutes) {
         this(
                 client,
                 repository,
                 indexes,
+                dailies,
                 constituents,
                 Duration.ofMinutes(delayMinutes),
                 UsaQuoteCollector::sleep,
@@ -84,6 +89,7 @@ public class UsaQuoteCollector {
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
             MarketIndexDailyRepository indexes,
+            OverseasStockDailyRepository dailies,
             UsaConstituents constituents,
             Duration delay,
             Consumer<Duration> sleeper,
@@ -91,6 +97,7 @@ public class UsaQuoteCollector {
         this.client = client;
         this.repository = repository;
         this.indexes = indexes;
+        this.dailies = dailies;
         this.constituents = constituents;
         this.delay = delay;
         this.sleeper = sleeper;
@@ -128,6 +135,7 @@ public class UsaQuoteCollector {
             lastByCode.put(quote.getId().getStockCode(), quote);
         }
         List<OverseasStockQuote> rows = new ArrayList<>();
+        List<OverseasStockDaily> candles = new ArrayList<>();
         int totalCount = constituents.all().size();
         boolean limited = false;
         for (Constituent constituent : constituents.all()) {
@@ -140,7 +148,8 @@ public class UsaQuoteCollector {
                         day,
                         lastSnapshotTime.toLocalDate(),
                         lastByCode.get(constituent.symbol()),
-                        snapshotTime);
+                        snapshotTime,
+                        candles);
                 if (row != null) {
                     rows.add(row);
                 }
@@ -157,8 +166,18 @@ public class UsaQuoteCollector {
             return Result.of(Status.TOO_FEW, day, null, rows.size(), totalCount, failureCount, reason);
         }
         repository.saveAll(rows);
+        saveCandles(candles, day);
         saveIndexClose(day);
         return Result.of(Status.SAVED, day, snapshotTime, rows.size(), totalCount, failureCount, null);
+    }
+
+    /** 종목 차트에 쓸 그날 일봉(시가·고가·저가·종가·거래량)을 저장한다. 실패해도 종가 저장은 이미 끝났으므로 로그만 남긴다. */
+    private void saveCandles(List<OverseasStockDaily> candles, LocalDate day) {
+        try {
+            dailies.saveAll(candles);
+        } catch (RuntimeException failure) {
+            log.warn("[미국시세] 종목 일봉 저장 실패: day={}, {}", day, failure.getMessage());
+        }
     }
 
     /**
@@ -193,7 +212,12 @@ public class UsaQuoteCollector {
 
     /** 오늘 봉이나 기준이 되는 봉을 찾지 못하면 null이다. 그 종목은 저장하지 않는다. */
     private OverseasStockQuote buildRow(
-            String symbol, LocalDate day, LocalDate lastDay, OverseasStockQuote last, LocalDateTime snapshotTime) {
+            String symbol,
+            LocalDate day,
+            LocalDate lastDay,
+            OverseasStockQuote last,
+            LocalDateTime snapshotTime,
+            List<OverseasStockDaily> candles) {
         LocalDate from = last == null ? day.minusDays(NEW_STOCK_LOOKBACK_DAYS) : lastDay;
         List<DailyBar> bars = client.fetchDailyBars(symbol, from, day);
         sleeper.accept(REQUEST_INTERVAL);
@@ -219,6 +243,16 @@ public class UsaQuoteCollector {
         }
         BigDecimal price = today.close().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
         BigDecimal previousClose = previous.close().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+        candles.add(OverseasStockDaily.create(
+                MARKET,
+                symbol,
+                day,
+                price(today.open()),
+                price(today.high()),
+                price(today.low()),
+                price,
+                today.volume(),
+                KstClock.now()));
         return OverseasStockQuote.create(
                 new OverseasStockQuoteId(MARKET, symbol, snapshotTime),
                 price,

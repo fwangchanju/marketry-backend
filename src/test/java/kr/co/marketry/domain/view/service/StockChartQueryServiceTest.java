@@ -105,4 +105,28 @@ class StockChartQueryServiceTest {
         assertThat(candles.getFirst().high()).isEqualByComparingTo("3437");
         assertThat(candles.getFirst().volume()).isEqualTo(19040000);
     }
+
+    @Test
+    void 미국_일봉은_미국_시장_코드로_조회한다() {
+        when(overseasRepository.findByIdMarketAndIdStockCodeAndIdTradeDateGreaterThanEqualOrderByIdTradeDateAsc(
+                        eq("USA"), eq("AAPL"), any()))
+                .thenReturn(List.of(OverseasStockDaily.create(
+                        "USA",
+                        "AAPL",
+                        LocalDate.of(2026, 11, 18),
+                        new BigDecimal("351.94"),
+                        new BigDecimal("356.42"),
+                        new BigDecimal("351.47"),
+                        new BigDecimal("352.45"),
+                        34210000,
+                        LocalDateTime.of(2026, 11, 19, 20, 0))));
+
+        List<StockDailyCandle> candles = service.getUsaDailyCandles("AAPL", 30);
+
+        assertThat(candles).hasSize(1);
+        assertThat(candles.getFirst().close()).isEqualByComparingTo("352.45");
+        verify(overseasRepository, org.mockito.Mockito.never())
+                .findByIdMarketAndIdStockCodeAndIdTradeDateGreaterThanEqualOrderByIdTradeDateAsc(
+                        eq("JAPAN"), any(), any());
+    }
 }

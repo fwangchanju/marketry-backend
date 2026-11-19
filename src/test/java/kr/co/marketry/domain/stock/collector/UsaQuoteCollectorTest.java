@@ -25,9 +25,11 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.IndexSession;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
 import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,12 +47,14 @@ class UsaQuoteCollectorTest {
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository repository;
     private MarketIndexDailyRepository indexes;
+    private OverseasStockDailyRepository dailies;
 
     @BeforeEach
     void setUp() {
         client = mock(YahooFinanceQuoteClient.class);
         repository = mock(OverseasStockQuoteRepository.class);
         indexes = mock(MarketIndexDailyRepository.class);
+        dailies = mock(OverseasStockDailyRepository.class);
         when(client.fetchIndexSession("^GSPC")).thenReturn(new IndexSession(DAY, CLOSE));
     }
 
@@ -318,6 +322,49 @@ class UsaQuoteCollectorTest {
     }
 
     @Test
+    void 종목을_저장하면_그날_일봉을_시가_고가_저가_거래량까지_저장한다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars(
+                "AAPL",
+                bar("2026-11-11", "100"),
+                new DailyBar(
+                        LocalDate.parse("2026-11-12"),
+                        new BigDecimal("105"),
+                        new BigDecimal("112"),
+                        new BigDecimal("104"),
+                        new BigDecimal("110"),
+                        4321));
+        givenBars("^GSPC", bar("2026-11-12", "6000"));
+
+        collector(AFTER_DELAY, "AAPL").collect();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Iterable<OverseasStockDaily>> captor = ArgumentCaptor.forClass(Iterable.class);
+        verify(dailies).saveAll(captor.capture());
+        OverseasStockDaily saved = captor.getValue().iterator().next();
+        assertThat(saved.getId().getMarket()).isEqualTo("USA");
+        assertThat(saved.getId().getStockCode()).isEqualTo("AAPL");
+        assertThat(saved.getId().getTradeDate()).isEqualTo(DAY);
+        assertThat(saved.getOpenPrice()).isEqualByComparingTo("105");
+        assertThat(saved.getHighPrice()).isEqualByComparingTo("112");
+        assertThat(saved.getLowPrice()).isEqualByComparingTo("104");
+        assertThat(saved.getVolume()).isEqualTo(4321);
+    }
+
+    @Test
+    void 일봉_저장이_실패해도_종목_저장_결과는_성공이다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+        givenBars("^GSPC", bar("2026-11-12", "6000"));
+        when(dailies.saveAll(any())).thenThrow(new IllegalStateException("저장 실패"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        verify(indexes).save(any());
+    }
+
+    @Test
     void 지수_일봉이_없으면_지수는_저장하지_않고_종목_저장은_유지한다() {
         givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
         givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
@@ -353,6 +400,7 @@ class UsaQuoteCollectorTest {
                 client,
                 repository,
                 indexes,
+                dailies,
                 constituents,
                 Duration.ofMinutes(30),
                 duration -> {},

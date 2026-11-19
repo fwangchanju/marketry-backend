@@ -28,4 +28,10 @@ public class StockChartController {
             @PathVariable String stockCode, @RequestParam(defaultValue = "365") int days) {
         return stockChartQueryService.getJapanDailyCandles(stockCode, days);
     }
+
+    @GetMapping("/usa/{stockCode}/daily-candles")
+    public List<StockDailyCandle> getUsaDailyCandles(
+            @PathVariable String stockCode, @RequestParam(defaultValue = "365") int days) {
+        return stockChartQueryService.getUsaDailyCandles(stockCode, days);
+    }
 }

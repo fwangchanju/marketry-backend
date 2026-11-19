@@ -28,9 +28,11 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
 import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.entity.HistoryBackfillProgress;
 import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.repository.HistoryBackfillProgressRepository;
 import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,7 @@ class UsaHistoryBackfillServiceTest {
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository quotes;
     private MarketIndexDailyRepository indexes;
+    private OverseasStockDailyRepository dailies;
     private HistoryBackfillProgressRepository progress;
 
     @BeforeEach
@@ -51,6 +54,7 @@ class UsaHistoryBackfillServiceTest {
         client = mock(YahooFinanceQuoteClient.class);
         quotes = mock(OverseasStockQuoteRepository.class);
         indexes = mock(MarketIndexDailyRepository.class);
+        dailies = mock(OverseasStockDailyRepository.class);
         progress = mock(HistoryBackfillProgressRepository.class);
         when(client.fetchIndexSession("^GSPC")).thenReturn(new IndexSession(DAY, CLOSE));
     }
@@ -179,6 +183,34 @@ class UsaHistoryBackfillServiceTest {
     }
 
     @Test
+    void 종목의_일봉을_시작일부터_시가_고가_저가_거래량까지_저장한다() {
+        UsaHistoryBackfillService service = service(CLOSE.plus(Duration.ofHours(1)), "AAPL");
+        when(client.fetchDailyBars(eq("AAPL"), any(), any()))
+                .thenReturn(List.of(
+                        bar("2026-11-09", "100"),
+                        new DailyBar(
+                                LocalDate.parse("2026-11-10"),
+                                new BigDecimal("101"),
+                                new BigDecimal("105"),
+                                new BigDecimal("99"),
+                                new BigDecimal("104"),
+                                777)));
+        when(client.fetchMarketValueOf(eq("AAPL"), any(), any()))
+                .thenReturn(new MarketValue(LocalDate.of(2026, 11, 10), new BigDecimal("1000000")));
+
+        service.run(LocalDate.of(2026, 11, 10), DAY);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<OverseasStockDaily>> captor = ArgumentCaptor.forClass(List.class);
+        verify(dailies).saveAll(captor.capture());
+        assertThat(captor.getValue()).hasSize(1);
+        assertThat(captor.getValue().getFirst().getId().getMarket()).isEqualTo("USA");
+        assertThat(captor.getValue().getFirst().getId().getTradeDate()).isEqualTo(LocalDate.of(2026, 11, 10));
+        assertThat(captor.getValue().getFirst().getHighPrice()).isEqualByComparingTo("105");
+        assertThat(captor.getValue().getFirst().getVolume()).isEqualTo(777);
+    }
+
+    @Test
     void 이미_끝난_항목은_호출하지_않고_건너뛴다() {
         UsaHistoryBackfillService service = service(CLOSE.plus(Duration.ofHours(1)), "AAPL", "MSFT");
         when(progress.existsById(new HistoryBackfillProgress.Id("USA:2026-11-10", "AAPL")))
@@ -235,7 +267,7 @@ class UsaHistoryBackfillServiceTest {
         UsaConstituents constituents =
                 new UsaConstituents(new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)));
         return new UsaHistoryBackfillService(
-                client, quotes, indexes, progress, constituents, Clock.fixed(now, ZoneOffset.UTC)) {
+                client, quotes, indexes, dailies, progress, constituents, Clock.fixed(now, ZoneOffset.UTC)) {
             @Override
             void pause(Duration duration) {}
         };
