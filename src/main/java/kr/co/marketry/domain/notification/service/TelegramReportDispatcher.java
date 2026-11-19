@@ -17,6 +17,10 @@ public class TelegramReportDispatcher {
         return mapReportSender.send(dataTime);
     }
 
+    public void sendUsaIfNew() {
+        mapReportSender.sendUsaIfNew();
+    }
+
     public void sendJapanIfNew(LocalDateTime dataTime) {
         mapReportSender.sendJapanIfNew(dataTime);
     }
@@ -27,6 +31,10 @@ public class TelegramReportDispatcher {
 
     public boolean sendLatestJapan() {
         return mapReportSender.sendLatestJapan();
+    }
+
+    public MapReportSender.UsaSendResult sendLatestUsaOnce() {
+        return mapReportSender.sendLatestUsaOnce();
     }
 
     public MapReportSender.JapanSendResult sendLatestJapanOnce() {

@@ -9,7 +9,8 @@ import kr.co.marketry.domain.view.enums.MarketQuery;
 public enum RenderTarget {
     // 지도 페이지 모바일 캡처와 같은 9:16 판. 프론트가 capture=mobile일 때 렌더러가 공통 캡처 함수를 호출한다.
     MAP_MOBILE("/map/korea?capture=mobile", "map-mobile-capture"),
-    JAPAN_MAP_MOBILE("/map/japan?capture=mobile", "map-mobile-capture");
+    JAPAN_MAP_MOBILE("/map/japan?capture=mobile", "map-mobile-capture"),
+    USA_MAP_MOBILE("/map/usa?capture=mobile", "map-mobile-capture");
 
     private static final String CAPTURE_ATTRIBUTE = "data-captureid";
 

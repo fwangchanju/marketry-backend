@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
+import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.notification.client.TelegramClient;
 import kr.co.marketry.domain.notification.enums.RenderBasis;
 import kr.co.marketry.domain.notification.enums.RenderTarget;
@@ -43,6 +44,8 @@ public class MapReportSender {
     private static final LocalTime JAPAN_CLOSE_TIME = LocalTime.of(15, 30);
     private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
+    private static final String USA_MAP_ERROR_SOURCE = "미국 지도";
+    private static final String USA_HEADER = "#S&P500 #마감";
     // 지도 모바일 캡처 판 안의 첫 화면 업종 헤더. 보내는 지도 이미지에 그려진 업종과 등락률을 그대로 캡션에 쓴다(국내·일본 공통).
     private static final String MAP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
 
@@ -63,6 +66,9 @@ public class MapReportSender {
     // 마지막으로 정기 발송한 일본 시세 시각. 같은 시세의 일본 지도를 다시 보내지 않으려고 기억한다.
     // 앱이 재시작되면 비워지므로 재시작 직후 첫 발송에서 같은 지도가 한 번 더 나갈 수 있다.
     private volatile LocalDateTime lastSentJapanSnapshotTime;
+
+    // 마지막으로 보낸 미국 종가 시각. 미국 종가는 하루 한 번이라 같은 시각이면 다시 보내지 않는다.
+    private volatile LocalDateTime lastSentUsaSnapshotTime;
 
     /** 국내 정기 발송과 별개로 일본 지도만 보낸다. 오늘 새 일본 시세가 있을 때만 나가고, 같은 시세는 다시 보내지 않는다. */
     public void sendJapanIfNew(LocalDateTime dataTime) {
@@ -106,6 +112,33 @@ public class MapReportSender {
         CapturedJapanMap markedCapture =
                 new CapturedJapanMap(testCapture.images(), withTestMarker(testCapture.caption()));
         return sendJapanMap(markedCapture) ? JapanSendResult.SENT : JapanSendResult.TELEGRAM_SEND_FAILED;
+    }
+
+    public UsaSendResult sendLatestUsaOnce() {
+        OverseasStockQuoteService.QuoteSnapshot snapshot;
+        try {
+            snapshot = overseasStockQuoteService.findQuotes("USA", null);
+        } catch (Exception e) {
+            log.warn("[홈리포트] 미국 최신 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
+            return UsaSendResult.QUOTE_LOOKUP_FAILED;
+        }
+        if (snapshot.snapshotTime() == null) return UsaSendResult.NO_QUOTES;
+
+        Optional<CapturedUsaMap> captured = captureUsaMap();
+        if (captured.isEmpty()) return UsaSendResult.MAP_CAPTURE_FAILED;
+        CapturedUsaMap testCapture = captured.get();
+        CapturedUsaMap markedCapture = new CapturedUsaMap(testCapture.images(), withTestMarker(testCapture.caption()));
+        return sendUsaMap(markedCapture) ? UsaSendResult.SENT : UsaSendResult.TELEGRAM_SEND_FAILED;
+    }
+
+    public enum UsaSendResult {
+        SENT,
+        NO_QUOTES,
+        QUOTE_LOOKUP_FAILED,
+        MAP_CAPTURE_FAILED,
+        TELEGRAM_SEND_FAILED
     }
 
     public enum JapanSendResult {
@@ -203,6 +236,78 @@ public class MapReportSender {
         }
     }
 
+    /** 미국 종가가 오늘 저장되었을 때 미국 지도를 하루 한 번 보낸다. 같은 종가 시각은 다시 보내지 않는다. */
+    public void sendUsaIfNew() {
+        OverseasStockQuoteService.QuoteSnapshot snapshot;
+        try {
+            snapshot = overseasStockQuoteService.findQuotes("USA", null);
+        } catch (Exception e) {
+            log.warn("[홈리포트] 미국 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
+            return;
+        }
+        LocalDateTime usaSnapshotTime = snapshot.snapshotTime();
+        if (usaSnapshotTime == null || usaSnapshotTime.equals(lastSentUsaSnapshotTime)) return;
+        if (usaSnapshotTime.toLocalDate().equals(KstClock.now().toLocalDate()) == false) return;
+        Optional<CapturedUsaMap> captured = captureUsaMap();
+        if (captured.isEmpty()) return;
+        if (sendUsaMap(captured.get())) {
+            lastSentUsaSnapshotTime = usaSnapshotTime;
+        }
+    }
+
+    private Optional<CapturedUsaMap> captureUsaMap() {
+        CaptureResult captured;
+        try {
+            captured = screenshotClient.captureWithRows(
+                    RenderTarget.USA_MAP_MOBILE.path(), RenderTarget.USA_MAP_MOBILE.selector(), MAP_ROW_SELECTOR);
+        } catch (Exception e) {
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.SCREENSHOT_CAPTURE_FAILED, e));
+            log.warn("[홈리포트] 미국 지도 캡처 실패로 미국 발송 생략 | context : {}", e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+        if (captured.images().isEmpty()) {
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
+            log.warn("[홈리포트] 미국 지도 캡처 결과가 비어 있어 미국 발송 생략");
+            return Optional.empty();
+        }
+        try {
+            String topSectors =
+                    sectorRankingTextBuilder.buildCaptionFromRenderedRows(captured.rows(), CAPTION_SECTOR_COUNT);
+            if (topSectors == null || topSectors.isBlank()) {
+                escalationPublisher.report(
+                        USA_MAP_ERROR_SOURCE, new EscalateException(ErrorCode.MAP_CAPTION_BUILD_FAILED));
+                log.warn("[홈리포트] 미국 대분류 TOP2를 읽지 못해 미국 지도 발송 생략");
+                return Optional.empty();
+            }
+            return Optional.of(new CapturedUsaMap(captured.images(), USA_HEADER + "\n" + topSectors));
+        } catch (Exception e) {
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_CAPTION_BUILD_FAILED, e));
+            log.warn(
+                    "[홈리포트] 미국 지도 캡션 처리 실패로 미국 발송 생략 | context : {}",
+                    e.getClass().getSimpleName());
+            return Optional.empty();
+        }
+    }
+
+    private boolean sendUsaMap(CapturedUsaMap captured) {
+        try {
+            telegramClient.sendPhoto(
+                    telegramProperties.chatId(), captured.images().get(0), captured.caption());
+            log.info("홈 리포트 발송 완료: 미국 시장 지도 1장");
+            return true;
+        } catch (Exception e) {
+            log.warn("[홈리포트] 미국 지도 텔레그램 발송 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.TELEGRAM_IMAGE_SEND_FAILED, e));
+            return false;
+        }
+    }
+
     private Optional<CapturedJapanMap> captureJapanMap() {
         return captureJapanMap(false);
     }
@@ -254,6 +359,8 @@ public class MapReportSender {
     }
 
     private record CapturedJapanMap(List<byte[]> images, String caption) {}
+
+    private record CapturedUsaMap(List<byte[]> images, String caption) {}
 
     // 마지막 종가 구간의 스냅샷에는 마감 태그를, 메인 마켓이 끝나 애프터 마켓 별도 등락률로 찍는 회차에는 애프터마켓 태그를 더한다.
     private String koreaHeader(Optional<RenderBasis> basis, LocalDateTime dataTime) {
