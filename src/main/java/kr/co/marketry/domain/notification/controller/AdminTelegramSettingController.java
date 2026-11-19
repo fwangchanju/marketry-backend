@@ -65,6 +65,20 @@ public class AdminTelegramSettingController {
         };
     }
 
+    @PostMapping("/send-usa-once")
+    public ResponseEntity<?> sendUsaOnce() {
+        return switch (telegramReportDispatcher.sendLatestUsaOnce()) {
+            case SENT -> ResponseEntity.noContent().build();
+            case NO_QUOTES -> sendFailure(HttpStatus.CONFLICT, "NO_USA_QUOTES", "발송할 미국 시세가 없습니다.");
+            case QUOTE_LOOKUP_FAILED ->
+                sendFailure(HttpStatus.INTERNAL_SERVER_ERROR, "USA_QUOTE_LOOKUP_FAILED", "미국 시세 조회에 실패했습니다.");
+            case MAP_CAPTURE_FAILED ->
+                sendFailure(HttpStatus.FAILED_DEPENDENCY, "USA_MAP_CAPTURE_FAILED", "미국 지도 캡처에 실패했습니다.");
+            case TELEGRAM_SEND_FAILED ->
+                sendFailure(HttpStatus.FAILED_DEPENDENCY, "USA_TELEGRAM_SEND_FAILED", "미국 지도 텔레그램 전송에 실패했습니다.");
+        };
+    }
+
     private ResponseEntity<ProblemDetail> sendFailure(HttpStatus status, String errorCode, String detail) {
         ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(status, detail);
         problemDetail.setProperty("errorCode", errorCode);

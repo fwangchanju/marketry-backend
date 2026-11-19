@@ -114,6 +114,33 @@ public class MapReportSender {
         return sendJapanMap(markedCapture) ? JapanSendResult.SENT : JapanSendResult.TELEGRAM_SEND_FAILED;
     }
 
+    public UsaSendResult sendLatestUsaOnce() {
+        OverseasStockQuoteService.QuoteSnapshot snapshot;
+        try {
+            snapshot = overseasStockQuoteService.findQuotes("USA", null);
+        } catch (Exception e) {
+            log.warn("[홈리포트] 미국 최신 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
+            escalationPublisher.report(
+                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
+            return UsaSendResult.QUOTE_LOOKUP_FAILED;
+        }
+        if (snapshot.snapshotTime() == null) return UsaSendResult.NO_QUOTES;
+
+        Optional<CapturedUsaMap> captured = captureUsaMap();
+        if (captured.isEmpty()) return UsaSendResult.MAP_CAPTURE_FAILED;
+        CapturedUsaMap testCapture = captured.get();
+        CapturedUsaMap markedCapture = new CapturedUsaMap(testCapture.images(), withTestMarker(testCapture.caption()));
+        return sendUsaMap(markedCapture) ? UsaSendResult.SENT : UsaSendResult.TELEGRAM_SEND_FAILED;
+    }
+
+    public enum UsaSendResult {
+        SENT,
+        NO_QUOTES,
+        QUOTE_LOOKUP_FAILED,
+        MAP_CAPTURE_FAILED,
+        TELEGRAM_SEND_FAILED
+    }
+
     public enum JapanSendResult {
         SENT,
         NO_QUOTES,

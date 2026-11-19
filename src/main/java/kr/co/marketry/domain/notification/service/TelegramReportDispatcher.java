@@ -33,6 +33,10 @@ public class TelegramReportDispatcher {
         return mapReportSender.sendLatestJapan();
     }
 
+    public MapReportSender.UsaSendResult sendLatestUsaOnce() {
+        return mapReportSender.sendLatestUsaOnce();
+    }
+
     public MapReportSender.JapanSendResult sendLatestJapanOnce() {
         return mapReportSender.sendLatestJapanOnce();
     }
