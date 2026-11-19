@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class DefaultPreferenceService {
-    private static final Set<String> PROFILES = Set.of("marketry", "exchange", "japan");
+    private static final Set<String> PROFILES = Set.of("marketry", "exchange", "japan", "usa");
     // 일본 지도 기본값 — 일본 지도 설정의 값 이름 그대로 쓴다. 텔레그램 일본 이미지와 개인 설정이 없는 화면이 읽는다.
     private static final Set<String> JAPAN_KEYS = Set.of(
             "sectorLevelEnabled",
@@ -91,7 +91,7 @@ public class DefaultPreferenceService {
 
     private void validateProfile(String profile, Object value) {
         if (!(value instanceof Map<?, ?> settings)) throw new BadRequestException(ErrorCode.INVALID_INPUT);
-        if (profile.equals("japan")) {
+        if (profile.equals("japan") || profile.equals("usa")) {
             for (Object key : settings.keySet()) {
                 if (!(key instanceof String name) || !JAPAN_KEYS.contains(name)) {
                     throw new BadRequestException(ErrorCode.INVALID_INPUT);
