@@ -21,8 +21,8 @@ public class TelegramReportDispatcher {
         mapReportSender.sendJapanIfNew(dataTime);
     }
 
-    public boolean sendLatestKorea() {
-        return mapReportSender.sendLatestKorea();
+    public MapReportSender.KoreaSendResult sendLatestKoreaOnce() {
+        return mapReportSender.sendLatestKoreaOnce();
     }
 
     public boolean sendLatestJapan() {

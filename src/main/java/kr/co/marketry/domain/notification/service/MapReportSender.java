@@ -42,6 +42,7 @@ public class MapReportSender {
     // 일본 정규장 마감 시각. 이 시각의 시세가 종가라 #마감을 붙인다.
     private static final LocalTime JAPAN_CLOSE_TIME = LocalTime.of(15, 30);
     private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
+    private static final String KOREA_SNAPSHOT_ERROR_SOURCE = "국내 스냅샷";
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
     // 지도 모바일 캡처 판 안의 첫 화면 업종 헤더. 보내는 지도 이미지에 그려진 업종과 등락률을 그대로 캡션에 쓴다(국내·일본 공통).
     private static final String MAP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
@@ -69,11 +70,19 @@ public class MapReportSender {
         sendNewJapanMap(dataTime);
     }
 
-    public boolean sendLatestKorea() {
-        return sectorPriceSnapshotService
-                .findLatestCommonSnapshotTime(REPORT_MARKETS.toMarkets())
-                .map(this::sendKoreaTestReport)
-                .orElse(false);
+    /** 관리자 테스트 발송 — 가장 최근 국내 공통 스냅샷으로 지도를 한 장 보내고, 실패하면 어느 단계에서 막혔는지 돌려준다. */
+    public KoreaSendResult sendLatestKoreaOnce() {
+        Optional<LocalDateTime> latest =
+                sectorPriceSnapshotService.findLatestCommonSnapshotTime(REPORT_MARKETS.toMarkets());
+        if (latest.isEmpty()) return KoreaSendResult.NO_COMMON_SNAPSHOT;
+        return sendKoreaTestReport(latest.get());
+    }
+
+    public enum KoreaSendResult {
+        SENT,
+        NO_COMMON_SNAPSHOT,
+        MAP_CAPTURE_FAILED,
+        TELEGRAM_SEND_FAILED
     }
 
     public boolean sendLatestJapan() {
@@ -114,8 +123,12 @@ public class MapReportSender {
                 .filter(dataTime::equals)
                 .isEmpty()) {
             log.warn("[홈리포트] 기준 시각의 최신 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
+            // 조용히 건너뛰면 아무 알림 없이 발송이 멈춘다 — 알림을 보내고, 다음에 정상으로 보내면 풀린다.
+            escalationPublisher.report(
+                    KOREA_SNAPSHOT_ERROR_SOURCE, new EscalateException(ErrorCode.BASE_SNAPSHOT_NOT_FOUND));
             return false;
         }
+        escalationPublisher.resolve(KOREA_SNAPSHOT_ERROR_SOURCE);
         return sendReport(dataTime);
     }
 
@@ -133,20 +146,20 @@ public class MapReportSender {
         return true;
     }
 
-    private boolean sendKoreaTestReport(LocalDateTime dataTime) {
+    private KoreaSendResult sendKoreaTestReport(LocalDateTime dataTime) {
         Optional<RenderBasis> basis = renderBasisResolver.resolve(dataTime);
         Optional<CaptureResult> map = captureKoreaMap(basis);
-        if (map.isEmpty()) return false;
+        if (map.isEmpty()) return KoreaSendResult.MAP_CAPTURE_FAILED;
         String caption = withTestMarker(koreaCaption(map.get().rows(), basis, dataTime));
         try {
             telegramClient.sendPhoto(
                     telegramProperties.chatId(), map.get().images().get(0), caption);
-            return true;
+            return KoreaSendResult.SENT;
         } catch (Exception e) {
             escalationPublisher.report(
                     KOREA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.TELEGRAM_IMAGE_SEND_FAILED, e));
             log.warn("[홈리포트] 국내 테스트 지도 텔레그램 발송 실패 | context : {}", e.getClass().getSimpleName());
-            return false;
+            return KoreaSendResult.TELEGRAM_SEND_FAILED;
         }
     }
 

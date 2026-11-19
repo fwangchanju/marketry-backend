@@ -97,6 +97,9 @@ class MapReportSenderTest {
 
         verify(screenshotClient, never()).captureWithRows(any(), any(), any());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
+        var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
+        verify(escalationPublisher).report(eq("국내 스냅샷"), failure.capture());
+        assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.BASE_SNAPSHOT_NOT_FOUND);
     }
 
     @Test
@@ -107,6 +110,51 @@ class MapReportSenderTest {
         assertThat(sender.send(DATA_TIME)).isFalse();
 
         verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+    }
+
+    @Test
+    void 국내_테스트_발송은_공통_스냅샷이_없으면_스냅샷_없음으로_알린다() {
+        when(sectorPriceSnapshotService.findLatestCommonSnapshotTime(anyList())).thenReturn(Optional.empty());
+
+        assertThat(sender.sendLatestKoreaOnce()).isEqualTo(MapReportSender.KoreaSendResult.NO_COMMON_SNAPSHOT);
+
+        verify(screenshotClient, never()).captureWithRows(any(), any(), any());
+    }
+
+    @Test
+    void 국내_테스트_발송은_캡처가_실패하면_캡처_실패로_알린다() {
+        givenTodaySnapshot();
+        when(screenshotClient.captureWithRows(any(), any(), any()))
+                .thenThrow(new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED));
+
+        assertThat(sender.sendLatestKoreaOnce()).isEqualTo(MapReportSender.KoreaSendResult.MAP_CAPTURE_FAILED);
+
+        verify(telegramClient, never()).sendPhoto(any(), any(), any());
+    }
+
+    @Test
+    void 국내_테스트_발송은_텔레그램_전송이_실패하면_전송_실패로_알린다() {
+        givenTodaySnapshot();
+        givenKoreaMapCapture(ROWS);
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+        org.mockito.Mockito.doThrow(new RuntimeException("텔레그램 발송 실패"))
+                .when(telegramClient)
+                .sendPhoto(eq("chat"), eq(MAP_IMAGE), anyString());
+
+        assertThat(sender.sendLatestKoreaOnce()).isEqualTo(MapReportSender.KoreaSendResult.TELEGRAM_SEND_FAILED);
+
+        verify(escalationPublisher).report(eq("국내 지도"), any(EscalateException.class));
+    }
+
+    @Test
+    void 국내_테스트_발송이_성공하면_성공으로_알린다() {
+        givenTodaySnapshot();
+        givenKoreaMapCapture(ROWS);
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        assertThat(sender.sendLatestKoreaOnce()).isEqualTo(MapReportSender.KoreaSendResult.SENT);
+
+        verify(telegramClient).sendPhoto(eq("chat"), eq(MAP_IMAGE), anyString());
     }
 
     @Test
