@@ -14,9 +14,11 @@ import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
 import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,24 +38,28 @@ public class JapanCloseReconciler {
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
     private final MarketIndexDailyRepository indexes;
+    private final OverseasStockDailyRepository dailies;
     private final Set<String> expectedStocks;
 
     @Autowired
     public JapanCloseReconciler(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
-            MarketIndexDailyRepository indexes) {
-        this(client, repository, indexes, JapanMarketReference.constituentCodes());
+            MarketIndexDailyRepository indexes,
+            OverseasStockDailyRepository dailies) {
+        this(client, repository, indexes, dailies, JapanMarketReference.constituentCodes());
     }
 
     JapanCloseReconciler(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
             MarketIndexDailyRepository indexes,
+            OverseasStockDailyRepository dailies,
             Set<String> expectedStocks) {
         this.client = client;
         this.repository = repository;
         this.indexes = indexes;
+        this.dailies = dailies;
         this.expectedStocks = expectedStocks;
     }
 
@@ -110,6 +116,7 @@ public class JapanCloseReconciler {
         Map<String, OverseasStockQuote> pending = new LinkedHashMap<>();
         baseline.forEach(quote -> pending.put(quote.getId().getStockCode(), quote));
         Map<String, OverseasStockQuote> corrected = new LinkedHashMap<>();
+        List<OverseasStockDaily> candles = new ArrayList<>();
         for (int pass = 0; pass < MAX_PASSES && !pending.isEmpty(); pass++) {
             for (String code : new ArrayList<>(pending.keySet())) {
                 try {
@@ -139,6 +146,16 @@ public class JapanCloseReconciler {
                                     .divide(prior, 2, RoundingMode.HALF_UP),
                             cap);
                     quote.markCloseVerified();
+                    candles.add(OverseasStockDaily.create(
+                            MARKET,
+                            code,
+                            date,
+                            today.open().setScale(2, RoundingMode.HALF_UP),
+                            today.high().setScale(2, RoundingMode.HALF_UP),
+                            today.low().setScale(2, RoundingMode.HALF_UP),
+                            price,
+                            today.volume(),
+                            KstClock.now()));
                     corrected.put(code, quote);
                     pending.remove(code);
                 } catch (RuntimeException failure) {
@@ -167,6 +184,7 @@ public class JapanCloseReconciler {
                 }
             }
         }
+        saveCandles(candles, date);
         // 같은 시각의 225종목이 이미 있으면 성공 종목만 보정해도 나머지 종목이 유지된다.
         // 새 스냅샷을 만들 때는 일부만 저장하지 않는다. 다음 수집 대상이 누락되기 때문이다.
         if (!pending.isEmpty() && !latest.getId().getSnapshotTime().equals(date.atTime(CLOSE_TIME))) {
@@ -175,6 +193,15 @@ public class JapanCloseReconciler {
         if (corrected.isEmpty()) return new Result(0, List.copyOf(pending.keySet()));
         repository.saveAll(corrected.values());
         return new Result(corrected.size(), List.copyOf(pending.keySet()));
+    }
+
+    /** 종목 차트에 쓸 일봉(시가·고가·저가·종가·거래량)을 저장한다. 실패해도 종가 보정은 막지 않는다. */
+    private void saveCandles(List<OverseasStockDaily> candles, LocalDate date) {
+        try {
+            dailies.saveAll(candles);
+        } catch (RuntimeException failure) {
+            log.warn("[일본 종목 일봉 저장 실패] 날짜={} 오류={}", date, failure.getClass().getSimpleName());
+        }
     }
 
     /** 기간 그래프에 쓸 닛케이 지수 일봉을 저장한다. 실패해도 종목 종가 보정은 막지 않는다. */

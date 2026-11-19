@@ -17,10 +17,12 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.DailyBar;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.MarketValue;
 import kr.co.marketry.domain.stock.entity.HistoryBackfillProgress;
 import kr.co.marketry.domain.stock.entity.MarketIndexDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.HistoryBackfillProgressRepository;
 import kr.co.marketry.domain.stock.repository.MarketIndexDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,6 +53,7 @@ public class JapanHistoryBackfillService {
 
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository quotes;
+    private final OverseasStockDailyRepository dailies;
     private final MarketIndexDailyRepository indexes;
     private final HistoryBackfillProgressRepository progress;
     private final Clock clock = Clock.system(java.time.ZoneId.of("Asia/Seoul"));
@@ -152,6 +155,7 @@ public class JapanHistoryBackfillService {
         BigDecimal baseClose = closeOn(bars, marketValue.date());
         List<OverseasStockQuote> rows = toQuotes(stockCode, bars, marketValue.value(), baseClose, from);
         quotes.saveAll(rows);
+        dailies.saveAll(toDailies(stockCode, bars, from, LocalDateTime.now(clock)));
         // 이미 쌓인 이후 5분 시세의 시가총액도 같은 기준으로 맞춘다.
         List<OverseasStockQuote> later =
                 quotes.findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(MARKET, stockCode, to.atTime(CLOSE_TIME));
@@ -159,6 +163,24 @@ public class JapanHistoryBackfillService {
                 quote.changeMarketValue(marketValueOf(marketValue.value(), baseClose, quote.getCurrentPrice())));
         quotes.saveAll(later);
         return rows.size();
+    }
+
+    /** 종목 차트용 일봉. 시작일 앞의 봉은 전일 종가를 위해서만 받은 것이라 저장하지 않는다. */
+    static List<OverseasStockDaily> toDailies(
+            String stockCode, List<DailyBar> bars, LocalDate from, LocalDateTime collectedAt) {
+        return bars.stream()
+                .filter(bar -> bar.date().isBefore(from) == false)
+                .map(bar -> OverseasStockDaily.create(
+                        MARKET,
+                        stockCode,
+                        bar.date(),
+                        price(bar.open()),
+                        price(bar.high()),
+                        price(bar.low()),
+                        price(bar.close()),
+                        bar.volume(),
+                        collectedAt))
+                .toList();
     }
 
     /** 시작일 앞의 값은 전일 종가로만 쓴다. 전일 종가가 없는 첫날(상장일)은 등락률을 알 수 없어 저장하지 않는다. */

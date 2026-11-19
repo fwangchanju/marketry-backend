@@ -16,6 +16,9 @@ public interface StockDailyPriceRepository
     List<StockDailyPrice> findByStockCodeAndExchangeTypeAndTradeDateBetween(
             String stockCode, ExchangeType exchangeType, LocalDate startDate, LocalDate endDate);
 
+    List<StockDailyPrice> findByStockCodeAndExchangeTypeAndTradeDateGreaterThanEqualOrderByTradeDateAsc(
+            String stockCode, ExchangeType exchangeType, LocalDate startDate);
+
     @Query("select max(p.tradeDate) from StockDailyPrice p where p.exchangeType = :exchange and p.tradeDate < :date")
     Optional<LocalDate> findLatestTradeDateBefore(
             @Param("exchange") ExchangeType exchange, @Param("date") LocalDate date);
