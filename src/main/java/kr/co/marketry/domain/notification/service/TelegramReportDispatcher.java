@@ -17,6 +17,10 @@ public class TelegramReportDispatcher {
         return mapReportSender.send(dataTime);
     }
 
+    public void sendUsaIfNew() {
+        mapReportSender.sendUsaIfNew();
+    }
+
     public void sendJapanIfNew(LocalDateTime dataTime) {
         mapReportSender.sendJapanIfNew(dataTime);
     }
