@@ -182,7 +182,9 @@ V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다
 관리자 권한은 DB에서 직접 준다: `UPDATE users SET role = 'ADMIN' WHERE id = ?;` 역할은 토큰에 담기므로
 대상 사용자가 다시 로그인해야 적용된다.
 
-### 필요한 환경변수 (`~/env/market-monitor.env`)
+### 필요한 환경변수 (`~/Projects/marketry/env/marketry.env`)
+
+맥미니 운영 파일이며 `deploy` 계정 소유다. 배포 게이트(`infra/prod/gate.sh`)가 이 파일을 읽는다.
 
 | 변수 | 쓰임 |
 |---|---|
@@ -190,6 +192,7 @@ V1을 고치면 운영 DB의 checksum과 달라져 앱이 기동하지 않는다
 | `AUTH_JWT_SECRET` | 토큰 서명 키, 32바이트 이상. **바꾸면 전원 로그아웃** |
 | `TUNNEL_TOKEN` | Cloudflare Tunnel 토큰. nginx 배포 때 cloudflared 컨테이너에만 전달한다 |
 | `MARKETRY_PROXY_HOST`, `MARKETRY_PROXY_PORT` | 키움 호출만 거치는 HTTP 프록시. 비우면 직접 연결한다. 포트 기본값 8888 |
+| `TELEGRAM_BOT_TOKEN` | 텔레그램 봇 토큰. 비어 있어도 앱은 뜨지만 정기 발송과 오류 알림이 전부 실패한다(2026-11-19). 값을 바꾼 뒤에는 길이와 `getMe` 응답 코드를 확인한다 |
 | `DEVELOPER_CHAT_ID` | 개발자 알림을 받을 텔레그램 채팅방 ID. 쉼표로 여러 개를 적으면 모두에게 보낸다(예: `111,222`). 각 계정이 봇에게 먼저 시작(Start)을 눌러 두어야 한다 |
 
 환경변수는 컨테이너를 새로 만들 때만 읽힌다. 파일을 고친 뒤 배포(또는 `docker compose up -d`)해야 반영된다.
