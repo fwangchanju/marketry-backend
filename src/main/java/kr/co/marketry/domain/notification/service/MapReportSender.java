@@ -42,7 +42,6 @@ public class MapReportSender {
     // 일본 정규장 마감 시각. 이 시각의 시세가 종가라 #마감을 붙인다.
     private static final LocalTime JAPAN_CLOSE_TIME = LocalTime.of(15, 30);
     private static final String KOREA_MAP_ERROR_SOURCE = "국내 지도";
-    private static final String KOREA_SNAPSHOT_ERROR_SOURCE = "국내 스냅샷";
     private static final String JAPAN_MAP_ERROR_SOURCE = "일본 지도";
     // 지도 모바일 캡처 판 안의 첫 화면 업종 헤더. 보내는 지도 이미지에 그려진 업종과 등락률을 그대로 캡션에 쓴다(국내·일본 공통).
     private static final String MAP_ROW_SELECTOR = "[data-captureid='map-mobile-capture'] [data-capture-row]";
@@ -123,12 +122,8 @@ public class MapReportSender {
                 .filter(dataTime::equals)
                 .isEmpty()) {
             log.warn("[홈리포트] 기준 시각의 최신 공통 스냅샷이 없어 발송 생략 | context : {}", dataTime);
-            // 조용히 건너뛰면 아무 알림 없이 발송이 멈춘다 — 알림을 보내고, 다음에 정상으로 보내면 풀린다.
-            escalationPublisher.report(
-                    KOREA_SNAPSHOT_ERROR_SOURCE, new EscalateException(ErrorCode.BASE_SNAPSHOT_NOT_FOUND));
             return false;
         }
-        escalationPublisher.resolve(KOREA_SNAPSHOT_ERROR_SOURCE);
         return sendReport(dataTime);
     }
 

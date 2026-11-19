@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -97,9 +98,7 @@ class MapReportSenderTest {
 
         verify(screenshotClient, never()).captureWithRows(any(), any(), any());
         verify(telegramClient, never()).sendMediaGroup(any(), any(), any());
-        var failure = org.mockito.ArgumentCaptor.forClass(EscalateException.class);
-        verify(escalationPublisher).report(eq("국내 스냅샷"), failure.capture());
-        assertThat(failure.getValue().getErrorCode()).isEqualTo(ErrorCode.BASE_SNAPSHOT_NOT_FOUND);
+        verifyNoInteractions(escalationPublisher);
     }
 
     @Test
