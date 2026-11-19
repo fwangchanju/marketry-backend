@@ -102,7 +102,7 @@ public class CollectionScheduler {
             if (collection.success() == false) {
                 run("데이터수집실패알림", () -> telegramCollectionFailureNotifier.notify(dataTime));
             } else if (telegramSendSchedule.sendEnabled()) {
-                run("홈텔레그램발송", () -> telegramReportDispatcher.sendHome(dataTime));
+                run("홈텔레그램발송", () -> telegramReportDispatcher.sendReport(dataTime));
             }
         }
     }

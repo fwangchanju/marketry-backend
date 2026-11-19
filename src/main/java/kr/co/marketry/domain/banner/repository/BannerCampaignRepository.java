@@ -1,12 +1,10 @@
 package kr.co.marketry.domain.banner.repository;
 
-import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import kr.co.marketry.domain.banner.entity.BannerCampaign;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -14,10 +12,6 @@ public interface BannerCampaignRepository extends JpaRepository<BannerCampaign, 
     List<BannerCampaign> findAllByOrderByStartsAtDesc();
 
     Optional<BannerCampaign> findFirstByApprovedAtIsNotNullAndStartsAtAfterOrderByStartsAtAsc(LocalDateTime now);
-
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select campaign from BannerCampaign campaign where campaign.approvedAt is not null")
-    List<BannerCampaign> findApprovedForUpdate();
 
     @Query("""
             select campaign from BannerCampaign campaign

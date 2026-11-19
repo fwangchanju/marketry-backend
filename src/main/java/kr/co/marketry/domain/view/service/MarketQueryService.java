@@ -39,7 +39,7 @@ public class MarketQueryService {
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
     private final TreemapQueryService treemapQueryService;
 
-    /** 홈이 쓰는 시장 종합 현황(지수·등락·상하한가) 반환 */
+    /** 서머리가 쓰는 시장 종합 현황(지수·등락·상하한가) 반환 */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public MarketSummaryResponse getMarketSummary() {
         return new MarketSummaryResponse(getMarketOverviews(), getMarketOverviewTrends(), getSectorOverviewTrends());

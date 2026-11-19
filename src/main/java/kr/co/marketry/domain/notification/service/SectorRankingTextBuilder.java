@@ -35,7 +35,7 @@ public class SectorRankingTextBuilder {
                 .collect(Collectors.joining("\n\n"));
     }
 
-    /** 홈 발송 캡션 — 두 마켓을 합친 전체 기준 상위 업종을 "업종 등락률" 한 줄씩 보여준다. 헤더와 마켓 구분 줄은 안 붙인다.
+    /** 정기 발송 캡션 — 두 마켓을 합친 전체 기준 상위 업종을 "업종 등락률" 한 줄씩 보여준다. 헤더와 마켓 구분 줄은 안 붙인다.
      * 단위는 등락률(now) 그대로라 %다(변화율 %p가 아님). */
     public String buildMapCaption(List<TopSectorItem> topSectors) {
         return topSectors.stream()

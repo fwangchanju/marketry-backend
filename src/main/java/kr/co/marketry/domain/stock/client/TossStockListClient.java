@@ -75,11 +75,6 @@ public class TossStockListClient {
         return delisted;
     }
 
-    /** 거래정지 중인 종목코드를 돌려준다. 토스가 모르는 종목은 응답에 없어 정지로 보지 않는다. */
-    public Set<String> fetchSuspendedStockCodes(Collection<String> stockCodes) {
-        return fetchSuspensionStatus(stockCodes).suspended();
-    }
-
     /** 정지 중인 종목과, 정지가 아니라고 명시한 종목을 나눠 돌려준다. 응답에 없거나 정지 여부가 비어 있는 종목은 어느 쪽도 아니다. */
     public StockSuspensionStatus fetchSuspensionStatus(Collection<String> stockCodes) {
         Set<String> suspended = new HashSet<>();

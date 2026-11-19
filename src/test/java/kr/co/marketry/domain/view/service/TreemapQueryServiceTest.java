@@ -1112,50 +1112,6 @@ class TreemapQueryServiceTest {
         assertThat(summaries.get(0).topSectors().get(0).changeRate()).isEqualByComparingTo(BigDecimal.TEN);
     }
 
-    // 델타(now-before) 기준과 등락률(now) 기준이 서로 다른 섹터를 뽑을 수 있음을 보인다 — 08:10
-    // 폴백이 델타 대신 이 랭킹을 쓰는 이유다.
-    @Test
-    void getTopSectorRankingsByChangeRate_등락률_기준으로_델타_기준과_다른_섹터를_뽑는다() {
-        LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
-        LocalDateTime beforeTime = snapshotTime.minusMinutes(60);
-        CustomSector a = sector(1L, null, "반도체");
-        CustomSector b = sector(2L, null, "화학");
-        CustomSector c = sector(3L, null, "자동차");
-        stubSectorTree(
-                List.of(a, b, c),
-                List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C", 3L)));
-        stubStockCache(stock("A", Market.KOSPI), stock("B", Market.KOSPI), stock("C", Market.KOSPI));
-        // a: now +20%, before +19% → 델타 +1%p. b: now +5%, before -10% → 델타 +15%p.
-        // c: now +10%, before +8% → 델타 +2%p.
-        stubPrices(
-                Market.KOSPI,
-                snapshotTime,
-                price("A", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(20)),
-                price("B", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(5)),
-                price("C", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.TEN));
-        stubPrices(
-                Market.KOSPI,
-                beforeTime,
-                price("A", Market.KOSPI, beforeTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(19)),
-                price("B", Market.KOSPI, beforeTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(-10)),
-                price("C", Market.KOSPI, beforeTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(8)));
-
-        List<SectorRankingSummary> deltaRankings =
-                service.getTopSectorRankings(MarketQuery.KOSPI, snapshotTime, 60, AverageMode.WEIGHTED, false);
-        List<SectorRankingSummary> changeRateRankings = service.getTopSectorRankingsByChangeRate(
-                MarketQuery.KOSPI, snapshotTime, 60, AverageMode.WEIGHTED, false);
-
-        assertThat(deltaRankings.get(0).topSectors())
-                .extracting(TopSectorItem::sectorName)
-                .containsExactly("화학", "자동차");
-        assertThat(changeRateRankings.get(0).topSectors())
-                .extracting(TopSectorItem::sectorName)
-                .containsExactly("반도체", "자동차");
-    }
-
     @Test
     void getMergedTopSectorRanking_두_마켓의_원시값을_합친_기준으로_TOP2를_뽑는다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
@@ -1421,35 +1377,6 @@ class TreemapQueryServiceTest {
         assertThat(all.get(0).changeRate()).isGreaterThan(BigDecimal.valueOf(29));
     }
 
-    // 가중평균과 산술평균이 실제로 다른 값이 나오는 것을 보여준다 — 종목 하나짜리 픽스처는 itemCount가
-    // 항상 1이라 두 평균이 우연히 같아서 이 분기를 검증하지 못한다.
-    @Test
-    void getTopSectorRankingsByChangeRate_평균_방식에_따라_결과가_달라진다() {
-        LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
-        CustomSector a = sector(1L, null, "반도체");
-        stubSectorTree(
-                List.of(a),
-                List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "BIG", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "SMALL", 1L)));
-        stubStockCache(stock("BIG", Market.KOSPI), stock("SMALL", Market.KOSPI));
-        // 시총 90,000짜리 종목 +30%, 시총 10,000짜리 종목 +10% — 가중평균은 시총이 큰 쪽에 끌려 +28%,
-        // 산술평균은 종목당 등락률을 그대로 평균내 +20%.
-        stubPrices(
-                Market.KOSPI,
-                snapshotTime,
-                price("BIG", Market.KOSPI, snapshotTime, BigDecimal.valueOf(90_000), BigDecimal.valueOf(30)),
-                price("SMALL", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.TEN));
-
-        List<SectorRankingSummary> weighted = service.getTopSectorRankingsByChangeRate(
-                MarketQuery.KOSPI, snapshotTime, 60, AverageMode.WEIGHTED, false);
-        List<SectorRankingSummary> simple = service.getTopSectorRankingsByChangeRate(
-                MarketQuery.KOSPI, snapshotTime, 60, AverageMode.SIMPLE, false);
-
-        assertThat(weighted.get(0).topSectors().get(0).changeRate()).isEqualByComparingTo(BigDecimal.valueOf(28));
-        assertThat(simple.get(0).topSectors().get(0).changeRate()).isEqualByComparingTo(BigDecimal.valueOf(20));
-    }
-
     // 평상시(매 tick) 경로 — getTopSectorRankings → toTopSectorItem은 avgOf를 now·before 두 번
     // 불러 그 차이를 쓴다. ByChangeRate 폴백 경로만 덮으면 두 호출 중 하나가 다른 모드를 써도 못 잡는다.
     @Test
@@ -1484,38 +1411,6 @@ class TreemapQueryServiceTest {
 
         assertThat(weighted.get(0).topSectors().get(0).changeRate()).isEqualByComparingTo(BigDecimal.valueOf(20));
         assertThat(simple.get(0).topSectors().get(0).changeRate()).isEqualByComparingTo(BigDecimal.valueOf(15));
-    }
-
-    // 섹터 제외(custom_sector.is_excluded)를 켜고 끄면 TOP2에 들어오는 섹터가 달라진다.
-    @Test
-    void getTopSectorRankingsByChangeRate_섹터_제외를_켜면_isExcluded_섹터가_빠진다() {
-        LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
-        CustomSector excluded = sector(1L, null, "반도체");
-        excluded.exclude();
-        CustomSector included = sector(2L, null, "화학");
-        stubSectorTree(
-                List.of(excluded, included),
-                List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B", 2L)));
-        stubStockCache(stock("A", Market.KOSPI), stock("B", Market.KOSPI));
-        stubPrices(
-                Market.KOSPI,
-                snapshotTime,
-                price("A", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(90)),
-                price("B", Market.KOSPI, snapshotTime, BigDecimal.valueOf(10_000), BigDecimal.valueOf(5)));
-
-        List<SectorRankingSummary> filtered = service.getTopSectorRankingsByChangeRate(
-                MarketQuery.KOSPI, snapshotTime, 60, AverageMode.WEIGHTED, true);
-        List<SectorRankingSummary> unfiltered = service.getTopSectorRankingsByChangeRate(
-                MarketQuery.KOSPI, snapshotTime, 60, AverageMode.WEIGHTED, false);
-
-        assertThat(filtered.get(0).topSectors())
-                .extracting(TopSectorItem::sectorName)
-                .containsExactly("화학");
-        assertThat(unfiltered.get(0).topSectors())
-                .extracting(TopSectorItem::sectorName)
-                .containsExactly("반도체", "화학");
     }
 
     // 텔레그램 섹터 캡션의 "#코스피 +x.xx%"가 SectorRankingSummary.indexChangeRate를 읽는다

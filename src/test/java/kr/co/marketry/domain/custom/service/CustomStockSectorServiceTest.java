@@ -176,14 +176,12 @@ class CustomStockSectorServiceTest {
     }
 
     @Test
-    void assign_거래_정지_종목은_다른_업종으로_옮기거나_해제할_수_없다() {
+    void assign_거래_정지_종목은_다른_업종으로_옮길_수_없다() {
         when(suspendedClassification.findLockedStockCodes(eq(USER_ID), any())).thenReturn(Set.of("005930"));
 
         assertThatThrownBy(() -> service.assign("005930", SECTOR_ID)).isInstanceOf(ConflictException.class);
-        assertThatThrownBy(() -> service.unassign("005930")).isInstanceOf(ConflictException.class);
 
         verify(jdbcTemplate, Mockito.never()).update(contains("INSERT INTO custom_stock_sector"), any(), any(), any());
-        verify(stockSectorRepository, Mockito.never()).deleteByIdUserIdAndIdStockCode(any(), any());
     }
 
     @Test

@@ -67,7 +67,6 @@ class AuthConfigurationTest {
             FilterChainProxy filterChainProxy = new FilterChainProxy(context.getBean(SecurityFilterChain.class));
 
             // 쓰기 요청은 Origin 검사(OriginCheckFilter)가 인가보다 먼저라서 허용된 Origin을 넣어야 401이 나온다.
-            assertThat(statusOf(filterChainProxy, "GET", "/api/profile", null)).isEqualTo(401);
             assertThat(statusOf(filterChainProxy, "GET", "/api/profile/image", null))
                     .isEqualTo(401);
             assertThat(statusOf(filterChainProxy, "PUT", "/api/profile/nickname", "http://localhost"))

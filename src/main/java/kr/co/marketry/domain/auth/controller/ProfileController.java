@@ -35,11 +35,6 @@ public class ProfileController {
     private final AccountWithdrawalService accountWithdrawalService;
     private final AuthCookies authCookies;
 
-    @GetMapping
-    public ProfileResponse getProfile() {
-        return userProfileService.getProfile(CurrentUser.requireId());
-    }
-
     // 회원 탈퇴 — 회원의 데이터를 즉시 모두 지우고 로그인 쿠키를 만료시킨다.
     @DeleteMapping("/account")
     public void withdraw(HttpServletResponse response) {

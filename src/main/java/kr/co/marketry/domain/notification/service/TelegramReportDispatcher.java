@@ -11,25 +11,25 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TelegramReportDispatcher {
 
-    private final HomeReportSender homeReportSender;
+    private final MapReportSender mapReportSender;
 
-    public boolean sendHome(LocalDateTime dataTime) {
-        return homeReportSender.send(dataTime);
+    public boolean sendReport(LocalDateTime dataTime) {
+        return mapReportSender.send(dataTime);
     }
 
     public void sendJapanIfNew(LocalDateTime dataTime) {
-        homeReportSender.sendJapanIfNew(dataTime);
+        mapReportSender.sendJapanIfNew(dataTime);
     }
 
     public boolean sendLatestKorea() {
-        return homeReportSender.sendLatestKorea();
+        return mapReportSender.sendLatestKorea();
     }
 
     public boolean sendLatestJapan() {
-        return homeReportSender.sendLatestJapan();
+        return mapReportSender.sendLatestJapan();
     }
 
-    public HomeReportSender.JapanSendResult sendLatestJapanOnce() {
-        return homeReportSender.sendLatestJapanOnce();
+    public MapReportSender.JapanSendResult sendLatestJapanOnce() {
+        return mapReportSender.sendLatestJapanOnce();
     }
 }

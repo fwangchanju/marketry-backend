@@ -98,7 +98,7 @@ class TossStockListClientTest {
                         "{\"result\":[{\"symbol\":\"000201\",\"koreanMarketDetail\":{\"krxTradingSuspended\":true}}]}",
                         MediaType.APPLICATION_JSON));
 
-        assertThat(client.fetchSuspendedStockCodes(codes)).containsExactlyInAnyOrder("000001", "000201");
+        assertThat(client.fetchSuspensionStatus(codes).suspended()).containsExactlyInAnyOrder("000001", "000201");
         server.verify();
     }
 
@@ -127,7 +127,7 @@ class TossStockListClientTest {
         server.expect(requestTo(BASE_URL + "/api/v1/stocks?symbols=005930"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR).body("test-secret"));
 
-        assertThatThrownBy(() -> client.fetchSuspendedStockCodes(java.util.List.of("005930")))
+        assertThatThrownBy(() -> client.fetchSuspensionStatus(java.util.List.of("005930")))
                 .isInstanceOf(BadRequestException.class)
                 .hasCause(null)
                 .satisfies(exception -> assertThat(((BadRequestException) exception).createLogMessage())

@@ -17,14 +17,6 @@ public class CustomStockSectorRepositoryImpl implements CustomStockSectorReposit
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public void deleteByIdUserIdAndIdStockCode(Long userId, String stockCode) {
-        queryFactory
-                .delete(customStockSector)
-                .where(customStockSector.id.userId.eq(userId), customStockSector.id.stockCode.eq(stockCode))
-                .execute();
-    }
-
-    @Override
     public void deleteByUserIdAndSectorIdIn(Long userId, List<Long> sectorIds) {
         queryFactory
                 .delete(customStockSector)

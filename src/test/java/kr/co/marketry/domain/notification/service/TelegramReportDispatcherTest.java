@@ -8,15 +8,15 @@ import org.mockito.Mockito;
 
 class TelegramReportDispatcherTest {
 
-    private final HomeReportSender homeReportSender = Mockito.mock(HomeReportSender.class);
-    private final TelegramReportDispatcher dispatcher = new TelegramReportDispatcher(homeReportSender);
+    private final MapReportSender mapReportSender = Mockito.mock(MapReportSender.class);
+    private final TelegramReportDispatcher dispatcher = new TelegramReportDispatcher(mapReportSender);
 
     private final LocalDateTime dataTime = LocalDateTime.of(2025, 6, 2, 8, 15);
 
     @Test
-    void sendHome_홈_발송기를_부른다() {
-        dispatcher.sendHome(dataTime);
+    void sendReport_지도_발송기를_부른다() {
+        dispatcher.sendReport(dataTime);
 
-        verify(homeReportSender).send(dataTime);
+        verify(mapReportSender).send(dataTime);
     }
 }
