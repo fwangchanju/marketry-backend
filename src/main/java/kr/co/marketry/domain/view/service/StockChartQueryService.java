@@ -32,6 +32,8 @@ public class StockChartQueryService {
     // 장중 임시 봉은 정규장(한국 KRX·일본 도쿄 모두 09:00~15:30, 한국 시각) 5분 시세로만 만든다. 한국 시간외·NXT 값은 쓰지 않는다.
     private static final LocalTime REGULAR_OPEN = LocalTime.of(9, 0);
     private static final LocalTime REGULAR_CLOSE = LocalTime.of(15, 30);
+    // 일본 시세는 20분 늦게 들어와 09:00 값이 아직 전일 종가일 수 있다. 일본 임시 봉은 09:20 값부터 쓴다(2026-11-20 사용자 결정).
+    private static final LocalTime JAPAN_FIRST_FRESH = LocalTime.of(9, 20);
     // 임시 봉을 찾을 5분 시세 범위 — 주말·휴일을 건너도 마지막 거래일이 들어오게 며칠 넉넉히 본다.
     private static final int INTRADAY_LOOKBACK_DAYS = 5;
 
@@ -59,7 +61,7 @@ public class StockChartQueryService {
                 .stream()
                 .map(snapshot -> new IntradayPrice(snapshot.getSnapshotTime(), snapshot.getCurrentPrice()))
                 .toList();
-        return withProvisional(candles, intraday);
+        return withProvisional(candles, intraday, REGULAR_OPEN);
     }
 
     /** 최근 days일 안의 일본 종목 일봉을 오래된 날부터 준다. 아직 일봉이 저장되지 않은 최근 거래일은 5분 시세로 만든 임시 봉을 붙인다. */
@@ -69,7 +71,7 @@ public class StockChartQueryService {
                 .stream()
                 .map(quote -> new IntradayPrice(quote.getId().getSnapshotTime(), quote.getCurrentPrice()))
                 .toList();
-        return withProvisional(getOverseasDailyCandles(JAPAN_MARKET, stockCode, days), intraday);
+        return withProvisional(getOverseasDailyCandles(JAPAN_MARKET, stockCode, days), intraday, JAPAN_FIRST_FRESH);
     }
 
     private static LocalDateTime intradaySince() {
@@ -84,12 +86,13 @@ public class StockChartQueryService {
      * 5분 시세 중 가장 최근 거래일이 마지막 일봉보다 뒤면, 그날 정규장 값으로 임시 봉(첫 값·최고·최저·마지막 값, 거래량 0)을 만들어 붙인다. 같은
      * 시각에 값이 여럿이면(거래소별 행) 시각 순서대로 다 쓴다.
      */
-    static List<StockDailyCandle> withProvisional(List<StockDailyCandle> candles, List<IntradayPrice> intraday) {
+    static List<StockDailyCandle> withProvisional(
+            List<StockDailyCandle> candles, List<IntradayPrice> intraday, LocalTime firstTime) {
         TreeMap<LocalDate, List<IntradayPrice>> byDate = new TreeMap<>();
         for (IntradayPrice point : intraday) {
             LocalTime time = point.time().toLocalTime();
             if (point.price() == null || point.price().signum() <= 0) continue;
-            if (time.isBefore(REGULAR_OPEN) || time.isAfter(REGULAR_CLOSE)) continue;
+            if (time.isBefore(firstTime) || time.isAfter(REGULAR_CLOSE)) continue;
             byDate.computeIfAbsent(point.time().toLocalDate(), date -> new ArrayList<>())
                     .add(point);
         }
