@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
@@ -51,7 +52,8 @@ class StockChartQueryServiceTest {
                         at("2026-11-20T10:00", "108"),
                         at("2026-11-20T11:00", "97"),
                         at("2026-11-20T12:00", "103"),
-                        at("2026-11-20T16:00", "1"))); // 장 마감 뒤 값도 쓰지 않는다
+                        at("2026-11-20T16:00", "1")), // 장 마감 뒤 값도 쓰지 않는다
+                LocalTime.of(9, 0));
 
         StockDailyCandle today = result.get(result.size() - 1);
         assertThat(result).hasSize(2);
@@ -65,9 +67,23 @@ class StockChartQueryServiceTest {
     }
 
     @Test
+    void 일본은_20분_지연이라_09시_20분_전_값은_쓰지_않는다() {
+        List<StockDailyCandle> result = StockChartQueryService.withProvisional(
+                List.of(candle("2026-11-19", "3378")),
+                List.of(
+                        at("2026-11-20T09:00", "3378"), // 아직 전일 종가
+                        at("2026-11-20T09:20", "3350"),
+                        at("2026-11-20T10:00", "3310")),
+                LocalTime.of(9, 20));
+
+        assertThat(result.get(result.size() - 1).open()).isEqualByComparingTo("3350");
+        assertThat(result.get(result.size() - 1).high()).isEqualByComparingTo("3350");
+    }
+
+    @Test
     void 그날_일봉이_이미_있으면_임시_봉을_붙이지_않는다() {
         List<StockDailyCandle> result = StockChartQueryService.withProvisional(
-                List.of(candle("2026-11-20", "100")), List.of(at("2026-11-20T10:00", "101")));
+                List.of(candle("2026-11-20", "100")), List.of(at("2026-11-20T10:00", "101")), LocalTime.of(9, 0));
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).provisional()).isFalse();
@@ -77,7 +93,8 @@ class StockChartQueryServiceTest {
     void 정규장_5분_시세가_없으면_일봉만_준다() {
         List<StockDailyCandle> candles = List.of(candle("2026-11-19", "100"));
 
-        assertThat(StockChartQueryService.withProvisional(candles, List.of(at("2026-11-20T18:00", "101"))))
+        assertThat(StockChartQueryService.withProvisional(
+                        candles, List.of(at("2026-11-20T18:00", "101")), LocalTime.of(9, 0)))
                 .isEqualTo(candles);
     }
 
