@@ -16,6 +16,8 @@ import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.StockDailyPrice;
 import kr.co.marketry.domain.stock.enums.ExchangeType;
 import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
+import kr.co.marketry.domain.stock.repository.SectorPriceSnapshotRepository;
 import kr.co.marketry.domain.stock.repository.StockDailyPriceRepository;
 import kr.co.marketry.domain.view.dto.StockDailyCandle;
 import org.junit.jupiter.api.Test;
@@ -25,7 +27,59 @@ class StockChartQueryServiceTest {
 
     private final StockDailyPriceRepository repository = mock(StockDailyPriceRepository.class);
     private final OverseasStockDailyRepository overseasRepository = mock(OverseasStockDailyRepository.class);
-    private final StockChartQueryService service = new StockChartQueryService(repository, overseasRepository);
+    private final SectorPriceSnapshotRepository snapshotRepository = mock(SectorPriceSnapshotRepository.class);
+    private final OverseasStockQuoteRepository quoteRepository = mock(OverseasStockQuoteRepository.class);
+    private final StockChartQueryService service =
+            new StockChartQueryService(repository, overseasRepository, snapshotRepository, quoteRepository);
+
+    private static StockChartQueryService.IntradayPrice at(String time, String price) {
+        return new StockChartQueryService.IntradayPrice(LocalDateTime.parse(time), new BigDecimal(price));
+    }
+
+    private static StockDailyCandle candle(String date, String close) {
+        BigDecimal value = new BigDecimal(close);
+        return new StockDailyCandle(LocalDate.parse(date), value, value, value, value, 100);
+    }
+
+    @Test
+    void 일봉이_아직_없는_최근_거래일은_정규장_5분_시세로_임시_봉을_붙인다() {
+        List<StockDailyCandle> result = StockChartQueryService.withProvisional(
+                List.of(candle("2026-11-19", "100")),
+                List.of(
+                        at("2026-11-20T08:30", "999"), // 정규장 전(NXT) 값은 쓰지 않는다
+                        at("2026-11-20T09:00", "101"),
+                        at("2026-11-20T10:00", "108"),
+                        at("2026-11-20T11:00", "97"),
+                        at("2026-11-20T12:00", "103"),
+                        at("2026-11-20T16:00", "1"))); // 장 마감 뒤 값도 쓰지 않는다
+
+        StockDailyCandle today = result.get(result.size() - 1);
+        assertThat(result).hasSize(2);
+        assertThat(today.date()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(today.provisional()).isTrue();
+        assertThat(today.open()).isEqualByComparingTo("101");
+        assertThat(today.high()).isEqualByComparingTo("108");
+        assertThat(today.low()).isEqualByComparingTo("97");
+        assertThat(today.close()).isEqualByComparingTo("103");
+        assertThat(today.volume()).isZero();
+    }
+
+    @Test
+    void 그날_일봉이_이미_있으면_임시_봉을_붙이지_않는다() {
+        List<StockDailyCandle> result = StockChartQueryService.withProvisional(
+                List.of(candle("2026-11-20", "100")), List.of(at("2026-11-20T10:00", "101")));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).provisional()).isFalse();
+    }
+
+    @Test
+    void 정규장_5분_시세가_없으면_일봉만_준다() {
+        List<StockDailyCandle> candles = List.of(candle("2026-11-19", "100"));
+
+        assertThat(StockChartQueryService.withProvisional(candles, List.of(at("2026-11-20T18:00", "101"))))
+                .isEqualTo(candles);
+    }
 
     private static StockDailyPrice price(String date, String open, String high, String low, String close, long volume) {
         return StockDailyPrice.create(
