@@ -7,6 +7,8 @@ import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.notification.listener.EscalationPublisher;
+import kr.co.marketry.domain.notification.schedule.TelegramSendSchedule;
+import kr.co.marketry.domain.notification.service.TelegramReportDispatcher;
 import kr.co.marketry.domain.stock.collector.UsaQuoteCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 /**
  * 미국 시세 수집: 화~토 05:00~08:50(한국 시각), 5분 간격으로 시도하고 하루에 한 번 저장한다. 정규장 종료 + 대기 시간이 지나기
  * 전 회차는 저장하지 않는다(겨울 마감 06:00, 여름 마감 05:00). 일본 수집과 묶지 않는다.
+ * 종가를 저장한 회차에서 바로 미국 지도를 텔레그램으로 한 번 보낸다(관리자 메시지 페이지의 발송 스위치가 꺼져 있으면 보내지 않는다).
  */
 @Slf4j
 @Component
@@ -29,6 +32,8 @@ public class UsaQuoteScheduler {
 
     private final UsaQuoteCollector collector;
     private final EscalationPublisher escalationPublisher;
+    private final TelegramReportDispatcher telegramReportDispatcher;
+    private final TelegramSendSchedule telegramSendSchedule;
     private final boolean collectEnabled;
     private int consecutiveFailures;
     private LocalDate failureDate;
@@ -37,9 +42,13 @@ public class UsaQuoteScheduler {
     public UsaQuoteScheduler(
             UsaQuoteCollector collector,
             EscalationPublisher escalationPublisher,
+            TelegramReportDispatcher telegramReportDispatcher,
+            TelegramSendSchedule telegramSendSchedule,
             @Value("${usa-quote.enabled:false}") boolean collectEnabled) {
         this.collector = collector;
         this.escalationPublisher = escalationPublisher;
+        this.telegramReportDispatcher = telegramReportDispatcher;
+        this.telegramSendSchedule = telegramSendSchedule;
         this.collectEnabled = collectEnabled;
     }
 
@@ -74,6 +83,20 @@ public class UsaQuoteScheduler {
             recordFailure(now, failure.getClass().getSimpleName() + ": " + failure.getMessage());
         }
         alertIfMissing(now, result);
+        if (result != null && result.saved()) {
+            sendUsaMap();
+        }
+    }
+
+    // 발송 실패는 발송기가 알린다. 여기서는 예상하지 못한 예외가 수집 기록을 깨지 않게만 막는다.
+    private void sendUsaMap() {
+        try {
+            if (telegramSendSchedule.sendEnabled()) {
+                telegramReportDispatcher.sendUsa();
+            }
+        } catch (RuntimeException failure) {
+            log.warn("[미국시세] 미국 지도 발송 실패", failure);
+        }
     }
 
     // 하루 안에서 연속으로 실패한 횟수만 센다. 날이 바뀌면 다시 센다. 알림 실패는 수집을 막지 않는다.
