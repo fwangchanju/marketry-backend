@@ -28,6 +28,10 @@ public class TelegramSendSchedule {
     @Value("${collect.end-hour}")
     private int endHour;
 
+    // 일본 발송 격자의 시작 시(일본 장 개장 09:00). 국내 시작 시와 따로 둔다.
+    @Value("${telegram.japan-send-start-hour:9}")
+    private int japanStartHour;
+
     @Value("${collect.interval-minutes}")
     private int collectIntervalMinutes;
 
@@ -60,7 +64,7 @@ public class TelegramSendSchedule {
      */
     public boolean japanDue(LocalDateTime now) {
         TelegramSendPlan plan = telegramSendSettingService.current();
-        return japanDue(now, startHour, plan.sendMinute(), plan.sendIntervalMinutes());
+        return japanDue(now, japanStartHour, plan.sendMinute(), plan.sendIntervalMinutes());
     }
 
     /** 관리자 메시지 페이지의 발송 스위치. 꺼져 있으면 정기 리포트를 보내지 않는다(수집 실패 알림은 따로 간다). */
