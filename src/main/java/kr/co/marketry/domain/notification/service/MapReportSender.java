@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
-import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.notification.client.TelegramClient;
 import kr.co.marketry.domain.notification.enums.RenderBasis;
 import kr.co.marketry.domain.notification.enums.RenderTarget;
@@ -66,9 +65,6 @@ public class MapReportSender {
     // 마지막으로 정기 발송한 일본 시세 시각. 같은 시세의 일본 지도를 다시 보내지 않으려고 기억한다.
     // 앱이 재시작되면 비워지므로 재시작 직후 첫 발송에서 같은 지도가 한 번 더 나갈 수 있다.
     private volatile LocalDateTime lastSentJapanSnapshotTime;
-
-    // 마지막으로 보낸 미국 종가 시각. 미국 종가는 하루 한 번이라 같은 시각이면 다시 보내지 않는다.
-    private volatile LocalDateTime lastSentUsaSnapshotTime;
 
     /** 국내 정기 발송과 별개로 일본 지도만 보낸다. 오늘 새 일본 시세가 있을 때만 나가고, 같은 시세는 다시 보내지 않는다. */
     public void sendJapanIfNew(LocalDateTime dataTime) {
@@ -236,25 +232,9 @@ public class MapReportSender {
         }
     }
 
-    /** 미국 종가가 오늘 저장되었을 때 미국 지도를 하루 한 번 보낸다. 같은 종가 시각은 다시 보내지 않는다. */
-    public void sendUsaIfNew() {
-        OverseasStockQuoteService.QuoteSnapshot snapshot;
-        try {
-            snapshot = overseasStockQuoteService.findQuotes("USA", null);
-        } catch (Exception e) {
-            log.warn("[홈리포트] 미국 시세 조회 실패 | context : {}", e.getClass().getSimpleName());
-            escalationPublisher.report(
-                    USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.MAP_QUOTE_LOOKUP_FAILED, e));
-            return;
-        }
-        LocalDateTime usaSnapshotTime = snapshot.snapshotTime();
-        if (usaSnapshotTime == null || usaSnapshotTime.equals(lastSentUsaSnapshotTime)) return;
-        if (usaSnapshotTime.toLocalDate().equals(KstClock.now().toLocalDate()) == false) return;
-        Optional<CapturedUsaMap> captured = captureUsaMap();
-        if (captured.isEmpty()) return;
-        if (sendUsaMap(captured.get())) {
-            lastSentUsaSnapshotTime = usaSnapshotTime;
-        }
+    /** 미국 종가를 저장한 직후 미국 지도를 한 번 보낸다(UsaQuoteScheduler가 저장한 회차에서만 부른다). */
+    public void sendUsa() {
+        captureUsaMap().ifPresent(this::sendUsaMap);
     }
 
     private Optional<CapturedUsaMap> captureUsaMap() {
