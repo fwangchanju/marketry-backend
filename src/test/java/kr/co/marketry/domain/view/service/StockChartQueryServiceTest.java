@@ -14,6 +14,8 @@ import java.time.LocalTime;
 import java.util.List;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
+import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.entity.StockDailyPrice;
 import kr.co.marketry.domain.stock.enums.ExchangeType;
 import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
@@ -67,17 +69,40 @@ class StockChartQueryServiceTest {
     }
 
     @Test
-    void 일본은_20분_지연이라_09시_20분_전_값은_쓰지_않는다() {
-        List<StockDailyCandle> result = StockChartQueryService.withProvisional(
-                List.of(candle("2026-11-19", "3378")),
-                List.of(
-                        at("2026-11-20T09:00", "3378"), // 아직 전일 종가
-                        at("2026-11-20T09:20", "3350"),
-                        at("2026-11-20T10:00", "3310")),
-                LocalTime.of(9, 20));
+    void 일본은_9시_20분에_도착한_9시_시세를_임시_봉_시가로_쓴다() {
+        when(overseasRepository.findByIdMarketAndIdStockCodeAndIdTradeDateGreaterThanEqualOrderByIdTradeDateAsc(
+                        eq("JAPAN"), eq("7203"), any()))
+                .thenReturn(List.of(OverseasStockDaily.create(
+                        "JAPAN",
+                        "7203",
+                        LocalDate.of(2026, 11, 19),
+                        new BigDecimal("3378"),
+                        new BigDecimal("3378"),
+                        new BigDecimal("3378"),
+                        new BigDecimal("3378"),
+                        100,
+                        LocalDateTime.of(2026, 11, 19, 20, 0))));
+        when(quoteRepository.findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(eq("JAPAN"), eq("7203"), any()))
+                .thenReturn(List.of(
+                        OverseasStockQuote.create(
+                                new OverseasStockQuoteId("JAPAN", "7203", LocalDateTime.of(2026, 11, 20, 9, 0)),
+                                new BigDecimal("3350"),
+                                new BigDecimal("3350"),
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO),
+                        OverseasStockQuote.create(
+                                new OverseasStockQuoteId("JAPAN", "7203", LocalDateTime.of(2026, 11, 20, 10, 0)),
+                                new BigDecimal("3310"),
+                                new BigDecimal("3310"),
+                                BigDecimal.ZERO,
+                                BigDecimal.ZERO)));
 
-        assertThat(result.get(result.size() - 1).open()).isEqualByComparingTo("3350");
-        assertThat(result.get(result.size() - 1).high()).isEqualByComparingTo("3350");
+        List<StockDailyCandle> candles = service.getJapanDailyCandles("7203", 30);
+
+        StockDailyCandle today = candles.get(candles.size() - 1);
+        assertThat(today.date()).isEqualTo(LocalDate.of(2026, 11, 20));
+        assertThat(today.open()).isEqualByComparingTo("3350");
+        assertThat(today.provisional()).isTrue();
     }
 
     @Test
