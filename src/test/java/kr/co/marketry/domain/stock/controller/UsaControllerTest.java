@@ -32,9 +32,7 @@ class UsaControllerTest {
                     .getBytes(StandardCharsets.UTF_8)));
     private final UsaController controller = new UsaController(
             quotes,
-            classifications,
-            categories,
-            mock(kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService.class),
+            mock(kr.co.marketry.domain.custom.service.PublishedClassificationService.class),
             constituents,
             indexCloses,
             names);

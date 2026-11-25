@@ -12,10 +12,8 @@ import java.util.Map;
 import kr.co.marketry.domain.auth.enums.Role;
 import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.stock.service.JapanStockKoreanNameService;
-import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService;
-import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import org.junit.jupiter.api.Test;
 
@@ -25,9 +23,7 @@ class JapanControllerTest {
     private final OverseasIndexQuoteService indexQuotes = mock(OverseasIndexQuoteService.class);
     private final JapanController controller = new JapanController(
             mock(OverseasStockQuoteService.class),
-            mock(OverseasStockClassificationService.class),
-            mock(OverseasClassificationCategoryService.class),
-            mock(kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService.class),
+            mock(kr.co.marketry.domain.custom.service.PublishedClassificationService.class),
             names,
             indexCloses,
             indexQuotes);
