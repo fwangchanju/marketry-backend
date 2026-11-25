@@ -32,7 +32,7 @@ public class IndustrySectorPropagationService {
                 INSERT INTO custom_sector (user_id, parent_id, name, depth, is_excluded, created_at, updated_at)
                 SELECT users.id, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 FROM users
-                ON CONFLICT (user_id, name) DO NOTHING
+                ON CONFLICT DO NOTHING
                 """, event.name());
     }
 }
