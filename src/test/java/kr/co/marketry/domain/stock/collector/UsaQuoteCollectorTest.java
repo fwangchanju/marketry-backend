@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -116,6 +117,41 @@ class UsaQuoteCollectorTest {
     }
 
     @Test
+    void 조기_마감일에는_그날_마감_시각에서_대기_시간이_지나면_저장한다() {
+        // 2026-11-27 13:00 ET 조기 마감, 한국 시각 11/28 05:00 회차
+        LocalDate earlyDay = LocalDate.parse("2026-11-27");
+        when(client.fetchIndexSession("^GSPC"))
+                .thenReturn(new IndexSession(earlyDay, Instant.parse("2026-11-27T18:00:00Z")));
+        givenLast(LocalDateTime.parse("2026-11-25T16:00:00"), lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-25", "100"), bar("2026-11-27", "101"));
+        givenBars("^GSPC", bar("2026-11-27", "6000"));
+
+        UsaQuoteCollector.Result result =
+                collector(Instant.parse("2026-11-27T20:00:00Z"), "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        assertThat(result.missingIndexDays()).isEmpty();
+    }
+
+    @Test
+    void 휴장일_다음_아침에는_이미_저장한_것으로_보고_휴장일_지수를_찾지_않는다() {
+        // 2026-11-26 추수감사절 휴장, 한국 시각 11/27 07:00 회차. 야후의 종료 시각은 다음 거래일로 넘어가 있다.
+        LocalDate lastDay = LocalDate.parse("2026-11-25");
+        when(client.fetchIndexSession("^GSPC"))
+                .thenReturn(new IndexSession(lastDay, Instant.parse("2026-11-27T18:00:00Z")));
+        givenLast(lastDay.atTime(16, 0), lastRow("AAPL", "100.00", "1000000"));
+        givenSnapshotDays("2026-11-24", "2026-11-25");
+        givenIndexDays(LocalDate.parse("2026-11-24"), lastDay);
+
+        UsaQuoteCollector.Result result =
+                collector(Instant.parse("2026-11-26T22:00:00Z"), "AAPL").collect();
+
+        assertThat(result.status()).isEqualTo(UsaQuoteCollector.Status.ALREADY_SAVED);
+        assertThat(result.missingIndexDays()).isEmpty();
+        verify(client, never()).fetchDailyBars(anyString(), any(), any());
+    }
+
+    @Test
     void 장_종료_시각이_최신_봉_날짜보다_앞서면_저장하지_않는다() {
         when(client.fetchIndexSession("^GSPC"))
                 .thenReturn(new IndexSession(DAY, Instant.parse("2026-11-11T21:00:00Z")));
@@ -131,7 +167,7 @@ class UsaQuoteCollectorTest {
     @Test
     void 그_날짜를_이미_저장했으면_다시_저장하지_않는다() {
         givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
-        when(indexes.existsById(new MarketIndexDaily.Id("SP500", DAY))).thenReturn(true);
+        givenIndexDays(DAY);
 
         UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
 
@@ -143,7 +179,6 @@ class UsaQuoteCollectorTest {
     @Test
     void 종목은_이미_저장했는데_지수_종가가_없으면_지수만_다시_저장한다() {
         givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
-        when(indexes.existsById(new MarketIndexDaily.Id("SP500", DAY))).thenReturn(false);
         givenBars("^GSPC", bar("2026-11-12", "6000"));
 
         UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
@@ -159,12 +194,80 @@ class UsaQuoteCollectorTest {
     @Test
     void 종목도_지수도_이미_저장했으면_야후를_부르지_않는다() {
         givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
-        when(indexes.existsById(new MarketIndexDaily.Id("SP500", DAY))).thenReturn(true);
+        givenIndexDays(DAY);
 
         collector(AFTER_DELAY, "AAPL").collect();
 
         verify(client, never()).fetchDailyBars(anyString(), any(), any());
         verify(indexes, never()).save(any());
+    }
+
+    @Test
+    void 지난_거래일의_지수가_비어_있으면_다음_날에도_다시_받아_채운다() {
+        // 2026-11-11 지수를 그날 끝까지 받지 못했다.
+        givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        givenSnapshotDays("2026-11-10", "2026-11-11", "2026-11-12");
+        givenIndexDays(LocalDate.parse("2026-11-10"), DAY);
+        givenBars("^GSPC", bar("2026-11-11", "5950"), bar("2026-11-12", "6000"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.missingIndexDays()).isEmpty();
+        ArgumentCaptor<MarketIndexDaily> captor = ArgumentCaptor.forClass(MarketIndexDaily.class);
+        verify(indexes).save(captor.capture());
+        assertThat(captor.getValue().getId().getTradeDate()).isEqualTo(LocalDate.parse("2026-11-11"));
+        assertThat(captor.getValue().getCloseValue()).isEqualByComparingTo("5950");
+        verify(client).fetchDailyBars("^GSPC", LocalDate.parse("2026-11-11"), DAY);
+    }
+
+    @Test
+    void 종목을_새로_저장한_회차에서도_지난_거래일의_빈_지수를_함께_채운다() {
+        givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+        givenSnapshotDays("2026-11-11", "2026-11-12");
+        givenIndexDays();
+        givenBars("^GSPC", bar("2026-11-11", "5950"), bar("2026-11-12", "6000"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        verify(indexes, times(2)).save(any());
+    }
+
+    @Test
+    void 야후가_여전히_지수를_주지_않는_날짜는_받은_날만_저장하고_빈_날짜로_알려_준다() {
+        givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        givenSnapshotDays("2026-11-11", "2026-11-12");
+        givenIndexDays();
+        givenBars("^GSPC", bar("2026-11-12", "6000"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.missingIndexDays()).containsExactly(LocalDate.parse("2026-11-11"));
+        verify(indexes, times(1)).save(any());
+    }
+
+    @Test
+    void 지수_조회가_실패하면_빈_날짜를_그대로_알려_준다() {
+        givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        when(client.fetchDailyBars(eq("^GSPC"), any(), any())).thenThrow(new IllegalStateException("야후 실패"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.status()).isEqualTo(UsaQuoteCollector.Status.ALREADY_SAVED);
+        assertThat(result.missingIndexDays()).containsExactly(DAY);
+    }
+
+    @Test
+    void 휴장일처럼_종목이_없는_날짜와_14일보다_오래된_날짜는_채우지_않는다() {
+        givenLast(DAY.atTime(16, 0), lastRow("AAPL", "110.00", "1100000"));
+        givenSnapshotDays("2026-10-28", "2026-10-29", "2026-11-12");
+        givenIndexDays(LocalDate.parse("2026-10-29"), DAY);
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.missingIndexDays()).isEmpty();
+        verify(client, never()).fetchDailyBars(anyString(), any(), any());
     }
 
     @Test
@@ -425,6 +528,29 @@ class UsaQuoteCollectorTest {
                         row.getTotalMarketValue()))
                 .toList();
         when(repository.findAllByIdMarketAndIdSnapshotTime("USA", time)).thenReturn(all);
+    }
+
+    private void givenSnapshotDays(String... days) {
+        when(repository.findSnapshotTimes("USA"))
+                .thenReturn(java.util.Arrays.stream(days)
+                        .map(day -> LocalDate.parse(day).atTime(16, 0))
+                        .toList());
+    }
+
+    private void givenIndexDays(LocalDate... days) {
+        when(indexes.findByIdMarketAndIdTradeDateBetweenOrderByIdTradeDateAsc(eq("SP500"), any(), any()))
+                .thenReturn(java.util.Arrays.stream(days)
+                        .map(day -> MarketIndexDaily.create(
+                                "SP500",
+                                day,
+                                BigDecimal.ONE,
+                                BigDecimal.ONE,
+                                BigDecimal.ONE,
+                                BigDecimal.ONE,
+                                1L,
+                                null,
+                                LAST_TIME))
+                        .toList());
     }
 
     private void givenBars(String symbol, DailyBar... bars) {

@@ -3,6 +3,7 @@ package kr.co.marketry.domain.stock.scheduler;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import kr.co.marketry.common.util.KstClock;
@@ -38,6 +39,7 @@ public class UsaQuoteScheduler {
     private int consecutiveFailures;
     private LocalDate failureDate;
     private String missingAlertedKey;
+    private List<LocalDate> missingIndexAlerted = List.of();
 
     public UsaQuoteScheduler(
             UsaQuoteCollector collector,
@@ -83,6 +85,7 @@ public class UsaQuoteScheduler {
             recordFailure(now, failure.getClass().getSimpleName() + ": " + failure.getMessage());
         }
         alertIfMissing(now, result);
+        alertIfIndexMissing(now, result);
         if (result != null && result.saved()) {
             sendUsaMap();
         }
@@ -135,6 +138,19 @@ public class UsaQuoteScheduler {
         missingAlertedKey = key;
         String reason = result == null ? "야후 호출 실패" : result.reason();
         report(new EscalateException(ErrorCode.USA_QUOTE_MISSING, new IllegalStateException(reason)));
+    }
+
+    // 종목은 저장했는데 지수가 비어 있으면 화면의 지수 등락률이 틀린다. 같은 날짜들은 한 번만 알린다.
+    private void alertIfIndexMissing(LocalDateTime now, UsaQuoteCollector.Result result) {
+        if (now.toLocalTime().isBefore(MISSING_ALERT_FROM) || result == null) {
+            return;
+        }
+        List<LocalDate> missing = result.missingIndexDays();
+        if (missing.isEmpty() || missing.equals(missingIndexAlerted)) {
+            return;
+        }
+        missingIndexAlerted = missing;
+        report(new EscalateException(ErrorCode.USA_INDEX_MISSING, new IllegalStateException("빈 날짜: " + missing)));
     }
 
     private void report(EscalateException exception) {

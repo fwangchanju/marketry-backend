@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.Consumer;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
@@ -54,6 +56,8 @@ public class UsaQuoteCollector {
     private static final Duration REQUEST_INTERVAL = Duration.ofMillis(200);
     // 새 종목의 시가총액은 야후 기록이 몇 달 전에 멈춰 있을 수 있다. 일봉과 시가총액을 같은 구간으로 받아 기록 날짜의 종가를 찾는다.
     private static final int NEW_STOCK_LOOKBACK_DAYS = 400;
+    // 지수가 빈 날을 찾아 다시 받는 구간.
+    private static final int INDEX_LOOKBACK_DAYS = 14;
     private static final int PRICE_SCALE = 2;
     private static final BigDecimal PERCENT = BigDecimal.valueOf(100);
 
@@ -122,11 +126,9 @@ public class UsaQuoteCollector {
             return Result.of(Status.NO_BASELINE, day, null, 0, 0, 0, "기준이 될 미국 시세가 없습니다");
         }
         if (lastSnapshotTime.toLocalDate().isBefore(day) == false) {
-            // 종목은 저장했는데 그때 지수 종가를 못 받았으면 이번 실행에서 다시 시도한다(종목은 건드리지 않는다).
-            if (indexes.existsById(new MarketIndexDaily.Id(INDEX_MARKET, day)) == false) {
-                saveIndexClose(day);
-            }
-            return Result.of(Status.ALREADY_SAVED, day, null, 0, 0, 0, "이미 저장했습니다");
+            // 종목은 저장했는데 그때 지수 종가를 못 받은 날이 있으면 이번 실행에서 다시 시도한다(종목은 건드리지 않는다).
+            return Result.of(Status.ALREADY_SAVED, day, null, 0, 0, 0, "이미 저장했습니다")
+                    .withMissingIndexDays(saveMissingIndexCloses(day));
         }
 
         LocalDateTime snapshotTime = day.atTime(CLOSE_TIME);
@@ -167,8 +169,8 @@ public class UsaQuoteCollector {
         }
         repository.saveAll(rows);
         saveCandles(candles, day);
-        saveIndexClose(day);
-        return Result.of(Status.SAVED, day, snapshotTime, rows.size(), totalCount, failureCount, null);
+        return Result.of(Status.SAVED, day, snapshotTime, rows.size(), totalCount, failureCount, null)
+                .withMissingIndexDays(saveMissingIndexCloses(day));
     }
 
     /** 종목 차트에 쓸 그날 일봉(시가·고가·저가·종가·거래량)을 저장한다. 실패해도 종가 저장은 이미 끝났으므로 로그만 남긴다. */
@@ -181,29 +183,64 @@ public class UsaQuoteCollector {
     }
 
     /**
-     * S&amp;P 500 지수의 그날 일봉을 market_index_daily에 저장한다. 기간 그래프의 지수 막대에 쓴다. 지수를 못 받거나 저장에 실패해도
-     * 종목 종가 저장은 이미 끝났으므로 로그만 남기고 계속한다. 같은 날짜를 다시 저장해도 같은 행을 덮어쓴다.
+     * S&amp;P 500 지수 일봉을 market_index_daily에 저장한다. 지수 막대에 쓴다. 최근 거래일 중 종목은 있는데 지수가 없는 날을 모두 채운다.
+     * 최신 거래일만 다시 시도하면 그날 야후가 끝까지 지수를 주지 않았을 때 그 날짜가 영영 비고, 다음 날 등락률이 이틀 치로 보인다
+     * (2026-11-23이 그랬다). 받지 못하거나 저장에 실패해도 종목 종가 저장은 이미 끝났으므로 로그만 남기고 계속한다.
+     *
+     * @return 채우지 못한 날짜
      */
-    private void saveIndexClose(LocalDate day) {
+    private List<LocalDate> saveMissingIndexCloses(LocalDate day) {
+        List<LocalDate> missing = new ArrayList<>();
+        missing.add(day);
         try {
-            DailyBar bar = barOn(client.fetchDailyBars(INDEX_SYMBOL, day, day), day);
-            if (bar == null) {
-                log.warn("[미국시세] 지수 일봉이 없어 저장하지 않습니다: day={}", day);
-                return;
+            missing = findMissingIndexDays(day);
+            if (missing.isEmpty()) {
+                return missing;
             }
-            indexes.save(MarketIndexDaily.create(
-                    INDEX_MARKET,
-                    day,
-                    price(bar.open()),
-                    price(bar.high()),
-                    price(bar.low()),
-                    price(bar.close()),
-                    bar.volume(),
-                    null,
-                    KstClock.now()));
+            List<DailyBar> bars = client.fetchDailyBars(INDEX_SYMBOL, missing.getFirst(), day);
+            for (LocalDate target : List.copyOf(missing)) {
+                DailyBar bar = barOn(bars, target);
+                if (bar == null) {
+                    log.warn("[미국시세] 지수 일봉이 없어 저장하지 않습니다: day={}", target);
+                    continue;
+                }
+                indexes.save(toIndexDaily(target, bar));
+                missing.remove(target);
+            }
         } catch (RuntimeException failure) {
-            log.warn("[미국시세] 지수 종가 저장 실패: day={}, {}", day, failure.getMessage());
+            log.warn("[미국시세] 지수 종가 저장 실패: days={}, {}", missing, failure.getMessage());
         }
+        return missing;
+    }
+
+    private List<LocalDate> findMissingIndexDays(LocalDate day) {
+        LocalDate from = day.minusDays(INDEX_LOOKBACK_DAYS);
+        SortedSet<LocalDate> days = new TreeSet<>();
+        days.add(day);
+        for (LocalDateTime snapshotTime : repository.findSnapshotTimes(MARKET)) {
+            LocalDate date = snapshotTime.toLocalDate();
+            if (date.isBefore(from) == false && date.isAfter(day) == false) {
+                days.add(date);
+            }
+        }
+        for (MarketIndexDaily saved :
+                indexes.findByIdMarketAndIdTradeDateBetweenOrderByIdTradeDateAsc(INDEX_MARKET, from, day)) {
+            days.remove(saved.getId().getTradeDate());
+        }
+        return new ArrayList<>(days);
+    }
+
+    private static MarketIndexDaily toIndexDaily(LocalDate day, DailyBar bar) {
+        return MarketIndexDaily.create(
+                INDEX_MARKET,
+                day,
+                price(bar.open()),
+                price(bar.high()),
+                price(bar.low()),
+                price(bar.close()),
+                bar.volume(),
+                null,
+                KstClock.now());
     }
 
     private static BigDecimal price(BigDecimal value) {
@@ -327,7 +364,8 @@ public class UsaQuoteCollector {
             int successCount,
             int totalCount,
             int failureCount,
-            String reason) {
+            String reason,
+            List<LocalDate> missingIndexDays) {
         static Result of(
                 Status status,
                 LocalDate day,
@@ -336,7 +374,12 @@ public class UsaQuoteCollector {
                 int totalCount,
                 int failureCount,
                 String reason) {
-            return new Result(status, day, snapshotTime, successCount, totalCount, failureCount, reason);
+            return new Result(status, day, snapshotTime, successCount, totalCount, failureCount, reason, List.of());
+        }
+
+        Result withMissingIndexDays(List<LocalDate> days) {
+            return new Result(
+                    status, day, snapshotTime, successCount, totalCount, failureCount, reason, List.copyOf(days));
         }
 
         public boolean saved() {
