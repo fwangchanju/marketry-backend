@@ -23,6 +23,7 @@ import kr.co.marketry.domain.custom.entity.CustomSnapshot;
 import kr.co.marketry.domain.custom.entity.CustomStockAlias;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomSnapshotRepository;
@@ -511,7 +512,7 @@ public class TreemapQueryService {
     }
 
     private Map<Long, CustomSector> findSectorById(Long userId) {
-        return customSectorRepository.findAllByUserId(userId).stream()
+        return customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
                 .collect(Collectors.toMap(CustomSector::getId, Function.identity()));
     }
 
@@ -698,16 +699,18 @@ public class TreemapQueryService {
 
     private LocalDateTime findLivePublishedVersionCreatedAt(Long publishedUserId) {
         return customSectorRepository
-                .findFirstByUserIdOrderByIdAsc(publishedUserId)
+                .findFirstByUserIdAndMarketOrderByIdAsc(publishedUserId, ClassificationMarket.KOREA)
                 .map(CustomSector::getSnapshotId)
-                .flatMap(snapshotId -> customSnapshotRepository.findByIdAndUserId(snapshotId, publishedUserId))
+                .flatMap(snapshotId -> customSnapshotRepository.findByIdAndUserIdAndMarket(
+                        snapshotId, publishedUserId, ClassificationMarket.KOREA))
                 .map(CustomSnapshot::getCreatedAt)
                 .orElse(null);
     }
 
     private LocalDateTime findLatestCustomDataUpdatedAt(Long userId) {
-        LocalDateTime assignmentUpdatedAt = customStockSectorRepository.findLatestUpdatedAtByUserId(userId);
-        LocalDateTime sectorUpdatedAt = customSectorRepository.findLatestEditedAtByUserId(userId);
+        LocalDateTime assignmentUpdatedAt =
+                customStockSectorRepository.findLatestUpdatedAt(userId, ClassificationMarket.KOREA);
+        LocalDateTime sectorUpdatedAt = customSectorRepository.findLatestEditedAt(userId, ClassificationMarket.KOREA);
         if (assignmentUpdatedAt == null) {
             return sectorUpdatedAt;
         }
@@ -727,7 +730,8 @@ public class TreemapQueryService {
         List<StockInfo> candidates = filterCandidates(markets, latestSnapshotTime, includeSuspended).stream()
                 .filter(stockInfo -> !nxtOnly || stockInfo.isNxtEnabled())
                 .toList();
-        List<CustomSector> sectors = customSectorRepository.findAllByUserId(userId);
+        List<CustomSector> sectors =
+                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA);
         Map<Long, List<CustomSector>> childrenByParentId = new HashMap<>();
         for (CustomSector sector : sectors) {
             Long parentKey = sector.hasNoParent() ? NO_PARENT_KEY : sector.getParentId();
@@ -920,7 +924,7 @@ public class TreemapQueryService {
     }
 
     private Map<String, CustomStockSector> findStockSectorMap(Long userId) {
-        return customStockSectorRepository.findAllByIdUserId(userId).stream()
+        return customStockSectorRepository.findAllByIdUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
                 .collect(Collectors.toMap(CustomStockSector::getStockCode, Function.identity()));
     }
 

@@ -4,13 +4,14 @@ import jakarta.persistence.LockModeType;
 import java.util.List;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
 import kr.co.marketry.domain.custom.entity.CustomStockSectorId;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
 public interface CustomStockSectorRepository
         extends JpaRepository<CustomStockSector, CustomStockSectorId>, CustomStockSectorRepositoryCustom {
 
-    List<CustomStockSector> findAllByIdUserId(Long userId);
+    List<CustomStockSector> findAllByIdUserIdAndMarket(Long userId, ClassificationMarket market);
 
     List<CustomStockSector> findByIdUserIdAndSectorId(Long userId, Long sectorId);
 

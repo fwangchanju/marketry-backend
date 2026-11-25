@@ -8,6 +8,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 import kr.co.marketry.domain.custom.entity.CustomSector;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import lombok.RequiredArgsConstructor;
 
@@ -25,21 +26,25 @@ public class CustomStockSectorRepositoryImpl implements CustomStockSectorReposit
     }
 
     @Override
-    public void deleteAllByIdUserId(Long userId) {
+    public void deleteAllOfUserInMarket(Long userId, ClassificationMarket market) {
         queryFactory
                 .delete(customStockSector)
-                .where(customStockSector.id.userId.eq(userId))
+                .where(customStockSector.id.userId.eq(userId), customStockSector.market.eq(market))
                 .execute();
     }
 
     @Override
-    public LocalDateTime findLatestUpdatedAtByUserId(Long userId) {
+    public LocalDateTime findLatestUpdatedAt(Long userId, ClassificationMarket market) {
         return queryFactory
                 .select(customStockSector.updatedAt.max())
                 .from(customStockSector)
                 .join(customSector)
                 .on(customSector.id.eq(customStockSector.sectorId))
-                .where(customStockSector.id.userId.eq(userId), isNotAutoAssignedNewListing(), isNotInSuspendedSector())
+                .where(
+                        customStockSector.id.userId.eq(userId),
+                        customStockSector.market.eq(market),
+                        isNotAutoAssignedNewListing(),
+                        isNotInSuspendedSector())
                 .fetchOne();
     }
 
@@ -59,7 +64,7 @@ public class CustomStockSectorRepositoryImpl implements CustomStockSectorReposit
     }
 
     @Override
-    public void deleteAllByUserId(Long userId) {
+    public void deleteAllOfWithdrawnUser(Long userId) {
         queryFactory
                 .delete(customStockSector)
                 .where(customStockSector.id.userId.eq(userId))

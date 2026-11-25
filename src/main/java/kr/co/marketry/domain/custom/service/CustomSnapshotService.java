@@ -8,6 +8,7 @@ import kr.co.marketry.domain.auth.service.CurrentUser;
 import kr.co.marketry.domain.custom.dto.SnapshotItem;
 import kr.co.marketry.domain.custom.entity.CustomSector;
 import kr.co.marketry.domain.custom.entity.CustomSnapshot;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomSnapshotRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,9 @@ public class CustomSnapshotService {
     @Transactional(readOnly = true)
     public List<SnapshotItem> getVersions() {
         Long userId = CurrentUser.requireId();
-        return customSnapshotRepository.findAllByUserIdOrderByCreatedAtDesc(userId).stream()
+        return customSnapshotRepository
+                .findAllByUserIdAndMarketOrderByCreatedAtDesc(userId, ClassificationMarket.KOREA)
+                .stream()
                 .filter(snapshot -> customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson()))
                 .map(this::toItem)
                 .toList();
@@ -37,14 +40,14 @@ public class CustomSnapshotService {
     public SnapshotItem currentVersion() {
         Long userId = CurrentUser.requireId();
         Long snapshotId = customSectorRepository
-                .findFirstByUserIdOrderByIdAsc(userId)
+                .findFirstByUserIdAndMarketOrderByIdAsc(userId, ClassificationMarket.KOREA)
                 .map(CustomSector::getSnapshotId)
                 .orElse(null);
         if (snapshotId == null) {
             return null;
         }
         return customSnapshotRepository
-                .findByIdAndUserId(snapshotId, userId)
+                .findByIdAndUserIdAndMarket(snapshotId, userId, ClassificationMarket.KOREA)
                 .filter(snapshot -> customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson()))
                 .map(this::toItem)
                 .orElse(null);
@@ -53,7 +56,8 @@ public class CustomSnapshotService {
     public SnapshotItem save(String label) {
         Long userId = CurrentUser.requireId();
         String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(userId);
-        CustomSnapshot saved = customSnapshotRepository.save(CustomSnapshot.create(userId, label, snapshotJson));
+        CustomSnapshot saved = customSnapshotRepository.save(
+                CustomSnapshot.create(userId, ClassificationMarket.KOREA, label, snapshotJson));
         tagLiveSectors(userId, saved.getId());
         return toItem(saved);
     }
@@ -82,17 +86,19 @@ public class CustomSnapshotService {
     public void delete(Long snapshotId) {
         Long userId = CurrentUser.requireId();
         findOwnedSnapshot(snapshotId, userId);
-        customSnapshotRepository.deleteByIdAndUserId(snapshotId, userId);
+        customSnapshotRepository.deleteByIdAndUserIdAndMarket(snapshotId, userId, ClassificationMarket.KOREA);
     }
 
     private CustomSnapshot findOwnedSnapshot(Long snapshotId, Long userId) {
         return customSnapshotRepository
-                .findByIdAndUserId(snapshotId, userId)
+                .findByIdAndUserIdAndMarket(snapshotId, userId, ClassificationMarket.KOREA)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SNAPSHOT_NOT_FOUND, snapshotId));
     }
 
     private void tagLiveSectors(Long userId, Long snapshotId) {
-        customSectorRepository.findAllByUserId(userId).forEach(sector -> sector.tagSnapshot(snapshotId));
+        customSectorRepository
+                .findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA)
+                .forEach(sector -> sector.tagSnapshot(snapshotId));
     }
 
     private SnapshotItem toItem(CustomSnapshot snapshot) {

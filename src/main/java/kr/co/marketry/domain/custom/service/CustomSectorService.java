@@ -12,6 +12,7 @@ import kr.co.marketry.domain.custom.dto.SectorDeletePreview;
 import kr.co.marketry.domain.custom.dto.SectorItem;
 import kr.co.marketry.domain.custom.entity.CustomSector;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import kr.co.marketry.domain.custom.enums.SectorDeleteBlockReason;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
@@ -44,8 +45,8 @@ public class CustomSectorService {
 
     public void reset() {
         Long userId = CurrentUser.requireId();
-        customStockSectorRepository.deleteAllByIdUserId(userId);
-        customSectorRepository.deleteAllOfUser(userId);
+        customStockSectorRepository.deleteAllOfUserInMarket(userId, ClassificationMarket.KOREA);
+        customSectorRepository.deleteAllOfUserInMarket(userId, ClassificationMarket.KOREA);
         protectedSectorService.ensureForUser(userId);
         // 초기화로 지워진 배정 중 지금 거래 정지인 종목은 다시 거래 정지 업종에 놓는다.
         suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
@@ -54,21 +55,21 @@ public class CustomSectorService {
     public SectorItem createParent(String name) {
         Long userId = CurrentUser.requireId();
         requireNotReservedName(name);
-        if (customSectorRepository.existsByUserIdAndName(userId, name)) {
+        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, ClassificationMarket.KOREA, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
-        CustomSector sector = CustomSector.createParent(userId, name);
+        CustomSector sector = CustomSector.createParent(userId, ClassificationMarket.KOREA, name);
         return toItem(customSectorRepository.save(sector));
     }
 
     public SectorItem createChild(String name, Long parentId) {
         Long userId = CurrentUser.requireId();
         requireNotReservedName(name);
-        if (customSectorRepository.existsByUserIdAndName(userId, name)) {
+        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, ClassificationMarket.KOREA, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
         CustomSector parent = customSectorRepository
-                .findByIdAndUserId(parentId, userId)
+                .findByIdAndUserIdAndMarket(parentId, userId, ClassificationMarket.KOREA)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, parentId));
         requireNotProtected(parent);
         CustomSector sector = CustomSector.createChild(userId, name, parent);
@@ -93,7 +94,7 @@ public class CustomSectorService {
             return;
         }
         requireNotReservedName(name);
-        if (customSectorRepository.existsByUserIdAndName(userId, name)) {
+        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, ClassificationMarket.KOREA, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
         target.rename(name);
@@ -168,7 +169,7 @@ public class CustomSectorService {
         }
 
         // 잠금만 필요해 결과는 쓰지 않는다. 동시 요청을 완전히 막지는 못한다 — 외래키가 커밋 시점에 검사돼 진 쪽이 409(GlobalExceptionHandler)로 끝난다.
-        customSectorRepository.findLockedByIdAndUserId(sectorId, userId);
+        customSectorRepository.findLockedByIdAndUserIdAndMarket(sectorId, userId, ClassificationMarket.KOREA);
         List<CustomStockSector> assignments =
                 customStockSectorRepository.findLockedByIdUserIdAndSectorId(userId, sectorId);
         if (expectedMoveCount != assignments.size()) {
@@ -250,12 +251,12 @@ public class CustomSectorService {
     }
 
     private List<CustomSector> findAllSectors(Long userId) {
-        return customSectorRepository.findAllByUserId(userId);
+        return customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA);
     }
 
     private CustomSector findOwnedSector(Long sectorId, Long userId) {
         return customSectorRepository
-                .findByIdAndUserId(sectorId, userId)
+                .findByIdAndUserIdAndMarket(sectorId, userId, ClassificationMarket.KOREA)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId));
     }
 

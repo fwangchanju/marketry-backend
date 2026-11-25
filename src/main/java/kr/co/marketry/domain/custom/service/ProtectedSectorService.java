@@ -24,8 +24,8 @@ public class ProtectedSectorService {
         for (String name : ProtectedSector.sectorNames()) {
             // INSERT ... ON CONFLICT DO NOTHING — 이미 있으면 건너뛰는 동작이 JPQL/QueryDSL에 없다.
             jdbcTemplate.update("""
-                    INSERT INTO custom_sector (user_id, parent_id, name, depth, is_excluded, created_at, updated_at)
-                    VALUES (?, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO custom_sector (user_id, market, parent_id, name, depth, is_excluded, created_at, updated_at)
+                    VALUES (?, 'KOREA', NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT DO NOTHING
                     """, userId, name);
         }
@@ -38,8 +38,8 @@ public class ProtectedSectorService {
         for (String name : ProtectedSector.sectorNames()) {
             // INSERT ... SELECT + ON CONFLICT DO NOTHING — 전체 사용자를 문장 하나로 처리하는 집합 연산이다.
             created += jdbcTemplate.update("""
-                    INSERT INTO custom_sector (user_id, parent_id, name, depth, is_excluded, created_at, updated_at)
-                    SELECT users.id, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    INSERT INTO custom_sector (user_id, market, parent_id, name, depth, is_excluded, created_at, updated_at)
+                    SELECT users.id, 'KOREA', NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     FROM users
                     ON CONFLICT DO NOTHING
                     """, name);

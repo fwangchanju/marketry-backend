@@ -2,12 +2,15 @@ package kr.co.marketry.domain.custom.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import kr.co.marketry.common.enums.Zone;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import lombok.Getter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
@@ -20,6 +23,10 @@ public class CustomSnapshot {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 16)
+    private ClassificationMarket market;
 
     @Column(nullable = false, length = 50)
     private String label;
@@ -39,9 +46,10 @@ public class CustomSnapshot {
 
     protected CustomSnapshot() {}
 
-    public static CustomSnapshot create(Long userId, String label, String snapshotJson) {
+    public static CustomSnapshot create(Long userId, ClassificationMarket market, String label, String snapshotJson) {
         var entity = new CustomSnapshot();
         entity.userId = userId;
+        entity.market = market;
         entity.label = label;
         entity.snapshotJson = snapshotJson;
         LocalDateTime now = LocalDateTime.now(Zone.KST.zoneId());

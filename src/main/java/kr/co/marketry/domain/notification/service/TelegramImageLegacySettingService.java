@@ -13,6 +13,7 @@ import kr.co.marketry.common.exception.BadRequestException;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.domain.custom.dto.CustomValueTierItem;
 import kr.co.marketry.domain.custom.entity.CustomSector;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.DefaultPreferenceRepository;
 import kr.co.marketry.domain.custom.repository.UserPreferenceRepository;
@@ -95,7 +96,9 @@ public class TelegramImageLegacySettingService {
         Map<String, Object> marketryDefaults = defaultPayload.get("marketry") instanceof Map<?, ?> map
                 ? objectMapper.convertValue(map, new TypeReference<>() {})
                 : Map.of();
-        List<CustomSector> all = publishedId == null ? List.of() : sectors.findAllByUserId(publishedId);
+        List<CustomSector> all = publishedId == null
+                ? List.of()
+                : sectors.findAllByUserIdAndMarket(publishedId, ClassificationMarket.KOREA);
         Map<Long, CustomSector> byId = new HashMap<>();
         all.forEach(sector -> byId.put(sector.getId(), sector));
         Object configuredKeys = useDefaults

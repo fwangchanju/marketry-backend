@@ -15,6 +15,7 @@ import kr.co.marketry.domain.auth.enums.Role;
 import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.custom.dto.SnapshotItem;
 import kr.co.marketry.domain.custom.entity.CustomSnapshot;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSnapshotRepository;
 import kr.co.marketry.domain.notification.properties.MarketryProperties;
 import org.junit.jupiter.api.AfterEach;
@@ -82,9 +83,9 @@ class MarketryPublishServiceTest {
 
     @Test
     void getVersions_발행_사용자_것만_현재_형식인_것만_돌려준다() {
-        CustomSnapshot current = CustomSnapshot.create(PUBLISHED_ID, "새 버전", "{\"v\":2}");
-        CustomSnapshot legacy = CustomSnapshot.create(PUBLISHED_ID, "옛 버전", "{\"v\":1}");
-        when(snapshotRepository.findAllByUserIdOrderByCreatedAtDesc(PUBLISHED_ID))
+        CustomSnapshot current = CustomSnapshot.create(PUBLISHED_ID, ClassificationMarket.KOREA, "새 버전", "{\"v\":2}");
+        CustomSnapshot legacy = CustomSnapshot.create(PUBLISHED_ID, ClassificationMarket.KOREA, "옛 버전", "{\"v\":1}");
+        when(snapshotRepository.findAllByUserIdAndMarketOrderByCreatedAtDesc(PUBLISHED_ID, ClassificationMarket.KOREA))
                 .thenReturn(List.of(current, legacy));
         when(treeService.isCurrentSnapshotFormat("{\"v\":2}")).thenReturn(true);
         when(treeService.isCurrentSnapshotFormat("{\"v\":1}")).thenReturn(false);
@@ -94,15 +95,17 @@ class MarketryPublishServiceTest {
 
     @Test
     void restoreVersion_없는_버전이면_NotFound() {
-        when(snapshotRepository.findByIdAndUserId(3L, PUBLISHED_ID)).thenReturn(Optional.empty());
+        when(snapshotRepository.findByIdAndUserIdAndMarket(3L, PUBLISHED_ID, ClassificationMarket.KOREA))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.restoreVersion(3L)).isInstanceOf(NotFoundException.class);
     }
 
     @Test
     void restoreVersion_옛_형식이면_거부한다() {
-        CustomSnapshot legacy = CustomSnapshot.create(PUBLISHED_ID, "옛 버전", "{\"v\":1}");
-        when(snapshotRepository.findByIdAndUserId(3L, PUBLISHED_ID)).thenReturn(Optional.of(legacy));
+        CustomSnapshot legacy = CustomSnapshot.create(PUBLISHED_ID, ClassificationMarket.KOREA, "옛 버전", "{\"v\":1}");
+        when(snapshotRepository.findByIdAndUserIdAndMarket(3L, PUBLISHED_ID, ClassificationMarket.KOREA))
+                .thenReturn(Optional.of(legacy));
         when(treeService.isCurrentSnapshotFormat("{\"v\":1}")).thenReturn(false);
 
         assertThatThrownBy(() -> service.restoreVersion(3L)).isInstanceOf(BadRequestException.class);
@@ -111,8 +114,10 @@ class MarketryPublishServiceTest {
 
     @Test
     void restoreVersion_정상이면_그_버전을_발행_사용자에게_복원한다() {
-        CustomSnapshot snapshot = CustomSnapshot.create(PUBLISHED_ID, "이전 고정본", "{\"v\":2}");
-        when(snapshotRepository.findByIdAndUserId(3L, PUBLISHED_ID)).thenReturn(Optional.of(snapshot));
+        CustomSnapshot snapshot =
+                CustomSnapshot.create(PUBLISHED_ID, ClassificationMarket.KOREA, "이전 고정본", "{\"v\":2}");
+        when(snapshotRepository.findByIdAndUserIdAndMarket(3L, PUBLISHED_ID, ClassificationMarket.KOREA))
+                .thenReturn(Optional.of(snapshot));
         when(treeService.isCurrentSnapshotFormat("{\"v\":2}")).thenReturn(true);
 
         service.restoreVersion(3L);
