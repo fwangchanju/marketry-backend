@@ -41,7 +41,7 @@ public class NewStockListingPropagationService {
                 INSERT INTO custom_sector (user_id, parent_id, name, depth, is_excluded, created_at, updated_at)
                 SELECT users.id, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 FROM users
-                ON CONFLICT (user_id, name) DO NOTHING
+                ON CONFLICT DO NOTHING
                 """, LISTING_SECTOR_NAME);
 
         // INSERT ... SELECT + unnest — (전체 사용자 × 신규 종목)을 문장 하나로 배정하는 집합 연산. 행 수가
