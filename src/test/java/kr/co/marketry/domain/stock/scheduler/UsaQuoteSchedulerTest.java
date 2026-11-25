@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import kr.co.marketry.common.exception.ErrorCode;
 import kr.co.marketry.common.exception.EscalateException;
 import kr.co.marketry.domain.notification.listener.EscalationPublisher;
@@ -162,11 +163,27 @@ class UsaQuoteSchedulerTest {
         assertThat(captor.getValue().getErrorCode()).isEqualTo(ErrorCode.USA_QUOTE_COLLECT_FAILED);
     }
 
+    @Test
+    void 종목은_저장했는데_지수가_비어_있으면_07시_5분_이후_같은_날짜는_한_번만_알린다() {
+        UsaQuoteScheduler scheduler = scheduler(true);
+        when(collector.collect())
+                .thenReturn(new Result(Status.ALREADY_SAVED, DAY, null, 0, 0, 0, "이미 저장했습니다", List.of(DAY)));
+
+        scheduler.collect(at(6, 35));
+        verify(publisher, never()).report(any(), any());
+        scheduler.collect(at(7, 5));
+        scheduler.collect(at(7, 10));
+
+        ArgumentCaptor<EscalateException> captor = ArgumentCaptor.forClass(EscalateException.class);
+        verify(publisher, times(1)).report(eq("미국"), captor.capture());
+        assertThat(captor.getValue().getErrorCode()).isEqualTo(ErrorCode.USA_INDEX_MISSING);
+    }
+
     private static LocalDateTime at(int hour, int minute) {
         return LocalDateTime.of(2026, 11, 13, hour, minute);
     }
 
     private static Result result(Status status, String reason) {
-        return new Result(status, DAY, null, 0, 0, 0, reason);
+        return new Result(status, DAY, null, 0, 0, 0, reason, List.of());
     }
 }
