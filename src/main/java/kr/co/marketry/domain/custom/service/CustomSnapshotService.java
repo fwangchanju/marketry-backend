@@ -26,78 +26,76 @@ public class CustomSnapshotService {
     private final CustomSectorTreeService customSectorTreeService;
 
     @Transactional(readOnly = true)
-    public List<SnapshotItem> getVersions() {
+    public List<SnapshotItem> getVersions(ClassificationMarket market) {
         Long userId = CurrentUser.requireId();
-        return customSnapshotRepository
-                .findAllByUserIdAndMarketOrderByCreatedAtDesc(userId, ClassificationMarket.KOREA)
-                .stream()
+        return customSnapshotRepository.findAllByUserIdAndMarketOrderByCreatedAtDesc(userId, market).stream()
                 .filter(snapshot -> customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson()))
                 .map(this::toItem)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public SnapshotItem currentVersion() {
+    public SnapshotItem currentVersion(ClassificationMarket market) {
         Long userId = CurrentUser.requireId();
         Long snapshotId = customSectorRepository
-                .findFirstByUserIdAndMarketOrderByIdAsc(userId, ClassificationMarket.KOREA)
+                .findFirstByUserIdAndMarketOrderByIdAsc(userId, market)
                 .map(CustomSector::getSnapshotId)
                 .orElse(null);
         if (snapshotId == null) {
             return null;
         }
         return customSnapshotRepository
-                .findByIdAndUserIdAndMarket(snapshotId, userId, ClassificationMarket.KOREA)
+                .findByIdAndUserIdAndMarket(snapshotId, userId, market)
                 .filter(snapshot -> customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson()))
                 .map(this::toItem)
                 .orElse(null);
     }
 
-    public SnapshotItem save(String label) {
+    public SnapshotItem save(ClassificationMarket market, String label) {
         Long userId = CurrentUser.requireId();
-        String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(userId);
-        CustomSnapshot saved = customSnapshotRepository.save(
-                CustomSnapshot.create(userId, ClassificationMarket.KOREA, label, snapshotJson));
-        tagLiveSectors(userId, saved.getId());
+        String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(userId, market);
+        CustomSnapshot saved =
+                customSnapshotRepository.save(CustomSnapshot.create(userId, market, label, snapshotJson));
+        tagLiveSectors(market, userId, saved.getId());
         return toItem(saved);
     }
 
-    public SnapshotItem overwrite(Long snapshotId, String label) {
+    public SnapshotItem overwrite(ClassificationMarket market, Long snapshotId, String label) {
         Long userId = CurrentUser.requireId();
-        CustomSnapshot snapshot = findOwnedSnapshot(snapshotId, userId);
+        CustomSnapshot snapshot = findOwnedSnapshot(market, snapshotId, userId);
         if (!customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson())) {
             throw new BadRequestException(ErrorCode.SNAPSHOT_FORMAT_UNSUPPORTED);
         }
-        String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(userId);
+        String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(userId, market);
         snapshot.overwrite(label, snapshotJson);
-        tagLiveSectors(userId, snapshotId);
+        tagLiveSectors(market, userId, snapshotId);
         return toItem(snapshot);
     }
 
-    public void restore(Long snapshotId) {
+    public void restore(ClassificationMarket market, Long snapshotId) {
         Long userId = CurrentUser.requireId();
-        CustomSnapshot snapshot = findOwnedSnapshot(snapshotId, userId);
+        CustomSnapshot snapshot = findOwnedSnapshot(market, snapshotId, userId);
         if (!customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson())) {
             throw new BadRequestException(ErrorCode.SNAPSHOT_FORMAT_UNSUPPORTED);
         }
-        customSectorTreeService.restore(snapshot.getSnapshotJson(), userId, snapshotId);
+        customSectorTreeService.restore(snapshot.getSnapshotJson(), userId, market, snapshotId);
     }
 
-    public void delete(Long snapshotId) {
+    public void delete(ClassificationMarket market, Long snapshotId) {
         Long userId = CurrentUser.requireId();
-        findOwnedSnapshot(snapshotId, userId);
-        customSnapshotRepository.deleteByIdAndUserIdAndMarket(snapshotId, userId, ClassificationMarket.KOREA);
+        findOwnedSnapshot(market, snapshotId, userId);
+        customSnapshotRepository.deleteByIdAndUserIdAndMarket(snapshotId, userId, market);
     }
 
-    private CustomSnapshot findOwnedSnapshot(Long snapshotId, Long userId) {
+    private CustomSnapshot findOwnedSnapshot(ClassificationMarket market, Long snapshotId, Long userId) {
         return customSnapshotRepository
-                .findByIdAndUserIdAndMarket(snapshotId, userId, ClassificationMarket.KOREA)
+                .findByIdAndUserIdAndMarket(snapshotId, userId, market)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SNAPSHOT_NOT_FOUND, snapshotId));
     }
 
-    private void tagLiveSectors(Long userId, Long snapshotId) {
+    private void tagLiveSectors(ClassificationMarket market, Long userId, Long snapshotId) {
         customSectorRepository
-                .findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA)
+                .findAllByUserIdAndMarket(userId, market)
                 .forEach(sector -> sector.tagSnapshot(snapshotId));
     }
 

@@ -26,8 +26,6 @@ import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import kr.co.marketry.domain.custom.repository.UserPreferenceRepository;
-import kr.co.marketry.domain.stock.entity.StockInfo;
-import kr.co.marketry.domain.stock.repository.StockInfoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,15 +45,15 @@ public class CustomSectorTreeService {
     private final CustomScaleThresholdRepository customScaleThresholdRepository;
     private final CustomValueTierThresholdRepository customValueTierThresholdRepository;
     private final UserPreferenceRepository userPreferenceRepository;
-    private final StockInfoRepository stockInfoRepository;
+    private final ClassifiableStocks classifiableStocks;
     private final ProtectedSectorService protectedSectorService;
     private final SuspendedStockClassificationService suspendedStockClassificationService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
-    public String serializeCurrentSnapshot(Long userId) {
+    public String serializeCurrentSnapshot(Long userId, ClassificationMarket market) {
         List<CustomSnapshotPayload.Sector> sectors =
-                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
+                customSectorRepository.findAllByUserIdAndMarket(userId, market).stream()
                         .sorted(java.util.Comparator.comparing(CustomSector::getId))
                         .map(sector -> new CustomSnapshotPayload.Sector(
                                 sector.getId(),
@@ -66,11 +64,15 @@ public class CustomSectorTreeService {
                                 sector.getStableKey()))
                         .toList();
         List<CustomSnapshotPayload.StockAssignment> assignments =
-                customStockSectorRepository.findAllByIdUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
+                customStockSectorRepository.findAllByIdUserIdAndMarket(userId, market).stream()
                         .sorted(java.util.Comparator.comparing(CustomStockSector::getStockCode))
                         .map(assignment -> new CustomSnapshotPayload.StockAssignment(
                                 assignment.getStockCode(), assignment.getSectorId()))
                         .toList();
+        if (!market.keepsSettingsInSnapshot()) {
+            return toJson(new CustomSnapshotPayload(
+                    SNAPSHOT_VERSION, sectors, assignments, List.of(), List.of(), List.of(), Map.of()));
+        }
         List<CustomSnapshotPayload.StockAlias> aliases = customStockAliasRepository.findAllByIdUserId(userId).stream()
                 .sorted(java.util.Comparator.comparing(CustomStockAlias::getStockCode))
                 .map(alias -> new CustomSnapshotPayload.StockAlias(alias.getStockCode(), alias.getAlias()))
@@ -122,31 +124,42 @@ public class CustomSectorTreeService {
         }
     }
 
-    public void restore(String snapshotJson, Long userId, Long snapshotId) {
+    public void restore(String snapshotJson, Long userId, ClassificationMarket market, Long snapshotId) {
         CustomSnapshotPayload snapshot = parseSnapshot(snapshotJson);
-        validateSnapshot(snapshot);
+        validateSnapshot(snapshot, market);
 
-        customStockSectorRepository.deleteAllOfUserInMarket(userId, ClassificationMarket.KOREA);
-        customStockAliasRepository.deleteAll(customStockAliasRepository.findAllByIdUserId(userId));
-        customSectorRepository.deleteAll(
-                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA));
-        customScaleThresholdRepository.deleteAllByUserId(userId);
-        customValueTierThresholdRepository.deleteAllByUserId(userId);
+        customStockSectorRepository.deleteAllOfUserInMarket(userId, market);
+        customSectorRepository.deleteAll(customSectorRepository.findAllByUserIdAndMarket(userId, market));
+        if (market.keepsSettingsInSnapshot()) {
+            customStockAliasRepository.deleteAll(customStockAliasRepository.findAllByIdUserId(userId));
+            customScaleThresholdRepository.deleteAllByUserId(userId);
+            customValueTierThresholdRepository.deleteAllByUserId(userId);
+        }
         // IDENTITY 전략은 save() 즉시 INSERT하는데 위 delete들은 flush 전까지 큐에만 쌓여있어,
         // flush 없이 restoreSectors를 부르면 같은 (user_id, name) 등 유니크 제약을 건드려 충돌한다.
         customSectorRepository.flush();
 
-        Map<Long, CustomSector> sectorBySnapshotId = restoreSectors(snapshot.sectors(), userId, snapshotId);
+        Map<Long, CustomSector> sectorBySnapshotId = restoreSectors(snapshot.sectors(), userId, market, snapshotId);
         // 옛 스냅샷에는 보호 업종이 없을 수 있어서, 복원한 트리에 없는 보호 업종을 채운다.
-        protectedSectorService.ensureForUser(userId);
+        protectedSectorService.ensureForUser(userId, market);
         List<CustomStockSector> assignments = snapshot.assignments().stream()
                 .map(assignment -> CustomStockSector.create(
                         userId,
-                        ClassificationMarket.KOREA,
+                        market,
                         assignment.stockCode(),
                         sectorBySnapshotId.get(assignment.sectorId()).getId()))
                 .toList();
         customStockSectorRepository.saveAll(assignments);
+        if (market.keepsSettingsInSnapshot()) {
+            restoreSettings(snapshot, userId);
+        }
+        // 복원한 배정 중 지금 거래 정지인 종목은 거래 정지 업종으로 맞춘다(MARKETRY 발행 사용자는 고정본이라 제외된다).
+        if (market.locksSuspendedStocks()) {
+            suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
+        }
+    }
+
+    private void restoreSettings(CustomSnapshotPayload snapshot, Long userId) {
         customStockAliasRepository.saveAll(snapshot.aliases().stream()
                 .map(alias -> CustomStockAlias.create(userId, alias.stockCode(), alias.alias()))
                 .toList());
@@ -159,12 +172,10 @@ public class CustomSectorTreeService {
                         userId, threshold.label(), threshold.thresholdValue(), threshold.excludedByDefault()))
                 .toList());
         updatePreferences(userId, snapshot.preferences());
-        // 복원한 배정 중 지금 거래 정지인 종목은 거래 정지 업종으로 맞춘다(MARKETRY 발행 사용자는 고정본이라 제외된다).
-        suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
     }
 
     private Map<Long, CustomSector> restoreSectors(
-            List<CustomSnapshotPayload.Sector> sectors, Long userId, Long snapshotId) {
+            List<CustomSnapshotPayload.Sector> sectors, Long userId, ClassificationMarket market, Long snapshotId) {
         Map<Long, CustomSector> restored = new HashMap<>();
         Set<Long> pending =
                 sectors.stream().map(CustomSnapshotPayload.Sector::id).collect(Collectors.toSet());
@@ -179,7 +190,7 @@ public class CustomSectorTreeService {
             for (CustomSnapshotPayload.Sector sector : ready) {
                 UUID stableKey = sector.stableKey() == null ? UUID.randomUUID() : sector.stableKey();
                 CustomSector entity = sector.parentId() == null
-                        ? CustomSector.createParent(userId, ClassificationMarket.KOREA, sector.name(), stableKey)
+                        ? CustomSector.createParent(userId, market, sector.name(), stableKey)
                         : CustomSector.createChild(userId, sector.name(), restored.get(sector.parentId()), stableKey);
                 if (sector.excluded()) {
                     entity.exclude();
@@ -196,7 +207,7 @@ public class CustomSectorTreeService {
         return version == SNAPSHOT_VERSION || version == LEGACY_SNAPSHOT_VERSION;
     }
 
-    private void validateSnapshot(CustomSnapshotPayload snapshot) {
+    private void validateSnapshot(CustomSnapshotPayload snapshot, ClassificationMarket market) {
         Set<Long> sectorIds = snapshot.sectors().stream()
                 .map(CustomSnapshotPayload.Sector::id)
                 .collect(Collectors.toSet());
@@ -207,13 +218,12 @@ public class CustomSectorTreeService {
         Set<String> stockCodes = snapshot.assignments().stream()
                 .map(CustomSnapshotPayload.StockAssignment::stockCode)
                 .collect(Collectors.toSet());
-        stockCodes.addAll(snapshot.aliases().stream()
-                .map(CustomSnapshotPayload.StockAlias::stockCode)
-                .toList());
-        Set<String> existingStockCodes = stockInfoRepository.findAllById(stockCodes).stream()
-                .map(StockInfo::getStockCode)
-                .collect(Collectors.toSet());
-        if (hasInvalidParent || hasInvalidAssignment || !existingStockCodes.containsAll(stockCodes)) {
+        if (market.keepsSettingsInSnapshot()) {
+            stockCodes.addAll(snapshot.aliases().stream()
+                    .map(CustomSnapshotPayload.StockAlias::stockCode)
+                    .toList());
+        }
+        if (hasInvalidParent || hasInvalidAssignment || !classifiableStocks.existsAll(market, stockCodes)) {
             throw new BadRequestException(ErrorCode.SECTOR_TREE_PARSE_FAILED);
         }
     }

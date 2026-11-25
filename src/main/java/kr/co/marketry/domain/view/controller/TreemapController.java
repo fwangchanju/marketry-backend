@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import kr.co.marketry.domain.custom.dto.CustomScaleResponse;
 import kr.co.marketry.domain.custom.dto.CustomValueTierItem;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.service.CustomScaleService;
 import kr.co.marketry.domain.custom.service.CustomSectorService;
 import kr.co.marketry.domain.custom.service.CustomValueTierThresholdService;
@@ -114,12 +115,14 @@ public class TreemapController {
     }
 
     @PostMapping("/excluded-sectors/{sectorId}")
-    public void registerExcludedSector(@PathVariable Long sectorId) {
-        customSectorService.exclude(sectorId);
+    public void registerExcludedSector(
+            @RequestParam(defaultValue = "KOREA") ClassificationMarket market, @PathVariable Long sectorId) {
+        customSectorService.exclude(market, sectorId);
     }
 
     @DeleteMapping("/excluded-sectors/{sectorId}")
-    public void unregisterExcludedSector(@PathVariable Long sectorId) {
-        customSectorService.include(sectorId);
+    public void unregisterExcludedSector(
+            @RequestParam(defaultValue = "KOREA") ClassificationMarket market, @PathVariable Long sectorId) {
+        customSectorService.include(market, sectorId);
     }
 }

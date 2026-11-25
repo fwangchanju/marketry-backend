@@ -13,6 +13,7 @@ import java.util.Optional;
 import kr.co.marketry.common.event.UserSignedUpEvent;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
 import kr.co.marketry.domain.custom.entity.UserPreference;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import kr.co.marketry.domain.custom.repository.UserPreferenceRepository;
 import kr.co.marketry.domain.custom.service.ProtectedSectorService;
@@ -45,7 +46,7 @@ class SignupInitializationServiceTest {
     void 가입시_보호_업종을_채우고_지금_거래_정지_종목을_거래_정지_업종에_맞춘다() {
         service.onUserSignedUp(new UserSignedUpEvent(USER_ID));
 
-        verify(protectedSectorService).ensureForUser(USER_ID);
+        verify(protectedSectorService).ensureForUser(USER_ID, ClassificationMarket.KOREA);
         verify(suspendedStockClassificationService).applyCurrentExclusionsToUser(USER_ID);
     }
 

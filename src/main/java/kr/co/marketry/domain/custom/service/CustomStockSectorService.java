@@ -7,6 +7,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -63,6 +64,7 @@ public class CustomStockSectorService {
     private final CustomStockAliasRepository customStockAliasRepository;
     private final CustomSectorRepository customSectorRepository;
     private final StockInfoCacheService stockInfoCacheService;
+    private final ClassifiableStocks classifiableStocks;
     private final SectorPriceSnapshotService sectorPriceSnapshotService;
     private final CustomValueTierThresholdService customValueTierThresholdService;
     private final StockIndustryNameResolver stockIndustryNameResolver;
@@ -74,37 +76,33 @@ public class CustomStockSectorService {
             .maximumSize(MAX_UPLOAD_USERS_IN_CACHE)
             .build();
 
-    public void assign(String stockCode, Long sectorId) {
+    public void assign(ClassificationMarket market, String stockCode, Long sectorId) {
         Long userId = CurrentUser.requireId();
-        requireActiveStock(stockCode);
-        requireNotSuspendedSector(requireOwnedSector(sectorId, userId));
-        requireNotLocked(userId, stockCode);
+        requireClassifiable(market, stockCode);
+        requireNotSuspendedSector(requireOwnedSector(market, sectorId, userId));
+        requireNotLocked(market, userId, stockCode);
         // ON CONFLICT ... DO UPDATE upsert — JPQL/QueryDSL에 없는 문법이라 JdbcTemplate으로 직접 쓴다.
         jdbcTemplate.update("""
                 INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
-                VALUES (?, 'KOREA', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id, stock_code)
                 DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
-                """, userId, stockCode, sectorId);
+                """, userId, market.name(), stockCode, sectorId);
         jdbcTemplate.update(
                 "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
                 userId);
     }
 
     /** 요청에 있는 유효 종목은 배정 행 유무와 관계없이 upsert한다. */
-    public BulkAssignResponse bulkAssign(List<String> stockCodes, Long sectorId) {
+    public BulkAssignResponse bulkAssign(ClassificationMarket market, List<String> stockCodes, Long sectorId) {
         Long userId = CurrentUser.requireId();
-        requireNotSuspendedSector(requireOwnedSector(sectorId, userId));
+        requireNotSuspendedSector(requireOwnedSector(market, sectorId, userId));
         Set<String> remaining = new LinkedHashSet<>(stockCodes);
-        Map<String, StockInfo> stocks = stockInfoCacheService.getCache();
         // 거래 정지 종목은 옮길 수 없어 반영하지 않은 종목으로 돌려준다.
-        Set<String> lockedStockCodes = suspendedStockClassificationService.findLockedStockCodes(userId, remaining);
+        Set<String> lockedStockCodes = findLockedStockCodes(market, userId, remaining);
         List<String> validStockCodes = remaining.stream()
                 .filter(stockCode -> !lockedStockCodes.contains(stockCode))
-                .filter(stockCode -> {
-                    StockInfo stock = stocks.get(stockCode);
-                    return stock != null && stock.isActiveAndOrdinary();
-                })
+                .filter(stockCode -> classifiableStocks.canClassify(market, stockCode))
                 .toList();
         remaining.removeAll(validStockCodes);
 
@@ -112,13 +110,14 @@ public class CustomStockSectorService {
             // ON CONFLICT ... DO UPDATE upsert — 위와 동일한 이유로 배치 처리도 JdbcTemplate을 쓴다.
             jdbcTemplate.batchUpdate("""
                     INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
-                    VALUES (?, 'KOREA', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (user_id, stock_code)
                     DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
                     """, validStockCodes, validStockCodes.size(), (statement, stockCode) -> {
                 statement.setLong(1, userId);
-                statement.setString(2, stockCode);
-                statement.setLong(3, sectorId);
+                statement.setString(2, market.name());
+                statement.setString(3, stockCode);
+                statement.setLong(4, sectorId);
             });
             jdbcTemplate.update(
                     "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
@@ -127,7 +126,8 @@ public class CustomStockSectorService {
         return new BulkAssignResponse(new ArrayList<>(remaining), sectorId);
     }
 
-    public ClassificationUploadResponse uploadClassification(ClassificationUploadRequest request) {
+    public ClassificationUploadResponse uploadClassification(
+            ClassificationMarket market, ClassificationUploadRequest request) {
         Long userId = CurrentUser.requireId();
         recordClassificationUpload(userId);
 
@@ -138,8 +138,7 @@ public class CustomStockSectorService {
             throw new BadRequestException(ErrorCode.INVALID_INPUT, "업로드 종목 수가 허용 범위를 초과했습니다.");
         }
 
-        List<CustomSector> sectors =
-                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA);
+        List<CustomSector> sectors = customSectorRepository.findAllByUserIdAndMarket(userId, market);
         Map<Long, CustomSector> sectorById =
                 sectors.stream().collect(Collectors.toMap(CustomSector::getId, Function.identity()));
         Map<List<String>, CustomSector> sectorByPath = new HashMap<>();
@@ -150,14 +149,14 @@ public class CustomStockSectorService {
             pathByName.put(sector.getName(), path);
         }
 
-        Map<String, StockInfo> stocks = stockInfoCacheService.getCache();
         Set<String> seenStockCodes = new HashSet<>();
         Set<String> failedStockCodes = new LinkedHashSet<>();
         List<ClassificationUploadResponse.AppliedAssignment> appliedAssignments = new ArrayList<>();
         List<UploadAssignmentRow> assignmentRows = new ArrayList<>();
         int createdSectorCount = 0;
         // 거래 정지 종목은 옮길 수 없어서 업로드에서도 반영하지 않은 종목으로 돌려준다.
-        Set<String> lockedStockCodes = suspendedStockClassificationService.findLockedStockCodes(
+        Set<String> lockedStockCodes = findLockedStockCodes(
+                market,
                 userId,
                 request.assignments().stream()
                         .flatMap(assignment -> assignment.stockCodes().stream())
@@ -170,16 +169,15 @@ public class CustomStockSectorService {
             }
             // 거래 정지 업종에는 서버가 정지 종목만 자동으로 넣는다. 내려받은 엑셀에는 이 업종이 들어 있으니, 요청을 거절하지 않고
             // 그 줄의 종목만 반영하지 않은 종목으로 돌려준다(나머지 줄은 정상 적용).
-            boolean autoOnlySector = ProtectedSector.SUSPENDED.getSectorName().equals(path.get(0));
+            boolean autoOnlySector = market.locksSuspendedStocks()
+                    && ProtectedSector.SUSPENDED.getSectorName().equals(path.get(0));
 
             List<String> validStockCodes = new ArrayList<>();
             for (String stockCode : assignment.stockCodes()) {
                 if (!seenStockCodes.add(stockCode)) {
                     throw new BadRequestException(ErrorCode.INVALID_INPUT, "종목 코드가 중복되어 있습니다.");
                 }
-                StockInfo stock = stocks.get(stockCode);
-                if (stock == null
-                        || !stock.isActiveAndOrdinary()
+                if (!classifiableStocks.canClassify(market, stockCode)
                         || lockedStockCodes.contains(stockCode)
                         || autoOnlySector) {
                     failedStockCodes.add(stockCode);
@@ -201,14 +199,14 @@ public class CustomStockSectorService {
 
                 String name = partialPath.get(partialPath.size() - 1);
                 // 보호 업종 이름은 대분류로만 쓸 수 있다 — 하위 업종으로 만들려는 업로드는 거절한다.
-                if (depth > 1 && ProtectedSector.isReservedName(name)) {
+                if (depth > 1 && market.isReservedName(name)) {
                     throw new BadRequestException(ErrorCode.SECTOR_NAME_RESERVED, name);
                 }
                 if (pathByName.containsKey(name)) {
                     throw new BadRequestException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
                 }
                 if (depth == 1) {
-                    sector = CustomSector.createParent(userId, ClassificationMarket.KOREA, name);
+                    sector = CustomSector.createParent(userId, market, name);
                 } else {
                     CustomSector parent = sectorByPath.get(List.copyOf(path.subList(0, depth - 1)));
                     if (parent == null) {
@@ -231,27 +229,30 @@ public class CustomStockSectorService {
         if (!assignmentRows.isEmpty()) {
             jdbcTemplate.batchUpdate("""
                     INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
-                    VALUES (?, 'KOREA', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (user_id, stock_code)
                     DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
                     """, assignmentRows, assignmentRows.size(), (statement, assignment) -> {
                 statement.setLong(1, userId);
-                statement.setString(2, assignment.stockCode());
-                statement.setLong(3, assignment.sectorId());
+                statement.setString(2, market.name());
+                statement.setString(3, assignment.stockCode());
+                statement.setLong(4, assignment.sectorId());
             });
             jdbcTemplate.update(
                     "UPDATE users SET first_custom_classification_at = CURRENT_TIMESTAMP WHERE id = ? AND first_custom_classification_at IS NULL",
                     userId);
         }
-        protectedSectorService.ensureForUser(userId);
-        suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
+        protectedSectorService.ensureForUser(userId, market);
+        if (market.locksSuspendedStocks()) {
+            suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
+        }
         return new ClassificationUploadResponse(createdSectorCount, appliedAssignments, List.copyOf(failedStockCodes));
     }
 
     /** 별칭은 custom_stock_alias에만 저장한다. */
     public void updateAlias(String stockCode, String alias) {
         Long userId = CurrentUser.requireId();
-        requireActiveStock(stockCode);
+        requireClassifiable(ClassificationMarket.KOREA, stockCode);
         CustomStockAliasId id = new CustomStockAliasId(userId, stockCode);
         if (alias == null || alias.isBlank()) {
             customStockAliasRepository.deleteById(id);
@@ -264,6 +265,13 @@ public class CustomStockSectorService {
                 ON CONFLICT (user_id, stock_code)
                 DO UPDATE SET alias = EXCLUDED.alias, updated_at = CURRENT_TIMESTAMP
                 """, userId, stockCode, alias);
+    }
+
+    /** 종목마다 배정된 업종 번호. 종목 이름·시세는 화면이 시장별로 따로 받는다. */
+    @Transactional(readOnly = true)
+    public Map<String, Long> getAssignments(ClassificationMarket market) {
+        return customStockSectorRepository.findAllByIdUserIdAndMarket(CurrentUser.requireId(), market).stream()
+                .collect(Collectors.toMap(CustomStockSector::getStockCode, CustomStockSector::getSectorId));
     }
 
     @Transactional(readOnly = true)
@@ -334,9 +342,9 @@ public class CustomStockSectorService {
                 sector == null ? null : sector.getId());
     }
 
-    private CustomSector requireOwnedSector(Long sectorId, Long userId) {
+    private CustomSector requireOwnedSector(ClassificationMarket market, Long sectorId, Long userId) {
         return customSectorRepository
-                .findByIdAndUserIdAndMarket(sectorId, userId, ClassificationMarket.KOREA)
+                .findByIdAndUserIdAndMarket(sectorId, userId, market)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId));
     }
 
@@ -348,17 +356,20 @@ public class CustomStockSectorService {
     }
 
     /** 지금 거래 정지인 종목(거래 정지 업종에 있는 종목)은 다른 업종으로 옮기거나 해제할 수 없다. */
-    private void requireNotLocked(Long userId, String stockCode) {
-        if (!suspendedStockClassificationService
-                .findLockedStockCodes(userId, List.of(stockCode))
-                .isEmpty()) {
+    private void requireNotLocked(ClassificationMarket market, Long userId, String stockCode) {
+        if (!findLockedStockCodes(market, userId, List.of(stockCode)).isEmpty()) {
             throw new ConflictException(ErrorCode.STOCK_SUSPENDED_LOCKED, stockCode);
         }
     }
 
-    private void requireActiveStock(String stockCode) {
-        StockInfo stock = stockInfoCacheService.getCache().get(stockCode);
-        if (stock == null || !stock.isActiveAndOrdinary()) {
+    private Set<String> findLockedStockCodes(ClassificationMarket market, Long userId, Collection<String> stockCodes) {
+        return market.locksSuspendedStocks()
+                ? suspendedStockClassificationService.findLockedStockCodes(userId, stockCodes)
+                : Set.of();
+    }
+
+    private void requireClassifiable(ClassificationMarket market, String stockCode) {
+        if (!classifiableStocks.canClassify(market, stockCode)) {
             throw new NotFoundException(ErrorCode.STOCK_SECTOR_NOT_FOUND, stockCode);
         }
     }

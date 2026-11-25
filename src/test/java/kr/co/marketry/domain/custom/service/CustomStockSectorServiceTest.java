@@ -17,6 +17,7 @@ import java.util.Optional;
 import java.util.Set;
 import kr.co.marketry.common.enums.Market;
 import kr.co.marketry.common.exception.ConflictException;
+import kr.co.marketry.common.exception.NotFoundException;
 import kr.co.marketry.domain.auth.enums.Role;
 import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.custom.dto.ClassificationUploadRequest;
@@ -27,9 +28,11 @@ import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
+import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.entity.StockInfo;
 import kr.co.marketry.domain.stock.repository.IndustryInfoRepository;
 import kr.co.marketry.domain.stock.repository.StockIndustryOverrideRepository;
+import kr.co.marketry.domain.stock.repository.StockInfoRepository;
 import kr.co.marketry.domain.stock.service.SectorPriceSnapshotService;
 import kr.co.marketry.domain.stock.service.StockIndustryNameResolver;
 import kr.co.marketry.domain.stock.service.StockInfoCacheService;
@@ -66,6 +69,8 @@ class CustomStockSectorServiceTest {
             stockAliasRepository,
             sectorRepository,
             stockInfoCacheService,
+            new ClassifiableStocks(
+                    stockInfoCacheService, Mockito.mock(StockInfoRepository.class), new UsaConstituents()),
             sectorPriceSnapshotService,
             valueTierService,
             new StockIndustryNameResolver(industryInfoRepository, Mockito.mock(StockIndustryOverrideRepository.class)),
@@ -146,15 +151,20 @@ class CustomStockSectorServiceTest {
 
     @Test
     void assign_사용자와_종목_키로_배정행을_atomic_upsert한다() {
-        service.assign(stock.getStockCode(), SECTOR_ID);
+        service.assign(ClassificationMarket.KOREA, stock.getStockCode(), SECTOR_ID);
 
         verify(jdbcTemplate)
-                .update(contains("INSERT INTO custom_stock_sector"), eq(USER_ID), eq("005930"), eq(SECTOR_ID));
+                .update(
+                        contains("INSERT INTO custom_stock_sector"),
+                        eq(USER_ID),
+                        eq("KOREA"),
+                        eq("005930"),
+                        eq(SECTOR_ID));
     }
 
     @Test
     void bulkAssign_유효한_종목만_upsert하고_나머지는_응답에_반환한다() {
-        var response = service.bulkAssign(List.of("005930", "999999", "005930"), SECTOR_ID);
+        var response = service.bulkAssign(ClassificationMarket.KOREA, List.of("005930", "999999", "005930"), SECTOR_ID);
 
         assertThat(response.failedStockCodes()).containsExactly("999999");
         assertThat(response.sectorId()).isEqualTo(SECTOR_ID);
@@ -173,10 +183,13 @@ class CustomStockSectorServiceTest {
         when(sectorRepository.findByIdAndUserIdAndMarket(77L, USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.of(suspendedSector));
 
-        assertThatThrownBy(() -> service.assign(stock.getStockCode(), 77L)).isInstanceOf(ConflictException.class);
-        assertThatThrownBy(() -> service.bulkAssign(List.of("005930"), 77L)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.assign(ClassificationMarket.KOREA, stock.getStockCode(), 77L))
+                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.bulkAssign(ClassificationMarket.KOREA, List.of("005930"), 77L))
+                .isInstanceOf(ConflictException.class);
 
-        verify(jdbcTemplate, Mockito.never()).update(contains("INSERT INTO custom_stock_sector"), any(), any(), any());
+        verify(jdbcTemplate, Mockito.never())
+                .update(contains("INSERT INTO custom_stock_sector"), any(), any(), any(), any());
         verify(jdbcTemplate, Mockito.never()).batchUpdate(anyString(), any(List.class), anyInt(), any());
     }
 
@@ -184,16 +197,18 @@ class CustomStockSectorServiceTest {
     void assign_거래_정지_종목은_다른_업종으로_옮길_수_없다() {
         when(suspendedClassification.findLockedStockCodes(eq(USER_ID), any())).thenReturn(Set.of("005930"));
 
-        assertThatThrownBy(() -> service.assign("005930", SECTOR_ID)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.assign(ClassificationMarket.KOREA, "005930", SECTOR_ID))
+                .isInstanceOf(ConflictException.class);
 
-        verify(jdbcTemplate, Mockito.never()).update(contains("INSERT INTO custom_stock_sector"), any(), any(), any());
+        verify(jdbcTemplate, Mockito.never())
+                .update(contains("INSERT INTO custom_stock_sector"), any(), any(), any(), any());
     }
 
     @Test
     void bulkAssign_거래_정지_종목은_반영하지_않고_응답에_반환한다() {
         when(suspendedClassification.findLockedStockCodes(eq(USER_ID), any())).thenReturn(Set.of("005930"));
 
-        var response = service.bulkAssign(List.of("005930"), SECTOR_ID);
+        var response = service.bulkAssign(ClassificationMarket.KOREA, List.of("005930"), SECTOR_ID);
 
         assertThat(response.failedStockCodes()).containsExactly("005930");
         verify(jdbcTemplate, Mockito.never()).batchUpdate(anyString(), any(List.class), anyInt(), any());
@@ -209,7 +224,7 @@ class CustomStockSectorServiceTest {
                 new ClassificationUploadRequest.Assignment(List.of("거래 정지"), List.of("005930")),
                 new ClassificationUploadRequest.Assignment(List.of("산업"), List.of("000660"))));
 
-        var response = service.uploadClassification(request);
+        var response = service.uploadClassification(ClassificationMarket.KOREA, request);
 
         // 거래 정지 줄의 종목은 반영하지 않은 종목으로 돌려주고, 같은 요청의 다른 줄은 정상 적용된다.
         assertThat(response.failedStockCodes()).containsExactly("005930");
@@ -223,5 +238,48 @@ class CustomStockSectorServiceTest {
         service.updateAlias(stock.getStockCode(), "삼전");
 
         verify(jdbcTemplate).update(contains("INSERT INTO custom_stock_alias"), eq(USER_ID), eq("005930"), eq("삼전"));
+    }
+
+    @Test
+    void 일본과_미국은_그_시장의_종목만_받고_거래_정지를_보지_않는다() {
+        CustomSector japan = CustomSector.createParent(USER_ID, ClassificationMarket.JAPAN, "자동차");
+        ReflectionTestUtils.setField(japan, "id", 90L);
+        when(sectorRepository.findByIdAndUserIdAndMarket(90L, USER_ID, ClassificationMarket.JAPAN))
+                .thenReturn(Optional.of(japan));
+
+        service.assign(ClassificationMarket.JAPAN, "7203", 90L);
+
+        verify(jdbcTemplate)
+                .update(contains("INSERT INTO custom_stock_sector"), eq(USER_ID), eq("JAPAN"), eq("7203"), eq(90L));
+        Mockito.verifyNoInteractions(suspendedClassification);
+        assertThatThrownBy(() -> service.assign(ClassificationMarket.JAPAN, "005930", 90L))
+                .isInstanceOf(NotFoundException.class);
+        assertThat(service.bulkAssign(ClassificationMarket.JAPAN, List.of("7203", "AAPL"), 90L)
+                        .failedStockCodes())
+                .containsExactly("AAPL");
+        // 다른 시장의 업종 번호로는 넣을 수 없다.
+        assertThatThrownBy(() -> service.assign(ClassificationMarket.USA, "AAPL", 90L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void 일본_업로드는_거래_정지라는_이름도_보통_업종으로_만든다() {
+        when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.JAPAN))
+                .thenReturn(List.of());
+        when(sectorRepository.save(any(CustomSector.class))).thenAnswer(invocation -> {
+            CustomSector saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 91L);
+            return saved;
+        });
+
+        var response = service.uploadClassification(
+                ClassificationMarket.JAPAN,
+                new ClassificationUploadRequest(List.of(
+                        new ClassificationUploadRequest.Assignment(List.of("거래 정지"), List.of("7203", "005930")))));
+
+        assertThat(response.createdSectorCount()).isEqualTo(1);
+        assertThat(response.failedStockCodes()).containsExactly("005930");
+        verify(protectedSectorService).ensureForUser(USER_ID, ClassificationMarket.JAPAN);
+        Mockito.verifyNoInteractions(suspendedClassification);
     }
 }

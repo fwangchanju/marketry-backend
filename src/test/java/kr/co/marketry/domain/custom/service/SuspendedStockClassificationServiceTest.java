@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import kr.co.marketry.common.event.StockSuspensionSyncedEvent;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.notification.properties.MarketryProperties;
 import kr.co.marketry.domain.stock.service.StockTradingSuspensionService;
 import org.junit.jupiter.api.Test;
@@ -74,7 +75,7 @@ class SuspendedStockClassificationServiceTest {
 
         service.applyCurrentExclusionsToUser(USER_ID);
 
-        verify(protectedSectorService).ensureForUser(USER_ID);
+        verify(protectedSectorService).ensureForUser(USER_ID, ClassificationMarket.KOREA);
         verify(jdbcTemplate).update(contains("INSERT INTO custom_stock_sector"), any(PreparedStatementSetter.class));
     }
 
@@ -97,6 +98,6 @@ class SuspendedStockClassificationServiceTest {
 
         assertThat(service.findLockedStockCodes(USER_ID, List.of())).isEmpty();
         verify(jdbcTemplate, never()).query(anyString(), any(PreparedStatementSetter.class), any(RowMapper.class));
-        verify(protectedSectorService, never()).ensureForUser(eq(USER_ID));
+        verify(protectedSectorService, never()).ensureForUser(eq(USER_ID), eq(ClassificationMarket.KOREA));
     }
 }

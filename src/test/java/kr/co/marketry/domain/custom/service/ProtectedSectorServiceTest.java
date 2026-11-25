@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,10 +22,10 @@ class ProtectedSectorServiceTest {
 
     @Test
     void ensureForUser_보호_업종_세_개를_각각_없을_때만_추가한다() {
-        service.ensureForUser(USER_ID);
+        service.ensureForUser(USER_ID, ClassificationMarket.KOREA);
 
         for (ProtectedSector kind : ProtectedSector.values()) {
-            verify(jdbcTemplate).update(anyString(), eq(USER_ID), eq(kind.getSectorName()));
+            verify(jdbcTemplate).update(anyString(), eq(USER_ID), eq("KOREA"), eq(kind.getSectorName()));
         }
     }
 
@@ -40,8 +41,17 @@ class ProtectedSectorServiceTest {
 
     @Test
     void 보호_업종_이름은_띄어쓰기까지_정해진_값이다() {
-        assertThat(ProtectedSector.sectorNames()).containsExactly("미분류", "신규 상장", "거래 정지");
-        assertThat(ProtectedSector.isReservedName("거래정지")).isFalse();
-        assertThat(ProtectedSector.isReservedName("거래 정지")).isTrue();
+        assertThat(ClassificationMarket.KOREA.protectedSectorNames()).containsExactly("미분류", "신규 상장", "거래 정지");
+        assertThat(ClassificationMarket.KOREA.isReservedName("거래정지")).isFalse();
+        assertThat(ClassificationMarket.KOREA.isReservedName("거래 정지")).isTrue();
+    }
+
+    @Test
+    void ensureForUser_일본과_미국에는_미분류만_추가한다() {
+        service.ensureForUser(USER_ID, ClassificationMarket.JAPAN);
+
+        verify(jdbcTemplate).update(anyString(), eq(USER_ID), eq("JAPAN"), eq("미분류"));
+        verify(jdbcTemplate, times(1)).update(anyString(), eq(USER_ID), anyString(), anyString());
+        assertThat(ClassificationMarket.USA.isReservedName("거래 정지")).isFalse();
     }
 }
