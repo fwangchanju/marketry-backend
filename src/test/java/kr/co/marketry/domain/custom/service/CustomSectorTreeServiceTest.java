@@ -18,6 +18,7 @@ import kr.co.marketry.domain.custom.entity.CustomStockAlias;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
 import kr.co.marketry.domain.custom.entity.UserPreference;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ColorLabel;
 import kr.co.marketry.domain.custom.repository.CustomScaleThresholdRepository;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
@@ -62,15 +63,16 @@ class CustomSectorTreeServiceTest {
 
     @Test
     void serializeCurrentSnapshot_사용자_데이터_전체와_v2_버전을_저장한다() throws Exception {
-        CustomSector root = CustomSector.createParent(USER_ID, "산업");
+        CustomSector root = CustomSector.createParent(USER_ID, ClassificationMarket.KOREA, "산업");
         ReflectionTestUtils.setField(root, "id", 10L);
         CustomSector child = CustomSector.createChild(USER_ID, "반도체", root);
         ReflectionTestUtils.setField(child, "id", 11L);
         child.exclude();
 
-        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(root, child));
-        when(stockSectorRepository.findAllByIdUserId(USER_ID))
-                .thenReturn(List.of(CustomStockSector.create(USER_ID, "005930", 11L)));
+        when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(List.of(root, child));
+        when(stockSectorRepository.findAllByIdUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(List.of(CustomStockSector.create(USER_ID, ClassificationMarket.KOREA, "005930", 11L)));
         when(stockAliasRepository.findAllByIdUserId(USER_ID))
                 .thenReturn(List.of(CustomStockAlias.create(USER_ID, "005930", "삼전")));
         when(scaleThresholdRepository.findAllByUserId(USER_ID))
@@ -95,8 +97,8 @@ class CustomSectorTreeServiceTest {
         assertThat(snapshot.scaleThresholds()).hasSize(1);
         assertThat(snapshot.valueTierThresholds()).hasSize(1);
         assertThat(snapshot.preferences()).containsEntry("showValue", true);
-        verify(sectorRepository).findAllByUserId(USER_ID);
-        verify(stockSectorRepository).findAllByIdUserId(USER_ID);
+        verify(sectorRepository).findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA);
+        verify(stockSectorRepository).findAllByIdUserIdAndMarket(USER_ID, ClassificationMarket.KOREA);
         verify(stockAliasRepository).findAllByIdUserId(USER_ID);
     }
 

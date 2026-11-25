@@ -22,6 +22,7 @@ import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
 import kr.co.marketry.domain.custom.dto.ClassificationUploadRequest;
 import kr.co.marketry.domain.custom.entity.CustomSector;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockSectorRepository;
@@ -72,7 +73,7 @@ class CustomStockSectorServiceTest {
             protectedSectorService,
             suspendedClassification);
 
-    private final CustomSector sector = CustomSector.createParent(USER_ID, "산업");
+    private final CustomSector sector = CustomSector.createParent(USER_ID, ClassificationMarket.KOREA, "산업");
     private final StockInfo stock =
             StockInfo.create("005930", "삼성전자", Market.KOSPI, "0", null, 100L, BigDecimal.TEN, false);
 
@@ -83,7 +84,8 @@ class CustomStockSectorServiceTest {
         SecurityContextHolder.getContext()
                 .setAuthentication(
                         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
-        when(sectorRepository.findByIdAndUserId(SECTOR_ID, USER_ID)).thenReturn(Optional.of(sector));
+        when(sectorRepository.findByIdAndUserIdAndMarket(SECTOR_ID, USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(Optional.of(sector));
         when(stockInfoCacheService.getCache()).thenReturn(Map.of(stock.getStockCode(), stock));
     }
 
@@ -119,9 +121,11 @@ class CustomStockSectorServiceTest {
                         unassigned.getStockCode(), unassigned,
                         inactive.getStockCode(), inactive,
                         etf.getStockCode(), etf));
-        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(sector));
-        when(stockSectorRepository.findAllByIdUserId(USER_ID))
-                .thenReturn(List.of(CustomStockSector.create(USER_ID, stock.getStockCode(), SECTOR_ID)));
+        when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(List.of(sector));
+        when(stockSectorRepository.findAllByIdUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(List.of(CustomStockSector.create(
+                        USER_ID, ClassificationMarket.KOREA, stock.getStockCode(), SECTOR_ID)));
 
         var response = service.getStockSectors();
 
@@ -164,9 +168,10 @@ class CustomStockSectorServiceTest {
 
     @Test
     void assign_거래_정지_업종에는_직접_넣을_수_없다() {
-        CustomSector suspendedSector = CustomSector.createParent(USER_ID, "거래 정지");
+        CustomSector suspendedSector = CustomSector.createParent(USER_ID, ClassificationMarket.KOREA, "거래 정지");
         ReflectionTestUtils.setField(suspendedSector, "id", 77L);
-        when(sectorRepository.findByIdAndUserId(77L, USER_ID)).thenReturn(Optional.of(suspendedSector));
+        when(sectorRepository.findByIdAndUserIdAndMarket(77L, USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(Optional.of(suspendedSector));
 
         assertThatThrownBy(() -> service.assign(stock.getStockCode(), 77L)).isInstanceOf(ConflictException.class);
         assertThatThrownBy(() -> service.bulkAssign(List.of("005930"), 77L)).isInstanceOf(ConflictException.class);
@@ -198,7 +203,8 @@ class CustomStockSectorServiceTest {
     void uploadClassification_거래_정지_줄은_요청을_거절하지_않고_그_종목만_반영하지_않는다() {
         StockInfo other = StockInfo.create("000660", "SK하이닉스", Market.KOSPI, "0", null, 100L, BigDecimal.TEN, false);
         when(stockInfoCacheService.getCache()).thenReturn(Map.of("005930", stock, "000660", other));
-        when(sectorRepository.findAllByUserId(USER_ID)).thenReturn(List.of(sector));
+        when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
+                .thenReturn(List.of(sector));
         var request = new ClassificationUploadRequest(List.of(
                 new ClassificationUploadRequest.Assignment(List.of("거래 정지"), List.of("005930")),
                 new ClassificationUploadRequest.Assignment(List.of("산업"), List.of("000660"))));

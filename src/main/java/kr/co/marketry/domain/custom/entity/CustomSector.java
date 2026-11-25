@@ -2,6 +2,8 @@ package kr.co.marketry.domain.custom.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -9,6 +11,7 @@ import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
 import kr.co.marketry.common.enums.Zone;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import lombok.Getter;
 
@@ -35,6 +38,10 @@ public class CustomSector {
 
     @Column(name = "user_id", nullable = false)
     private Long userId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 16)
+    private ClassificationMarket market;
 
     @Column(nullable = false, length = 50)
     private String name;
@@ -68,15 +75,16 @@ public class CustomSector {
         return parentId == null && ProtectedSector.SUSPENDED.getSectorName().equals(name);
     }
 
-    public static CustomSector createParent(Long userId, String name) {
-        return createParent(userId, name, UUID.randomUUID());
+    public static CustomSector createParent(Long userId, ClassificationMarket market, String name) {
+        return createParent(userId, market, name, UUID.randomUUID());
     }
 
-    public static CustomSector createParent(Long userId, String name, UUID stableKey) {
+    public static CustomSector createParent(Long userId, ClassificationMarket market, String name, UUID stableKey) {
         var entity = new CustomSector();
         entity.userId = userId;
         entity.name = name;
         entity.stableKey = stableKey == null ? UUID.randomUUID() : stableKey;
+        entity.market = market;
         entity.parentId = null;
         entity.depth = 0;
         entity.isExcluded = false;
@@ -95,6 +103,7 @@ public class CustomSector {
         entity.userId = userId;
         entity.name = name;
         entity.stableKey = stableKey == null ? UUID.randomUUID() : stableKey;
+        entity.market = parent.market;
         entity.parentId = parent.id;
         entity.depth = parent.depth + 1;
         entity.isExcluded = false;
@@ -104,8 +113,8 @@ public class CustomSector {
         return entity;
     }
 
-    public static CustomSector createDefaultParent(Long userId, String name) {
-        return createParent(userId, name);
+    public static CustomSector createDefaultParent(Long userId, ClassificationMarket market, String name) {
+        return createParent(userId, market, name);
     }
 
     public void tagSnapshot(Long snapshotId) {

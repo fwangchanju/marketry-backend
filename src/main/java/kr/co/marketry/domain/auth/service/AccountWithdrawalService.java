@@ -50,10 +50,10 @@ public class AccountWithdrawalService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴할 수 없는 계정입니다.");
         }
         // 종목 배정 → 업종 → 스냅샷 순서다 — 배정이 업종을, 업종이 스냅샷을 가리키므로 가리키는 쪽을 먼저 지워야 FK를 어기지 않는다.
-        customStockSectorRepository.deleteAllByUserId(userId);
+        customStockSectorRepository.deleteAllOfWithdrawnUser(userId);
         customStockAliasRepository.deleteAllOfUser(userId);
-        customSectorRepository.deleteAllOfUser(userId);
-        customSnapshotRepository.deleteAllOfUser(userId);
+        customSectorRepository.deleteAllOfWithdrawnUser(userId);
+        customSnapshotRepository.deleteAllOfWithdrawnUser(userId);
         customScaleThresholdRepository.deleteAllOfUser(userId);
         customValueTierThresholdRepository.deleteAllByUserId(userId);
         userPreferenceRepository.deleteAllOfUser(userId);

@@ -20,6 +20,7 @@ import kr.co.marketry.domain.custom.entity.CustomSector;
 import kr.co.marketry.domain.custom.entity.CustomSnapshot;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomSnapshotRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
@@ -146,10 +147,11 @@ class TreemapQueryServiceTest {
                         new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities()));
         Mockito.doAnswer(invocation -> treemapSectorRepository.findAll())
                 .when(treemapSectorRepository)
-                .findAllByUserId(ArgumentMatchers.anyLong());
+                .findAllByUserIdAndMarket(ArgumentMatchers.anyLong(), ArgumentMatchers.eq(ClassificationMarket.KOREA));
         Mockito.doAnswer(invocation -> treemapStockSectorRepository.findAll())
                 .when(treemapStockSectorRepository)
-                .findAllByIdUserId(ArgumentMatchers.anyLong());
+                .findAllByIdUserIdAndMarket(
+                        ArgumentMatchers.anyLong(), ArgumentMatchers.eq(ClassificationMarket.KOREA));
         Mockito.doReturn(List.of()).when(customStockAliasRepository).findAllByIdUserId(ArgumentMatchers.anyLong());
         stubTierThresholds(tierThreshold(10L, "대형", 0L, false));
     }
@@ -182,7 +184,7 @@ class TreemapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(customUpdatedAt);
 
         TreemapResponse exchange = service.getDefaultTreemap(MarketQuery.KOSPI, null);
@@ -198,15 +200,16 @@ class TreemapQueryServiceTest {
     void MARKETRY_업데이트는_업종과_종목배정_중_더_최근의_고정본_수정시각이다() {
         LocalDateTime assignmentUpdatedAt = LocalDateTime.of(2026, 10, 6, 18, 0);
         LocalDateTime sectorUpdatedAt = LocalDateTime.of(2026, 10, 7, 9, 0);
-        CustomSector ownerSector = CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, "수정된 업종");
+        CustomSector ownerSector =
+                CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA, "수정된 업종");
         ReflectionTestUtils.setField(ownerSector, "updatedAt", sectorUpdatedAt);
         when(stockInfoCacheService.getCache()).thenReturn(Map.of());
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(sectorUpdatedAt));
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(assignmentUpdatedAt);
-        when(treemapSectorRepository.findLatestEditedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findLatestEditedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(sectorUpdatedAt);
 
         assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
@@ -214,7 +217,7 @@ class TreemapQueryServiceTest {
                 .isEqualTo(sectorUpdatedAt);
 
         LocalDateTime newerAssignmentUpdatedAt = sectorUpdatedAt.plusHours(1);
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(newerAssignmentUpdatedAt);
 
         assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
@@ -226,20 +229,24 @@ class TreemapQueryServiceTest {
     void MARKETRY_업데이트는_지금_올라간_버전을_올린_시각이라_되돌리면_이전_버전_시각이_된다() {
         LocalDateTime versionCreatedAt = LocalDateTime.of(2026, 10, 6, 9, 0);
         LocalDateTime restoredDataUpdatedAt = LocalDateTime.of(2026, 10, 8, 18, 0);
-        CustomSector liveSector = CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, "되돌린 업종");
+        CustomSector liveSector =
+                CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA, "되돌린 업종");
         ReflectionTestUtils.setField(liveSector, "updatedAt", restoredDataUpdatedAt);
         ReflectionTestUtils.setField(liveSector, "snapshotId", 7L);
-        CustomSnapshot version = CustomSnapshot.create(PUBLISHED_PROPERTY_USER_ID, "MARKETRY 2026-10-06 09:00", "{}");
+        CustomSnapshot version = CustomSnapshot.create(
+                PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA, "MARKETRY 2026-10-06 09:00", "{}");
         ReflectionTestUtils.setField(version, "createdAt", versionCreatedAt);
         when(stockInfoCacheService.getCache()).thenReturn(Map.of());
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(restoredDataUpdatedAt));
-        when(treemapSectorRepository.findFirstByUserIdOrderByIdAsc(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findFirstByUserIdAndMarketOrderByIdAsc(
+                        PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.of(liveSector));
-        when(treemapSectorRepository.findLatestEditedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findLatestEditedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(restoredDataUpdatedAt);
-        when(customSnapshotRepository.findByIdAndUserId(7L, PUBLISHED_PROPERTY_USER_ID))
+        when(customSnapshotRepository.findByIdAndUserIdAndMarket(
+                        7L, PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.of(version));
 
         assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
@@ -250,13 +257,14 @@ class TreemapQueryServiceTest {
     @Test
     void MARKETRY_업데이트는_종목배정이_없어도_고정본_업종_수정시각을_표시한다() {
         LocalDateTime sectorUpdatedAt = LocalDateTime.of(2026, 10, 7, 9, 0);
-        CustomSector ownerSector = CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, "새 업종");
+        CustomSector ownerSector =
+                CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA, "새 업종");
         ReflectionTestUtils.setField(ownerSector, "updatedAt", sectorUpdatedAt);
         when(stockInfoCacheService.getCache()).thenReturn(Map.of());
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(sectorUpdatedAt));
-        when(treemapSectorRepository.findLatestEditedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapSectorRepository.findLatestEditedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(sectorUpdatedAt);
 
         assertThat(service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY)
@@ -336,16 +344,22 @@ class TreemapQueryServiceTest {
                 .thenReturn(Optional.of(snapshotTime));
         when(sectorPriceCacheService.getCache(Market.KOSPI, snapshotTime))
                 .thenReturn(Map.ofEntries(priceSnapshot("005930", snapshotTime, BigDecimal.TEN)));
-        Mockito.doReturn(List.of()).when(treemapSectorRepository).findAllByUserId(LEGACY_OWNER_ID);
-        Mockito.doReturn(List.of()).when(treemapStockSectorRepository).findAllByIdUserId(LEGACY_OWNER_ID);
-        CustomSector publishedSector = CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, "공개 반도체");
+        Mockito.doReturn(List.of())
+                .when(treemapSectorRepository)
+                .findAllByUserIdAndMarket(LEGACY_OWNER_ID, ClassificationMarket.KOREA);
+        Mockito.doReturn(List.of())
+                .when(treemapStockSectorRepository)
+                .findAllByIdUserIdAndMarket(LEGACY_OWNER_ID, ClassificationMarket.KOREA);
+        CustomSector publishedSector =
+                CustomSector.createParent(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA, "공개 반도체");
         ReflectionTestUtils.setField(publishedSector, "id", 1L);
         Mockito.doReturn(List.of(publishedSector))
                 .when(treemapSectorRepository)
-                .findAllByUserId(PUBLISHED_PROPERTY_USER_ID);
-        Mockito.doReturn(List.of(CustomStockSector.create(PUBLISHED_PROPERTY_USER_ID, "005930", 1L)))
+                .findAllByUserIdAndMarket(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA);
+        Mockito.doReturn(List.of(
+                        CustomStockSector.create(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA, "005930", 1L)))
                 .when(treemapStockSectorRepository)
-                .findAllByIdUserId(PUBLISHED_PROPERTY_USER_ID);
+                .findAllByIdUserIdAndMarket(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA);
 
         TreemapResponse mine = service.getCustomTreemap(MarketQuery.KOSPI, null);
         TreemapResponse published = service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
@@ -368,7 +382,7 @@ class TreemapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(publishedAt);
 
         TreemapResponse response = service.getPublishedTreemap(MarketQuery.KOSPI, null, false, ChangeRateMode.DAILY);
@@ -384,9 +398,9 @@ class TreemapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(LEGACY_OWNER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(LEGACY_OWNER_ID, ClassificationMarket.KOREA))
                 .thenReturn(myUpdatedAt);
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(LocalDateTime.of(2026, 10, 7, 9, 0));
 
         assertThat(service.getCustomTreemap(MarketQuery.KOSPI, null).taxonomyUpdatedAt())
@@ -414,7 +428,7 @@ class TreemapQueryServiceTest {
         when(sectorPriceSnapshotRepository.findLatestCommonSnapshotTime(
                         Mockito.eq(List.of(Market.KOSPI)), Mockito.any(LocalDate.class)))
                 .thenReturn(Optional.of(snapshotTime));
-        when(treemapStockSectorRepository.findLatestUpdatedAtByUserId(PUBLISHED_PROPERTY_USER_ID))
+        when(treemapStockSectorRepository.findLatestUpdatedAt(PUBLISHED_PROPERTY_USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(LocalDateTime.of(2026, 10, 6, 18, 0));
 
         TreemapResponse response = service.getDefaultTreemap(MarketQuery.KOSPI, null);
@@ -442,10 +456,10 @@ class TreemapQueryServiceTest {
 
         when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "005930", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "000660", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "009150", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "051910", 3L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "005930", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "000660", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "009150", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "051910", 3L)));
 
         StockInfo samsung = stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN);
         StockInfo skHynix = stockInfo("000660", "SK하이닉스", 50L, BigDecimal.valueOf(20));
@@ -504,8 +518,8 @@ class TreemapQueryServiceTest {
         when(treemapSectorRepository.findAll()).thenReturn(List.of(semiconductor));
         when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "000660", 1L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "005930", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "000660", 1L)));
         StockInfo samsung = StockInfo.create("005930", "삼성전자", Market.KOSPI, "0", null, 100L, BigDecimal.TEN, true);
         StockInfo skHynix = StockInfo.create("000660", "SK하이닉스", Market.KOSPI, "0", null, 50L, BigDecimal.TEN, false);
         when(stockInfoCacheService.getCache())
@@ -623,7 +637,8 @@ class TreemapQueryServiceTest {
         empty.exclude();
         when(treemapSectorRepository.findAll()).thenReturn(List.of(semiconductor, empty));
         when(treemapStockSectorRepository.findAll())
-                .thenReturn(List.of(CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L)));
+                .thenReturn(
+                        List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "005930", 1L)));
 
         StockInfo samsung = stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN);
         Map<String, StockInfo> stockInfoCache =
@@ -668,8 +683,8 @@ class TreemapQueryServiceTest {
         when(treemapSectorRepository.findAll()).thenReturn(List.of(parent, child));
         when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "009150", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "005930", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "009150", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "005930", 2L)));
 
         StockInfo lgElectronics = stockInfo("009150", "삼성전기", 200L, BigDecimal.valueOf(5));
         StockInfo samsung = stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN);
@@ -704,8 +719,8 @@ class TreemapQueryServiceTest {
         when(treemapSectorRepository.findAll()).thenReturn(List.of(semiconductor));
         when(treemapStockSectorRepository.findAll())
                 .thenReturn(List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "000660", 1L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "005930", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "000660", 1L)));
 
         StockInfo samsung = stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN);
         StockInfo skHynix = stockInfo("000660", "SK하이닉스", 50L, BigDecimal.valueOf(20));
@@ -735,7 +750,8 @@ class TreemapQueryServiceTest {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         when(treemapSectorRepository.findAll()).thenReturn(List.of(sector(1L, null, "반도체")));
         when(treemapStockSectorRepository.findAll())
-                .thenReturn(List.of(CustomStockSector.create(LEGACY_OWNER_ID, "005930", 1L)));
+                .thenReturn(
+                        List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "005930", 1L)));
         when(stockInfoCacheService.getCache())
                 .thenReturn(Map.of(
                         "005930", stockInfo("005930", "삼성전자", 100L, BigDecimal.TEN),
@@ -854,8 +870,8 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(semiconductor, pharma),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B", 2L)));
         stubStockCache(stock("A", Market.KOSPI), stock("B", Market.KOSDAQ));
         stubPrices(
                 Market.KOSPI,
@@ -898,7 +914,9 @@ class TreemapQueryServiceTest {
     void getSectorChangeRates_그_시각에_지수_스냅샷이_없으면_index가_null이다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector semiconductor = sector(1L, null, "반도체");
-        stubSectorTree(List.of(semiconductor), List.of(CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L)));
+        stubSectorTree(
+                List.of(semiconductor),
+                List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L)));
         stubStockCache(stock("A", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -919,7 +937,9 @@ class TreemapQueryServiceTest {
     void getSectorChangeRates_before_시각에_지수_스냅샷이_없으면_index_before가_null이다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector semiconductor = sector(1L, null, "반도체");
-        stubSectorTree(List.of(semiconductor), List.of(CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L)));
+        stubSectorTree(
+                List.of(semiconductor),
+                List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L)));
         stubStockCache(stock("A", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -949,8 +969,8 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(root, child),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A2", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A2", 2L)));
         stubStockCache(stock("A1", Market.KOSPI), stock("A2", Market.KOSPI));
         // child(A2)가 root보다 등락률이 훨씬 높아도(부모 집계에 재귀로 포함되긴 하지만), 대분류가
         // 아니므로 결과에 별도로 나오면 안 된다.
@@ -984,9 +1004,9 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(a, b, c),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C", 3L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "C", 3L)));
         stubStockCache(stock("A", Market.KOSPI), stock("B", Market.KOSPI), stock("C", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -1025,8 +1045,8 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(a, b),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B", 2L)));
         stubStockCache(stock("A", Market.KOSPI), stock("B", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -1053,7 +1073,8 @@ class TreemapQueryServiceTest {
     void getTopSectorRankings_before가_전부_없으면_빈_목록이_된다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector a = sector(1L, null, "반도체");
-        stubSectorTree(List.of(a), List.of(CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L)));
+        stubSectorTree(
+                List.of(a), List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L)));
         stubStockCache(stock("A", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -1078,11 +1099,11 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(root),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "BIG", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "S1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "S2", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "S3", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "S4", 1L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "BIG", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "S1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "S2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "S3", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "S4", 1L)));
         stubStockCache(
                 stock("BIG", Market.KOSPI),
                 stock("S1", Market.KOSPI),
@@ -1121,11 +1142,11 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(a, b, c),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A2", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B1", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B2", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 3L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B2", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "C1", 3L)));
         stubStockCache(
                 stock("A1", Market.KOSPI),
                 stock("A2", Market.KOSDAQ),
@@ -1161,11 +1182,11 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(a, b, c),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A2", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B1", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B2", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 3L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B2", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "C1", 3L)));
         stubStockCache(
                 stock("A1", Market.KOSPI),
                 stock("A2", Market.KOSDAQ),
@@ -1200,8 +1221,8 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(a),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A2", 1L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A2", 1L)));
         stubStockCache(stock("A1", Market.KOSPI), stock("A2", Market.KOSDAQ));
         // KOSPI 시총 10,000에 +10%p, KOSDAQ 시총 40,000에 -2%p — 단순 평균이면 (10-2)/2=+4가 되지만,
         // KOSDAQ 쪽 시총 비중이 훨씬 커서 원시값을 합산한 뒤 나누면 +0.4가 맞다.
@@ -1239,7 +1260,8 @@ class TreemapQueryServiceTest {
     void getMergedTopSectorRanking_한_마켓만_합산이_비어도_빈_목록이다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector a = sector(1L, null, "반도체");
-        stubSectorTree(List.of(a), List.of(CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L)));
+        stubSectorTree(
+                List.of(a), List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A1", 1L)));
         stubStockCache(stock("A1", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -1261,9 +1283,9 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(excluded, included),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "A1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B1", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B2", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B2", 2L)));
         stubStockCache(stock("A1", Market.KOSPI), stock("B1", Market.KOSPI), stock("B2", Market.KOSDAQ));
         stubPrices(
                 Market.KOSPI,
@@ -1297,11 +1319,11 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(parent, excludedChild, other),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "P1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "P2", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 3L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B1", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "B2", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "P1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "P2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "C1", 3L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "B2", 2L)));
         stubStockCache(
                 stock("P1", Market.KOSPI),
                 stock("P2", Market.KOSDAQ),
@@ -1348,11 +1370,11 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(semiconductor, chemistry),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "P1", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "P2", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "P3", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C1", 2L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "C2", 2L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "P1", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "P2", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "P3", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "C1", 2L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "C2", 2L)));
         stubStockCache(nxtKospi, nxtKosdaq, stock("P3", Market.KOSPI), chemistryKospi, chemistryKosdaq);
         stubPrices(
                 Market.KOSPI,
@@ -1387,8 +1409,8 @@ class TreemapQueryServiceTest {
         stubSectorTree(
                 List.of(a),
                 List.of(
-                        CustomStockSector.create(LEGACY_OWNER_ID, "BIG", 1L),
-                        CustomStockSector.create(LEGACY_OWNER_ID, "SMALL", 1L)));
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "BIG", 1L),
+                        CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "SMALL", 1L)));
         stubStockCache(stock("BIG", Market.KOSPI), stock("SMALL", Market.KOSPI));
         // now:    시총 90,000 +30% / 10,000 +10%  → 가중 +28%, 산술 +20%
         // before: 시총 80,000 +10% / 20,000   0%  → 가중  +8%, 산술  +5%
@@ -1420,7 +1442,8 @@ class TreemapQueryServiceTest {
     void getTopSectorRankings_지수_등락률이_함께_담긴다() {
         LocalDateTime snapshotTime = LocalDateTime.of(2026, 7, 31, 10, 0);
         CustomSector a = sector(1L, null, "반도체");
-        stubSectorTree(List.of(a), List.of(CustomStockSector.create(LEGACY_OWNER_ID, "A", 1L)));
+        stubSectorTree(
+                List.of(a), List.of(CustomStockSector.create(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "A", 1L)));
         stubStockCache(stock("A", Market.KOSPI));
         stubPrices(
                 Market.KOSPI,
@@ -1502,14 +1525,16 @@ class TreemapQueryServiceTest {
     }
 
     private CustomSector sector(Long id, Long parentId, String name) {
-        CustomSector sector =
-                parentId == null ? CustomSector.createParent(LEGACY_OWNER_ID, name) : sectorWithParent(parentId, name);
+        CustomSector sector = parentId == null
+                ? CustomSector.createParent(LEGACY_OWNER_ID, ClassificationMarket.KOREA, name)
+                : sectorWithParent(parentId, name);
         ReflectionTestUtils.setField(sector, "id", id);
         return sector;
     }
 
     private CustomSector sectorWithParent(Long parentId, String name) {
-        CustomSector parent = CustomSector.createParent(LEGACY_OWNER_ID, "parent-placeholder");
+        CustomSector parent =
+                CustomSector.createParent(LEGACY_OWNER_ID, ClassificationMarket.KOREA, "parent-placeholder");
         ReflectionTestUtils.setField(parent, "id", parentId);
         return CustomSector.createChild(LEGACY_OWNER_ID, name, parent);
     }

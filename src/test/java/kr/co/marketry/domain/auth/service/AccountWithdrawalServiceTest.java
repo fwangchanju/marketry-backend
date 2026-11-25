@@ -69,9 +69,9 @@ class AccountWithdrawalServiceTest {
                 customSnapshotRepository,
                 userProfileRepository,
                 userAccountRepository);
-        order.verify(customStockSectorRepository).deleteAllByUserId(USER_ID);
-        order.verify(customSectorRepository).deleteAllOfUser(USER_ID);
-        order.verify(customSnapshotRepository).deleteAllOfUser(USER_ID);
+        order.verify(customStockSectorRepository).deleteAllOfWithdrawnUser(USER_ID);
+        order.verify(customSectorRepository).deleteAllOfWithdrawnUser(USER_ID);
+        order.verify(customSnapshotRepository).deleteAllOfWithdrawnUser(USER_ID);
         order.verify(userProfileRepository).deleteAllOfUser(USER_ID);
         order.verify(userAccountRepository).deleteById(USER_ID);
         verify(customStockAliasRepository).deleteAllOfUser(USER_ID);
@@ -92,7 +92,7 @@ class AccountWithdrawalServiceTest {
                         ResponseStatusException.class,
                         exception -> assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
         verify(userAccountRepository, never()).deleteById(any());
-        verify(customSectorRepository, never()).deleteAllOfUser(any());
+        verify(customSectorRepository, never()).deleteAllOfWithdrawnUser(any());
     }
 
     @Test

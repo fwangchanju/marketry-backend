@@ -19,6 +19,7 @@ import kr.co.marketry.domain.custom.entity.CustomStockAlias;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
 import kr.co.marketry.domain.custom.entity.UserPreference;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomScaleThresholdRepository;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
@@ -53,18 +54,19 @@ public class CustomSectorTreeService {
 
     @Transactional(readOnly = true)
     public String serializeCurrentSnapshot(Long userId) {
-        List<CustomSnapshotPayload.Sector> sectors = customSectorRepository.findAllByUserId(userId).stream()
-                .sorted(java.util.Comparator.comparing(CustomSector::getId))
-                .map(sector -> new CustomSnapshotPayload.Sector(
-                        sector.getId(),
-                        sector.getParentId(),
-                        sector.getName(),
-                        sector.getDepth(),
-                        sector.isExcluded(),
-                        sector.getStableKey()))
-                .toList();
+        List<CustomSnapshotPayload.Sector> sectors =
+                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
+                        .sorted(java.util.Comparator.comparing(CustomSector::getId))
+                        .map(sector -> new CustomSnapshotPayload.Sector(
+                                sector.getId(),
+                                sector.getParentId(),
+                                sector.getName(),
+                                sector.getDepth(),
+                                sector.isExcluded(),
+                                sector.getStableKey()))
+                        .toList();
         List<CustomSnapshotPayload.StockAssignment> assignments =
-                customStockSectorRepository.findAllByIdUserId(userId).stream()
+                customStockSectorRepository.findAllByIdUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
                         .sorted(java.util.Comparator.comparing(CustomStockSector::getStockCode))
                         .map(assignment -> new CustomSnapshotPayload.StockAssignment(
                                 assignment.getStockCode(), assignment.getSectorId()))
@@ -124,9 +126,10 @@ public class CustomSectorTreeService {
         CustomSnapshotPayload snapshot = parseSnapshot(snapshotJson);
         validateSnapshot(snapshot);
 
-        customStockSectorRepository.deleteAllByIdUserId(userId);
+        customStockSectorRepository.deleteAllOfUserInMarket(userId, ClassificationMarket.KOREA);
         customStockAliasRepository.deleteAll(customStockAliasRepository.findAllByIdUserId(userId));
-        customSectorRepository.deleteAll(customSectorRepository.findAllByUserId(userId));
+        customSectorRepository.deleteAll(
+                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA));
         customScaleThresholdRepository.deleteAllByUserId(userId);
         customValueTierThresholdRepository.deleteAllByUserId(userId);
         // IDENTITY 전략은 save() 즉시 INSERT하는데 위 delete들은 flush 전까지 큐에만 쌓여있어,
@@ -139,6 +142,7 @@ public class CustomSectorTreeService {
         List<CustomStockSector> assignments = snapshot.assignments().stream()
                 .map(assignment -> CustomStockSector.create(
                         userId,
+                        ClassificationMarket.KOREA,
                         assignment.stockCode(),
                         sectorBySnapshotId.get(assignment.sectorId()).getId()))
                 .toList();
@@ -175,7 +179,7 @@ public class CustomSectorTreeService {
             for (CustomSnapshotPayload.Sector sector : ready) {
                 UUID stableKey = sector.stableKey() == null ? UUID.randomUUID() : sector.stableKey();
                 CustomSector entity = sector.parentId() == null
-                        ? CustomSector.createParent(userId, sector.name(), stableKey)
+                        ? CustomSector.createParent(userId, ClassificationMarket.KOREA, sector.name(), stableKey)
                         : CustomSector.createChild(userId, sector.name(), restored.get(sector.parentId()), stableKey);
                 if (sector.excluded()) {
                     entity.exclude();

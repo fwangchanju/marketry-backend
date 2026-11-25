@@ -29,6 +29,7 @@ import kr.co.marketry.domain.custom.entity.CustomStockAlias;
 import kr.co.marketry.domain.custom.entity.CustomStockAliasId;
 import kr.co.marketry.domain.custom.entity.CustomStockSector;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
@@ -80,8 +81,8 @@ public class CustomStockSectorService {
         requireNotLocked(userId, stockCode);
         // ON CONFLICT ... DO UPDATE upsert — JPQL/QueryDSL에 없는 문법이라 JdbcTemplate으로 직접 쓴다.
         jdbcTemplate.update("""
-                INSERT INTO custom_stock_sector (user_id, stock_code, sector_id, created_at, updated_at)
-                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
+                VALUES (?, 'KOREA', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ON CONFLICT (user_id, stock_code)
                 DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
                 """, userId, stockCode, sectorId);
@@ -110,8 +111,8 @@ public class CustomStockSectorService {
         if (!validStockCodes.isEmpty()) {
             // ON CONFLICT ... DO UPDATE upsert — 위와 동일한 이유로 배치 처리도 JdbcTemplate을 쓴다.
             jdbcTemplate.batchUpdate("""
-                    INSERT INTO custom_stock_sector (user_id, stock_code, sector_id, created_at, updated_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
+                    VALUES (?, 'KOREA', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (user_id, stock_code)
                     DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
                     """, validStockCodes, validStockCodes.size(), (statement, stockCode) -> {
@@ -137,7 +138,8 @@ public class CustomStockSectorService {
             throw new BadRequestException(ErrorCode.INVALID_INPUT, "업로드 종목 수가 허용 범위를 초과했습니다.");
         }
 
-        List<CustomSector> sectors = customSectorRepository.findAllByUserId(userId);
+        List<CustomSector> sectors =
+                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA);
         Map<Long, CustomSector> sectorById =
                 sectors.stream().collect(Collectors.toMap(CustomSector::getId, Function.identity()));
         Map<List<String>, CustomSector> sectorByPath = new HashMap<>();
@@ -206,7 +208,7 @@ public class CustomStockSectorService {
                     throw new BadRequestException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
                 }
                 if (depth == 1) {
-                    sector = CustomSector.createParent(userId, name);
+                    sector = CustomSector.createParent(userId, ClassificationMarket.KOREA, name);
                 } else {
                     CustomSector parent = sectorByPath.get(List.copyOf(path.subList(0, depth - 1)));
                     if (parent == null) {
@@ -228,8 +230,8 @@ public class CustomStockSectorService {
 
         if (!assignmentRows.isEmpty()) {
             jdbcTemplate.batchUpdate("""
-                    INSERT INTO custom_stock_sector (user_id, stock_code, sector_id, created_at, updated_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
+                    VALUES (?, 'KOREA', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT (user_id, stock_code)
                     DO UPDATE SET sector_id = EXCLUDED.sector_id, updated_at = CURRENT_TIMESTAMP
                     """, assignmentRows, assignmentRows.size(), (statement, assignment) -> {
@@ -267,10 +269,11 @@ public class CustomStockSectorService {
     @Transactional(readOnly = true)
     public SnapshotResponse<StockSectorListItem> getStockSectors() {
         Long userId = CurrentUser.requireId();
-        Map<Long, CustomSector> sectorById = customSectorRepository.findAllByUserId(userId).stream()
-                .collect(Collectors.toMap(CustomSector::getId, Function.identity()));
+        Map<Long, CustomSector> sectorById =
+                customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
+                        .collect(Collectors.toMap(CustomSector::getId, Function.identity()));
         Map<String, CustomStockSector> assignmentByStockCode =
-                customStockSectorRepository.findAllByIdUserId(userId).stream()
+                customStockSectorRepository.findAllByIdUserIdAndMarket(userId, ClassificationMarket.KOREA).stream()
                         .collect(Collectors.toMap(CustomStockSector::getStockCode, Function.identity()));
         Map<String, String> aliasByStockCode = customStockAliasRepository.findAllByIdUserId(userId).stream()
                 .collect(Collectors.toMap(CustomStockAlias::getStockCode, CustomStockAlias::getAlias));
@@ -333,7 +336,7 @@ public class CustomStockSectorService {
 
     private CustomSector requireOwnedSector(Long sectorId, Long userId) {
         return customSectorRepository
-                .findByIdAndUserId(sectorId, userId)
+                .findByIdAndUserIdAndMarket(sectorId, userId, ClassificationMarket.KOREA)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId));
     }
 

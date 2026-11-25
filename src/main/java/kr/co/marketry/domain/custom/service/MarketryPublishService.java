@@ -7,6 +7,7 @@ import kr.co.marketry.common.exception.NotFoundException;
 import kr.co.marketry.domain.auth.service.CurrentUser;
 import kr.co.marketry.domain.custom.dto.SnapshotItem;
 import kr.co.marketry.domain.custom.entity.CustomSnapshot;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSnapshotRepository;
 import kr.co.marketry.domain.notification.properties.MarketryProperties;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +29,8 @@ public class MarketryPublishService {
         Long adminId = CurrentUser.requireId();
         Long publishedUserId = marketryProperties.publishedUserId();
         String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(adminId);
-        CustomSnapshot saved =
-                customSnapshotRepository.save(CustomSnapshot.create(publishedUserId, label, snapshotJson));
+        CustomSnapshot saved = customSnapshotRepository.save(
+                CustomSnapshot.create(publishedUserId, ClassificationMarket.KOREA, label, snapshotJson));
         customSectorTreeService.restore(snapshotJson, publishedUserId, saved.getId());
         return toItem(saved);
     }
@@ -37,7 +38,8 @@ public class MarketryPublishService {
     @Transactional(readOnly = true)
     public List<SnapshotItem> getVersions() {
         return customSnapshotRepository
-                .findAllByUserIdOrderByCreatedAtDesc(marketryProperties.publishedUserId())
+                .findAllByUserIdAndMarketOrderByCreatedAtDesc(
+                        marketryProperties.publishedUserId(), ClassificationMarket.KOREA)
                 .stream()
                 .filter(snapshot -> customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson()))
                 .map(this::toItem)
@@ -47,7 +49,7 @@ public class MarketryPublishService {
     public void restoreVersion(Long snapshotId) {
         Long publishedUserId = marketryProperties.publishedUserId();
         CustomSnapshot snapshot = customSnapshotRepository
-                .findByIdAndUserId(snapshotId, publishedUserId)
+                .findByIdAndUserIdAndMarket(snapshotId, publishedUserId, ClassificationMarket.KOREA)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SNAPSHOT_NOT_FOUND, snapshotId));
         if (!customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson())) {
             throw new BadRequestException(ErrorCode.SNAPSHOT_FORMAT_UNSUPPORTED);

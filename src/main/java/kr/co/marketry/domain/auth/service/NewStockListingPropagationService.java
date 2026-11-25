@@ -38,8 +38,8 @@ public class NewStockListingPropagationService {
         // INSERT ... SELECT + ON CONFLICT DO NOTHING — 전체 사용자에게 `신규 상장` 섹터를 한 번에 확보하는
         // 집합 연산. JPA로 바꾸면 사용자 수만큼 조회·INSERT가 나가고, ON CONFLICT는 JPQL/QueryDSL에 없다.
         jdbcTemplate.update("""
-                INSERT INTO custom_sector (user_id, parent_id, name, depth, is_excluded, created_at, updated_at)
-                SELECT users.id, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                INSERT INTO custom_sector (user_id, market, parent_id, name, depth, is_excluded, created_at, updated_at)
+                SELECT users.id, 'KOREA', NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 FROM users
                 ON CONFLICT DO NOTHING
                 """, LISTING_SECTOR_NAME);
@@ -47,11 +47,11 @@ public class NewStockListingPropagationService {
         // INSERT ... SELECT + unnest — (전체 사용자 × 신규 종목)을 문장 하나로 배정하는 집합 연산. 행 수가
         // 사용자 수에 비례해 JPA로는 그만큼 INSERT가 나간다. unnest·ON CONFLICT는 JPQL/QueryDSL에 없다.
         jdbcTemplate.update("""
-                INSERT INTO custom_stock_sector (user_id, stock_code, sector_id, created_at, updated_at)
-                SELECT users.id, listed.stock_code, sector.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
+                SELECT users.id, 'KOREA', listed.stock_code, sector.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 FROM users
                 CROSS JOIN unnest(?::varchar[]) AS listed(stock_code)
-                JOIN custom_sector sector ON sector.user_id = users.id AND sector.name = ?
+                JOIN custom_sector sector ON sector.user_id = users.id AND sector.market = 'KOREA' AND sector.name = ?
                 ON CONFLICT (user_id, stock_code) DO NOTHING
                 """, (PreparedStatementSetter) statement -> {
             statement.setArray(

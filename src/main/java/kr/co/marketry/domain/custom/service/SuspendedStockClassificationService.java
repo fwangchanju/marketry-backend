@@ -75,6 +75,7 @@ public class SuspendedStockClassificationService {
                 FROM custom_stock_sector assignment
                 JOIN custom_sector sector ON sector.id = assignment.sector_id
                 WHERE assignment.user_id = ?
+                  AND assignment.market = 'KOREA'
                   AND sector.parent_id IS NULL
                   AND sector.name = ?
                   AND assignment.stock_code = ANY(?::varchar[])
@@ -128,12 +129,12 @@ public class SuspendedStockClassificationService {
         // INSERT ... SELECT + unnest + ON CONFLICT DO UPDATE — (전체 사용자 × 정지 종목)을 문장 하나로 처리하는 집합 연산이다.
         // 이미 거래 정지 업종에 있는 행은 건드리지 않고, 옮기는 행도 updated_at은 그대로 둔다.
         return jdbcTemplate.update("""
-                INSERT INTO custom_stock_sector (user_id, stock_code, sector_id, created_at, updated_at)
-                SELECT users.id, codes.stock_code, suspended.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                INSERT INTO custom_stock_sector (user_id, market, stock_code, sector_id, created_at, updated_at)
+                SELECT users.id, 'KOREA', codes.stock_code, suspended.id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 FROM users
                 CROSS JOIN unnest(?::varchar[]) AS codes(stock_code)
                 JOIN custom_sector suspended
-                  ON suspended.user_id = users.id AND suspended.parent_id IS NULL AND suspended.name = ?
+                  ON suspended.user_id = users.id AND suspended.market = 'KOREA' AND suspended.parent_id IS NULL AND suspended.name = ?
                 WHERE users.id IS DISTINCT FROM ?::bigint
                   AND (?::bigint IS NULL OR users.id = ?::bigint)
                 ON CONFLICT (user_id, stock_code)
@@ -159,10 +160,12 @@ public class SuspendedStockClassificationService {
                 SET sector_id = unclassified.id
                 FROM custom_sector suspended, custom_sector unclassified
                 WHERE assignment.stock_code = ANY(?::varchar[])
+                  AND assignment.market = 'KOREA'
                   AND suspended.id = assignment.sector_id
                   AND suspended.parent_id IS NULL
                   AND suspended.name = ?
                   AND unclassified.user_id = assignment.user_id
+                  AND unclassified.market = 'KOREA'
                   AND unclassified.parent_id IS NULL
                   AND unclassified.name = ?
                   AND assignment.user_id IS DISTINCT FROM ?::bigint

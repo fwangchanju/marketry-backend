@@ -14,6 +14,7 @@ import kr.co.marketry.domain.custom.dto.CustomValueTierItem;
 import kr.co.marketry.domain.custom.entity.CustomSector;
 import kr.co.marketry.domain.custom.entity.DefaultPreference;
 import kr.co.marketry.domain.custom.entity.UserPreference;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomSectorRepository;
 import kr.co.marketry.domain.custom.repository.DefaultPreferenceRepository;
 import kr.co.marketry.domain.custom.repository.UserPreferenceRepository;
@@ -41,13 +42,13 @@ class TelegramImageLegacySettingServiceTest {
         UUID stableKey = UUID.fromString("b8993daa-26f1-4c1d-b09c-a2b03b2d4709");
         owner.overwrite("{\"heatmap.boxSizeMarketCapRatio\":45,\"heatmap.profile.marketry.sectorFilterEnabled\":false,"
                 + "\"heatmap.profile.marketry.excludedSectorKeys\":[\"" + stableKey + "\"]}");
-        CustomSector parent = CustomSector.createParent(8L, "금융");
+        CustomSector parent = CustomSector.createParent(8L, ClassificationMarket.KOREA, "금융");
         ReflectionTestUtils.setField(parent, "id", 10L);
         CustomSector child = CustomSector.createChild(8L, "지주", parent, stableKey);
         ReflectionTestUtils.setField(child, "id", 11L);
         child.exclude();
         when(preferences.findById(7L)).thenReturn(Optional.of(owner));
-        when(sectors.findAllByUserId(8L)).thenReturn(List.of(parent, child));
+        when(sectors.findAllByUserIdAndMarket(8L, ClassificationMarket.KOREA)).thenReturn(List.of(parent, child));
         when(tiers.getValueTiers(7L)).thenReturn(List.of(new CustomValueTierItem(1L, "대형주", 0L, false)));
 
         TelegramImageLegacySettingService.Response response = service.find();
@@ -67,12 +68,12 @@ class TelegramImageLegacySettingServiceTest {
         owner.overwrite("{\"heatmap.boxSizeMarketCapRatio\":45,\"heatmap.profile.marketry.excludedSectorKeys\":[]}");
         DefaultPreference defaults = DefaultPreference.create();
         defaults.update("{\"marketry\":{\"boxSizeMarketCapRatio\":80,\"excludedSectorKeys\":[\"" + stableKey + "\"]}}");
-        CustomSector sector = CustomSector.createParent(8L, "금융");
+        CustomSector sector = CustomSector.createParent(8L, ClassificationMarket.KOREA, "금융");
         ReflectionTestUtils.setField(sector, "id", 10L);
         ReflectionTestUtils.setField(sector, "stableKey", stableKey);
         when(preferences.findById(7L)).thenReturn(Optional.of(owner));
         when(defaultPreferences.findById(1L)).thenReturn(Optional.of(defaults));
-        when(sectors.findAllByUserId(8L)).thenReturn(List.of(sector));
+        when(sectors.findAllByUserIdAndMarket(8L, ClassificationMarket.KOREA)).thenReturn(List.of(sector));
         when(tiers.getValueTiers(7L)).thenReturn(List.of());
 
         TelegramImageLegacySettingService.Response response = service.findForCapture();

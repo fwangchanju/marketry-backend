@@ -29,8 +29,8 @@ public class IndustrySectorPropagationService {
         // INSERT ... SELECT + ON CONFLICT DO NOTHING — 전체 사용자에게 새 업종 섹터를 한 번에
         // 전파하는 집합 연산. JPA 엔티티를 사용자 수만큼 개별 생성하지 않고 DB에서 직접 처리한다.
         jdbcTemplate.update("""
-                INSERT INTO custom_sector (user_id, parent_id, name, depth, is_excluded, created_at, updated_at)
-                SELECT users.id, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                INSERT INTO custom_sector (user_id, market, parent_id, name, depth, is_excluded, created_at, updated_at)
+                SELECT users.id, 'KOREA', NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 FROM users
                 ON CONFLICT DO NOTHING
                 """, event.name());

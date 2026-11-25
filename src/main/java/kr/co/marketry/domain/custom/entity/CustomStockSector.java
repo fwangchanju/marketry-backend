@@ -3,12 +3,15 @@ package kr.co.marketry.domain.custom.entity;
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.PostLoad;
 import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
 import kr.co.marketry.common.enums.Zone;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.springframework.data.domain.Persistable;
@@ -20,6 +23,10 @@ public class CustomStockSector implements Persistable<CustomStockSectorId> {
 
     @EmbeddedId
     private CustomStockSectorId id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, updatable = false, length = 16)
+    private ClassificationMarket market;
 
     @Column(name = "sector_id", nullable = false)
     private Long sectorId;
@@ -38,9 +45,10 @@ public class CustomStockSector implements Persistable<CustomStockSectorId> {
 
     protected CustomStockSector() {}
 
-    public static CustomStockSector create(Long userId, String stockCode, Long sectorId) {
+    public static CustomStockSector create(Long userId, ClassificationMarket market, String stockCode, Long sectorId) {
         var entity = new CustomStockSector();
         entity.id = new CustomStockSectorId(userId, stockCode);
+        entity.market = market;
         entity.sectorId = sectorId;
         LocalDateTime now = LocalDateTime.now(Zone.KST.zoneId());
         entity.createdAt = now;
