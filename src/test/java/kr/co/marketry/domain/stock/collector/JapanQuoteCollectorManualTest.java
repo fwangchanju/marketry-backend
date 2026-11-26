@@ -57,7 +57,8 @@ class JapanQuoteCollectorManualTest {
         JapanQuoteCollector.Result result = new JapanQuoteCollector(
                         new YahooFinanceQuoteClient(RestClient.create()),
                         repository,
-                        mock(OverseasIndexQuoteRepository.class))
+                        mock(OverseasIndexQuoteRepository.class),
+                        mock(kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository.class))
                 .collect();
 
         System.out.println("결과: " + result);

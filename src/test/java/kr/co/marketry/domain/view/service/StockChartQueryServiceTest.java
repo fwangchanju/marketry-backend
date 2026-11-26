@@ -225,4 +225,42 @@ class StockChartQueryServiceTest {
                 .findByIdMarketAndIdStockCodeAndIdTradeDateGreaterThanEqualOrderByIdTradeDateAsc(
                         eq("JAPAN"), any(), any());
     }
+
+    @Test
+    void 일본_장중_일봉은_종가_확인_전까지_임시_봉으로_표시한다() {
+        var today = java.time.LocalDate.of(2026, 11, 26);
+        var candles = List.of(
+                new StockDailyCandle(
+                        today.minusDays(1),
+                        java.math.BigDecimal.ONE,
+                        java.math.BigDecimal.TEN,
+                        java.math.BigDecimal.ONE,
+                        java.math.BigDecimal.TEN,
+                        5),
+                new StockDailyCandle(
+                        today,
+                        new java.math.BigDecimal("7209"),
+                        new java.math.BigDecimal("7895"),
+                        new java.math.BigDecimal("7207"),
+                        new java.math.BigDecimal("7749"),
+                        33225600));
+        var quote = kr.co.marketry.domain.stock.entity.OverseasStockQuote.create(
+                new kr.co.marketry.domain.stock.entity.OverseasStockQuoteId("JAPAN", "285A", today.atTime(9, 5)),
+                new java.math.BigDecimal("7333"),
+                new java.math.BigDecimal("6895"),
+                new java.math.BigDecimal("6.35"),
+                java.math.BigDecimal.ONE);
+
+        List<StockDailyCandle> intraday = StockChartQueryService.markIntradayCandle(candles, List.of(quote));
+        assertThat(intraday.getLast().provisional()).isTrue();
+        assertThat(intraday.getLast().open()).isEqualByComparingTo("7209");
+        assertThat(intraday.getLast().volume()).isEqualTo(33225600);
+        assertThat(intraday.getFirst().provisional()).isFalse();
+
+        quote.markCloseVerified();
+        assertThat(StockChartQueryService.markIntradayCandle(candles, List.of(quote))
+                        .getLast()
+                        .provisional())
+                .isFalse();
+    }
 }

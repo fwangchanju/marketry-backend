@@ -38,8 +38,36 @@ class YahooFinanceQuoteClientTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    @Test
+    void 응답의_오늘_일봉을_시가_고가_저가_거래량으로_준다() {
+        var bar = new YahooChartResponse.Bar(List.of(7209.0), List.of(7895.0), List.of(7207.0), List.of(33225600L));
+        var response = new YahooChartResponse(new YahooChartResponse.Chart(List.of(new YahooChartResponse.Result(
+                new YahooChartResponse.Meta(7749.0, 6895.0, 1795653266L),
+                new YahooChartResponse.Indicators(List.of(bar))))));
+
+        var quote = YahooFinanceQuoteClient.toQuote("285A", response);
+
+        assertThat(quote.today())
+                .isEqualTo(new YahooFinanceQuoteClient.TodayBar(
+                        new java.math.BigDecimal("7209.0"),
+                        new java.math.BigDecimal("7895.0"),
+                        new java.math.BigDecimal("7207.0"),
+                        33225600L));
+        // 일봉 값이 비면 시세만 쓴다.
+        var empty = new YahooChartResponse.Bar(
+                java.util.Arrays.asList((Double) null), List.of(7895.0), List.of(7207.0), List.of(1L));
+        assertThat(YahooFinanceQuoteClient.toQuote(
+                                "285A",
+                                new YahooChartResponse(
+                                        new YahooChartResponse.Chart(List.of(new YahooChartResponse.Result(
+                                                new YahooChartResponse.Meta(7749.0, 6895.0, 1795653266L),
+                                                new YahooChartResponse.Indicators(List.of(empty)))))))
+                        .today())
+                .isNull();
+    }
+
     private static YahooChartResponse response(YahooChartResponse.Meta meta) {
-        return new YahooChartResponse(new YahooChartResponse.Chart(List.of(new YahooChartResponse.Result(meta))));
+        return new YahooChartResponse(new YahooChartResponse.Chart(List.of(new YahooChartResponse.Result(meta, null))));
     }
 
     @Test

@@ -116,7 +116,32 @@ public class YahooFinanceQuoteClient {
         return new Quote(
                 BigDecimal.valueOf(meta.regularMarketPrice()),
                 BigDecimal.valueOf(meta.chartPreviousClose()),
-                Instant.ofEpochSecond(meta.regularMarketTime()));
+                Instant.ofEpochSecond(meta.regularMarketTime()),
+                todayBarOf(response.chart().result().getFirst().indicators()));
+    }
+
+    // 응답의 마지막 일봉. 값이 하나라도 비면 쓰지 않는다(일봉 없이도 시세는 저장한다).
+    private static TodayBar todayBarOf(YahooChartResponse.Indicators indicators) {
+        if (indicators == null
+                || indicators.quote() == null
+                || indicators.quote().isEmpty()) {
+            return null;
+        }
+        YahooChartResponse.Bar bar = indicators.quote().getFirst();
+        Double open = last(bar.open());
+        Double high = last(bar.high());
+        Double low = last(bar.low());
+        Long volume = bar.volume() == null || bar.volume().isEmpty()
+                ? null
+                : bar.volume().getLast();
+        if (open == null || high == null || low == null || volume == null || open <= 0 || high <= 0 || low <= 0) {
+            return null;
+        }
+        return new TodayBar(BigDecimal.valueOf(open), BigDecimal.valueOf(high), BigDecimal.valueOf(low), volume);
+    }
+
+    private static Double last(List<Double> values) {
+        return values == null || values.isEmpty() ? null : values.getLast();
     }
 
     /** 그 기간의 일봉. 값이 빈 날은 뺀다. 가격은 야후가 분할을 반영해 준 값이다. */
@@ -230,7 +255,14 @@ public class YahooFinanceQuoteClient {
         return value == null || value <= 0 ? close : value;
     }
 
-    public record Quote(BigDecimal currentPrice, BigDecimal previousClose, Instant marketTime) {}
+    /** today는 응답에 든 그날 일봉(시가·고가·저가·거래량). 없거나 값이 비면 null이다. */
+    public record Quote(BigDecimal currentPrice, BigDecimal previousClose, Instant marketTime, TodayBar today) {
+        public Quote(BigDecimal currentPrice, BigDecimal previousClose, Instant marketTime) {
+            this(currentPrice, previousClose, marketTime, null);
+        }
+    }
+
+    public record TodayBar(BigDecimal open, BigDecimal high, BigDecimal low, long volume) {}
 
     public record DailyBar(
             LocalDate date, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close, long volume) {}

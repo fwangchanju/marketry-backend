@@ -11,6 +11,7 @@ import java.util.TreeMap;
 import kr.co.marketry.common.enums.Market;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
+import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.StockDailyPrice;
 import kr.co.marketry.domain.stock.enums.ExchangeType;
 import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
@@ -67,12 +68,34 @@ public class StockChartQueryService {
      * 늦게 와도 저장 시각은 체결 시각이므로 09:00부터 쓴다(2026-11-24 사용자 결정).
      */
     public List<StockDailyCandle> getJapanDailyCandles(String stockCode, int days) {
-        List<IntradayPrice> intraday = overseasStockQuoteRepository
-                .findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(JAPAN_MARKET, stockCode, intradaySince())
-                .stream()
+        List<OverseasStockQuote> quotes =
+                overseasStockQuoteRepository.findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(
+                        JAPAN_MARKET, stockCode, intradaySince());
+        List<IntradayPrice> intraday = quotes.stream()
                 .map(quote -> new IntradayPrice(quote.getId().getSnapshotTime(), quote.getCurrentPrice()))
                 .toList();
-        return withProvisional(getOverseasDailyCandles(JAPAN_MARKET, stockCode, days), intraday, REGULAR_OPEN);
+        List<StockDailyCandle> candles =
+                markIntradayCandle(getOverseasDailyCandles(JAPAN_MARKET, stockCode, days), quotes);
+        return withProvisional(candles, intraday, REGULAR_OPEN);
+    }
+
+    /**
+     * 장중에는 5분 수집이 야후의 오늘 일봉(실제 시가·고가·저가·거래량)을 일봉 표에 미리 넣는다. 저녁 종가 확인이 끝나기 전의 그 줄은
+     * 아직 확정되지 않았으므로 임시 봉으로 표시한다. 종가 확인이 끝나면 그날 15:30 시세에 확인 표시가 붙는다.
+     */
+    static List<StockDailyCandle> markIntradayCandle(List<StockDailyCandle> candles, List<OverseasStockQuote> quotes) {
+        if (candles.isEmpty()) return candles;
+        StockDailyCandle last = candles.get(candles.size() - 1);
+        boolean confirmed = quotes.stream()
+                .filter(quote -> quote.getId().getSnapshotTime().toLocalDate().equals(last.date()))
+                .anyMatch(quote -> Boolean.TRUE.equals(quote.getCloseVerified()));
+        boolean collectedThatDay = quotes.stream()
+                .anyMatch(quote -> quote.getId().getSnapshotTime().toLocalDate().equals(last.date()));
+        if (confirmed || !collectedThatDay) return candles;
+        List<StockDailyCandle> result = new ArrayList<>(candles.subList(0, candles.size() - 1));
+        result.add(new StockDailyCandle(
+                last.date(), last.open(), last.high(), last.low(), last.close(), last.volume(), true));
+        return result;
     }
 
     private static LocalDateTime intradaySince() {

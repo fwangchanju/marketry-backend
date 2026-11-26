@@ -18,9 +18,11 @@ import java.util.List;
 import java.util.Optional;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,7 @@ class JapanQuoteCollectorTest {
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository repository;
     private OverseasIndexQuoteRepository indexQuotes;
+    private OverseasStockDailyRepository dailies;
     private JapanQuoteCollector collector;
 
     @BeforeEach
@@ -44,7 +47,8 @@ class JapanQuoteCollectorTest {
         client = mock(YahooFinanceQuoteClient.class);
         repository = mock(OverseasStockQuoteRepository.class);
         indexQuotes = mock(OverseasIndexQuoteRepository.class);
-        collector = new JapanQuoteCollector(client, repository, indexQuotes, duration -> {});
+        dailies = mock(OverseasStockDailyRepository.class);
+        collector = new JapanQuoteCollector(client, repository, indexQuotes, dailies, duration -> {});
     }
 
     @Test
@@ -147,14 +151,13 @@ class JapanQuoteCollectorTest {
 
     @Test
     void 전일_시각_응답은_오늘_시세_집계에서_분리한다() {
-        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"), lastQuote("2914", "6269.00", "1000000"));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        givenTodayQuotesWithHalted(9);
         when(client.fetchTokyoQuote("2914")).thenReturn(quote("6269", "6269", Instant.parse("2026-11-06T06:30:00Z")));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isTrue();
-        assertThat(result.todayQuoteCount()).isEqualTo(1);
+        assertThat(result.todayQuoteCount()).isEqualTo(9);
         assertThat(result.otherDateQuoteCount()).isEqualTo(1);
         assertThat(result.failureCount()).isZero();
         OverseasStockQuote savedHaltedStock = savedQuotes().stream()
@@ -162,6 +165,64 @@ class JapanQuoteCollectorTest {
                 .findFirst()
                 .orElseThrow();
         assertThat(savedHaltedStock.getId().getSnapshotTime()).isEqualTo(result.snapshotTime());
+    }
+
+    @Test
+    void 오늘_시세가_90퍼센트보다_적으면_어제_값으로_채워_저장하지_않고_기다린다() {
+        // 개장 직후: 10종목 중 2종목만 오늘 시세가 왔고 나머지는 어제 종가 시각 그대로다.
+        java.util.List<OverseasStockQuote> last = new java.util.ArrayList<>();
+        for (int index = 0; index < 10; index++) last.add(lastQuote("10" + index + "0", "1000.00", "1000000"));
+        givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
+        for (int index = 0; index < 10; index++) {
+            when(client.fetchTokyoQuote("10" + index + "0"))
+                    .thenReturn(
+                            index < 2
+                                    ? quote("1100", "1000", MARKET_TIME)
+                                    : quote("1000", "990", Instant.parse("2026-11-06T06:30:00Z")));
+        }
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isFalse();
+        assertThat(result.reason()).startsWith(JapanQuoteCollector.WAITING_TODAY_REASON);
+        assertThat(result.fetchFailed()).isFalse();
+        verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void 오늘_시세와_함께_야후의_오늘_일봉을_일봉_표에_넣는다() {
+        givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
+        when(client.fetchTokyoQuote("7203"))
+                .thenReturn(new YahooFinanceQuoteClient.Quote(
+                        new BigDecimal("1100"),
+                        new BigDecimal("1000"),
+                        MARKET_TIME,
+                        new YahooFinanceQuoteClient.TodayBar(
+                                new BigDecimal("1050"), new BigDecimal("1120"), new BigDecimal("1040"), 12345L)));
+
+        assertThat(collector.collect(COLLECTION_DATE).saved()).isTrue();
+
+        ArgumentCaptor<List<OverseasStockDaily>> captor = ArgumentCaptor.forClass(List.class);
+        verify(dailies).saveAll(captor.capture());
+        OverseasStockDaily daily = captor.getValue().getFirst();
+        assertThat(daily.getId().getTradeDate()).isEqualTo(COLLECTION_DATE);
+        assertThat(daily.getOpenPrice()).isEqualByComparingTo("1050");
+        assertThat(daily.getHighPrice()).isEqualByComparingTo("1120");
+        assertThat(daily.getLowPrice()).isEqualByComparingTo("1040");
+        assertThat(daily.getClosePrice()).isEqualByComparingTo("1100");
+        assertThat(daily.getVolume()).isEqualTo(12345L);
+    }
+
+    // 오늘 시세가 온 종목 todayCount개와 거래 정지로 어제 값만 오는 2914(기준 시세 포함).
+    private void givenTodayQuotesWithHalted(int todayCount) {
+        java.util.List<OverseasStockQuote> last = new java.util.ArrayList<>();
+        for (int index = 0; index < todayCount; index++) {
+            last.add(lastQuote("20" + index + "0", "1000.00", "1000000"));
+            when(client.fetchTokyoQuote("20" + index + "0")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        }
+        last.add(lastQuote("2914", "6269.00", "1000000"));
+        givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
     }
 
     @Test

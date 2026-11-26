@@ -14,9 +14,11 @@ import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
 import kr.co.marketry.domain.stock.entity.OverseasIndexQuoteId;
+import kr.co.marketry.domain.stock.entity.OverseasStockDaily;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
 import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
+import kr.co.marketry.domain.stock.repository.OverseasStockDailyRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,24 +47,28 @@ public class JapanQuoteCollector {
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
     private final OverseasIndexQuoteRepository indexQuotes;
+    private final OverseasStockDailyRepository dailies;
     private final Consumer<Duration> sleeper;
 
     @Autowired
     public JapanQuoteCollector(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
-            OverseasIndexQuoteRepository indexQuotes) {
-        this(client, repository, indexQuotes, JapanQuoteCollector::sleep);
+            OverseasIndexQuoteRepository indexQuotes,
+            OverseasStockDailyRepository dailies) {
+        this(client, repository, indexQuotes, dailies, JapanQuoteCollector::sleep);
     }
 
     JapanQuoteCollector(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
             OverseasIndexQuoteRepository indexQuotes,
+            OverseasStockDailyRepository dailies,
             Consumer<Duration> sleeper) {
         this.client = client;
         this.repository = repository;
         this.indexQuotes = indexQuotes;
+        this.dailies = dailies;
         this.sleeper = sleeper;
     }
 
@@ -106,10 +112,22 @@ public class JapanQuoteCollector {
         if (snapshotTime.isAfter(lastSnapshotTime) == false) {
             return Result.skipped("새 시세가 없습니다", todayQuoteCount, otherDateQuoteCount, failureCount, lastQuotes.size());
         }
+        // 개장 직후에는 야후가 종목마다 오늘 시세를 늦게 준다. 일부만 왔을 때 저장하면 나머지 종목이 어제 값으로 들어가
+        // 첫 시세가 반쪽이 된다(2026-11-26 확인: 첫 회차에 225종목 중 224~225종목이 어제 값인 날이 많았다).
+        // 오늘 시세가 90%에 못 미치면 저장하지 않고 다음 회차(5분 뒤)를 기다린다. 거래 정지 등으로 남는 몇 종목은 마지막 값을 쓴다.
+        if (todayQuoteCount < lastQuotes.size() * MIN_SUCCESS_RATIO) {
+            return Result.skipped(
+                    WAITING_TODAY_REASON + ": " + todayQuoteCount + "/" + lastQuotes.size(),
+                    todayQuoteCount,
+                    otherDateQuoteCount,
+                    failureCount,
+                    lastQuotes.size());
+        }
 
         List<OverseasStockQuote> quotes =
                 fetched.stream().map(item -> toQuote(item, snapshotTime)).toList();
         repository.saveAll(quotes);
+        saveTodayCandles(fetched, collectionDate);
         String indexFailure = saveIndexQuote(snapshotTime);
         return new Result(
                 true,
@@ -172,6 +190,37 @@ public class JapanQuoteCollector {
         return fetched;
     }
 
+    /**
+     * 장중 오늘 일봉(야후의 시가·고가·저가·거래량, 종가 자리는 지금 값)을 일봉 표에 덮어쓴다. 저녁 종가 확인이 같은 줄을 최종값으로 다시 덮어쓴다.
+     * 차트 임시 봉이 첫 5분 시세 대신 실제 시가를 쓰게 하려는 것이다. 실패해도 시세 저장은 막지 않는다.
+     */
+    private void saveTodayCandles(List<Fetched> fetched, LocalDate collectionDate) {
+        LocalDateTime now = KstClock.now();
+        List<OverseasStockDaily> candles = fetched.stream()
+                .filter(item -> item.quote() != null && item.quote().today() != null)
+                .filter(item -> item.quote()
+                        .marketTime()
+                        .atZone(Zone.KST.zoneId())
+                        .toLocalDate()
+                        .equals(collectionDate))
+                .map(item -> OverseasStockDaily.create(
+                        MARKET,
+                        item.last().getId().getStockCode(),
+                        collectionDate,
+                        item.quote().today().open().setScale(PRICE_SCALE, RoundingMode.HALF_UP),
+                        item.quote().today().high().setScale(PRICE_SCALE, RoundingMode.HALF_UP),
+                        item.quote().today().low().setScale(PRICE_SCALE, RoundingMode.HALF_UP),
+                        item.quote().currentPrice().setScale(PRICE_SCALE, RoundingMode.HALF_UP),
+                        item.quote().today().volume(),
+                        now))
+                .toList();
+        try {
+            dailies.saveAll(candles);
+        } catch (RuntimeException failure) {
+            log.warn("[일본시세] 장중 일봉 저장 실패: {}", failure.getClass().getSimpleName());
+        }
+    }
+
     // 야후의 체결 시각을 5분 단위로 내려 저장한다. 수집 시각을 쓰면 지연된 시세가 최신처럼 보이기 때문이다.
     private static LocalDateTime snapshotTimeOf(List<Fetched> fetched) {
         Instant latest = fetched.stream()
@@ -223,6 +272,9 @@ public class JapanQuoteCollector {
 
     /** 응답을 받은 종목이 기준보다 적어 저장을 건너뛴 이유 — 야후 요청이 막히거나 실패한 상태다. */
     static final String TOO_FEW_REASON = "받은 종목이 너무 적습니다";
+
+    /** 오늘 시세가 아직 적어 저장을 미룬 이유 — 개장 직후의 정상적인 기다림이라 실패로 세지 않는다. */
+    static final String WAITING_TODAY_REASON = "오늘 시세가 아직 적습니다";
 
     public record Result(
             boolean saved,
