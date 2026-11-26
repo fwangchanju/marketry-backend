@@ -239,7 +239,11 @@ public class CustomSectorService {
     /** 보호 업종(신규 상장·거래 정지·미분류)은 삭제·이름 변경·이동을 하지 못하고, 그 아래에 하위 업종을 만들 수도 없다. */
     private void requireNotProtected(CustomSector sector) {
         if (sector.isProtected()) {
-            throw new ConflictException(ErrorCode.SECTOR_PROTECTED, sector.getId());
+            throw new ConflictException(
+                    sector.getMarket() == ClassificationMarket.KOREA
+                            ? ErrorCode.SECTOR_PROTECTED
+                            : ErrorCode.SECTOR_PROTECTED_UNCLASSIFIED,
+                    sector.getId());
         }
     }
 

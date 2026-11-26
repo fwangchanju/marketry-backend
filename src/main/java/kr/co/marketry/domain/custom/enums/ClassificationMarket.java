@@ -22,7 +22,16 @@ public enum ClassificationMarket {
         return protectedSectors().stream().map(ProtectedSector::getSectorName).toList();
     }
 
+    /**
+     * 업종 이름으로 쓸 수 없는 이름. 일본·미국에는 신규 상장·거래 정지 업종이 없지만, 화면이 이 이름을 특별 업종으로 다루므로
+     * 어느 시장에서도 이 세 이름은 새 업종 이름으로 쓰지 못한다.
+     */
     public boolean isReservedName(String name) {
+        return ProtectedSector.isReservedName(name);
+    }
+
+    /** 처음부터 주어지는 업종(삭제·이름 변경·이동 불가)인지. */
+    public boolean isProtectedName(String name) {
         return protectedSectorNames().contains(name);
     }
 
