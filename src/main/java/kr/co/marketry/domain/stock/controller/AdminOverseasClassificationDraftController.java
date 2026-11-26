@@ -1,6 +1,11 @@
 package kr.co.marketry.domain.stock.controller;
 
 import java.util.List;
+import kr.co.marketry.common.exception.ConflictException;
+import kr.co.marketry.common.exception.ErrorCode;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
+import kr.co.marketry.domain.custom.service.PublishedClassificationService;
+import kr.co.marketry.domain.stock.service.CountryRules;
 import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
 import kr.co.marketry.domain.stock.service.OverseasClassificationDraftService;
 import kr.co.marketry.domain.stock.service.OverseasClassificationDraftService.DraftView;
@@ -22,6 +27,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AdminOverseasClassificationDraftController {
     private final OverseasClassificationDraftService service;
+    private final PublishedClassificationService publishedClassifications;
+
+    // 일본·미국 분류를 새 자리로 옮긴 뒤에는 옛 자리를 고치지 않는다. 옛 화면을 켜 둔 탭에서 고친 내용이 조용히 사라지지 않게 거절한다.
+    private void requireNotMoved(String market) {
+        CountryRules.of(market);
+        if (publishedClassifications.isMoved(ClassificationMarket.valueOf(market))) {
+            throw new ConflictException(ErrorCode.CLASSIFICATION_MOVED);
+        }
+    }
 
     @GetMapping("/{market}")
     public DraftView findDraft(@PathVariable String market) {
@@ -43,41 +57,49 @@ public class AdminOverseasClassificationDraftController {
 
     @PostMapping("/{market}/discard")
     public DraftView discard(@PathVariable String market) {
+        requireNotMoved(market);
         return service.discard(market);
     }
 
     @PostMapping("/{market}/publish")
     public PublishResult publish(@PathVariable String market) {
+        requireNotMoved(market);
         return service.publish(market);
     }
 
     @PostMapping("/{market}/rollback")
     public void rollback(@PathVariable String market) {
+        requireNotMoved(market);
         service.rollback(market);
     }
 
     @PostMapping("/{market}/categories")
     public Category create(@PathVariable String market, @RequestBody CreateRequest request) {
+        requireNotMoved(market);
         return service.createCategory(market, request.parentId(), request.name());
     }
 
     @PutMapping("/{market}/categories/{id}")
     public void rename(@PathVariable String market, @PathVariable long id, @RequestBody NameRequest request) {
+        requireNotMoved(market);
         service.rename(market, id, request.name());
     }
 
     @PutMapping("/{market}/categories/{id}/parent")
     public void move(@PathVariable String market, @PathVariable long id, @RequestBody ParentRequest request) {
+        requireNotMoved(market);
         service.move(market, id, request.parentId());
     }
 
     @DeleteMapping("/{market}/categories/{id}")
     public void delete(@PathVariable String market, @PathVariable long id, @RequestBody DeleteRequest request) {
+        requireNotMoved(market);
         service.delete(market, id, request.expectedMoveCount());
     }
 
     @PutMapping("/{market}/assign")
     public void assign(@PathVariable String market, @RequestBody AssignRequest request) {
+        requireNotMoved(market);
         service.assign(market, request.stockCodes(), request.categoryId());
     }
 

@@ -5,14 +5,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import kr.co.marketry.domain.auth.service.AuthenticatedUserPrincipal;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
+import kr.co.marketry.domain.custom.service.PublishedClassificationService;
+import kr.co.marketry.domain.custom.service.PublishedClassificationService.Category;
+import kr.co.marketry.domain.custom.service.PublishedClassificationService.Classification;
 import kr.co.marketry.domain.stock.collector.UsaConstituents;
-import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService;
-import kr.co.marketry.domain.stock.service.OverseasClassificationCategoryService.Category;
-import kr.co.marketry.domain.stock.service.OverseasClassificationPublicationService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService.IndexClose;
-import kr.co.marketry.domain.stock.service.OverseasStockClassificationService;
-import kr.co.marketry.domain.stock.service.OverseasStockClassificationService.Classification;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
 import kr.co.marketry.domain.stock.service.UsaStockKoreanNameService;
@@ -33,9 +32,7 @@ public class UsaController {
     private static final String INDEX_MARKET = "SP500";
 
     private final OverseasStockQuoteService quoteService;
-    private final OverseasStockClassificationService classificationService;
-    private final OverseasClassificationCategoryService categoryService;
-    private final OverseasClassificationPublicationService publications;
+    private final PublishedClassificationService publishedClassifications;
     private final UsaConstituents constituents;
     private final OverseasIndexCloseService indexCloseService;
     private final UsaStockKoreanNameService nameService;
@@ -71,20 +68,22 @@ public class UsaController {
     @GetMapping("/classifications")
     public Map<String, Classification> findClassifications(
             @AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return classificationService.findAll(MARKET);
+        return publishedClassifications.findClassifications(ClassificationMarket.USA);
     }
 
     // 설정창 맨 아래 "업데이트" 시각 — MARKETRY 분류를 마지막으로 업데이트하거나 롤백한 시각(없으면 null). 모든 사용자에게 보인다.
     @GetMapping("/classification-published-at")
     public PublishedAt findClassificationPublishedAt() {
-        return new PublishedAt(publications.findPublishedAt(MARKET).orElse(null));
+        return new PublishedAt(publishedClassifications
+                .findPublishedAt(ClassificationMarket.USA)
+                .orElse(null));
     }
 
     public record PublishedAt(LocalDateTime publishedAt) {}
 
     @GetMapping("/categories")
     public List<Category> findCategories(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
-        return categoryService.findAll(MARKET);
+        return publishedClassifications.findCategories(ClassificationMarket.USA);
     }
 
     @GetMapping("/stocks")

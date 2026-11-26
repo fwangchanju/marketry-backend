@@ -52,6 +52,7 @@ class ProtectedSectorServiceTest {
 
         verify(jdbcTemplate).update(anyString(), eq(USER_ID), eq("JAPAN"), eq("미분류"));
         verify(jdbcTemplate, times(1)).update(anyString(), eq(USER_ID), anyString(), anyString());
-        assertThat(ClassificationMarket.USA.isReservedName("거래 정지")).isFalse();
+        assertThat(ClassificationMarket.USA.isProtectedName("거래 정지")).isFalse();
+        assertThat(ClassificationMarket.USA.isReservedName("거래 정지")).isTrue();
     }
 }

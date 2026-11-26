@@ -198,8 +198,8 @@ public class CustomStockSectorService {
                 }
 
                 String name = partialPath.get(partialPath.size() - 1);
-                // 보호 업종 이름은 대분류로만 쓸 수 있다 — 하위 업종으로 만들려는 업로드는 거절한다.
-                if (depth > 1 && market.isReservedName(name)) {
+                // 보호 업종 이름은 그 시장에 처음부터 있는 대분류로만 쓸 수 있다 — 하위 업종이나 그 시장에 없는 보호 업종으로 만들려는 업로드는 거절한다.
+                if (market.isReservedName(name) && (depth > 1 || !market.isProtectedName(name))) {
                     throw new BadRequestException(ErrorCode.SECTOR_NAME_RESERVED, name);
                 }
                 if (pathByName.containsKey(name)) {

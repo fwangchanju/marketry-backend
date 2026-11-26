@@ -18,4 +18,8 @@ public enum ProtectedSector {
     public String getSectorName() {
         return sectorName;
     }
+
+    public static boolean isReservedName(String name) {
+        return java.util.Arrays.stream(values()).anyMatch(sector -> sector.sectorName.equals(name));
+    }
 }

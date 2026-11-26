@@ -263,23 +263,15 @@ class CustomStockSectorServiceTest {
     }
 
     @Test
-    void 일본_업로드는_거래_정지라는_이름도_보통_업종으로_만든다() {
+    void 일본_업로드는_그_시장에_없는_보호_업종_이름을_쓰지_못한다() {
         when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.JAPAN))
                 .thenReturn(List.of());
-        when(sectorRepository.save(any(CustomSector.class))).thenAnswer(invocation -> {
-            CustomSector saved = invocation.getArgument(0);
-            ReflectionTestUtils.setField(saved, "id", 91L);
-            return saved;
-        });
 
-        var response = service.uploadClassification(
-                ClassificationMarket.JAPAN,
-                new ClassificationUploadRequest(List.of(
-                        new ClassificationUploadRequest.Assignment(List.of("거래 정지"), List.of("7203", "005930")))));
-
-        assertThat(response.createdSectorCount()).isEqualTo(1);
-        assertThat(response.failedStockCodes()).containsExactly("005930");
-        verify(protectedSectorService).ensureForUser(USER_ID, ClassificationMarket.JAPAN);
+        assertThatThrownBy(() -> service.uploadClassification(
+                        ClassificationMarket.JAPAN,
+                        new ClassificationUploadRequest(List.of(
+                                new ClassificationUploadRequest.Assignment(List.of("거래 정지"), List.of("7203"))))))
+                .isInstanceOf(kr.co.marketry.common.exception.BadRequestException.class);
         Mockito.verifyNoInteractions(suspendedClassification);
     }
 }
