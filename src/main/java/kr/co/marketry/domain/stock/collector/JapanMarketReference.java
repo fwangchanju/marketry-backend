@@ -62,7 +62,7 @@ public final class JapanMarketReference {
         return candidate;
     }
 
-    static Set<String> constituentCodes() {
+    public static Set<String> constituentCodes() {
         try (var input = JapanMarketReference.class.getResourceAsStream("/japan-constituents.txt")) {
             if (input == null) throw new IllegalStateException("일본 지도 종목 기준 파일이 없습니다");
             Set<String> codes = new String(input.readAllBytes(), StandardCharsets.UTF_8)

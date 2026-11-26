@@ -53,32 +53,34 @@ class MarketryPublishServiceTest {
 
     @Test
     void publish_운영자_분류를_약칭_포함_그대로_발행_사용자_소유로_저장하고_복원한다() {
-        when(treeService.serializeCurrentSnapshot(ADMIN_ID)).thenReturn("{\"raw\":true}");
+        when(treeService.serializeCurrentSnapshot(ADMIN_ID, ClassificationMarket.KOREA))
+                .thenReturn("{\"raw\":true}");
         when(snapshotRepository.save(any(CustomSnapshot.class))).thenAnswer(invocation -> {
             CustomSnapshot snapshot = invocation.getArgument(0);
             ReflectionTestUtils.setField(snapshot, "id", 55L);
             return snapshot;
         });
 
-        SnapshotItem item = service.publish("10월 8일 고정본");
+        SnapshotItem item = service.publish(ClassificationMarket.KOREA, "10월 8일 고정본");
 
         ArgumentCaptor<CustomSnapshot> saved = ArgumentCaptor.forClass(CustomSnapshot.class);
         verify(snapshotRepository).save(saved.capture());
         assertThat(saved.getValue().getUserId()).isEqualTo(PUBLISHED_ID);
         assertThat(saved.getValue().getLabel()).isEqualTo("10월 8일 고정본");
         assertThat(saved.getValue().getSnapshotJson()).isEqualTo("{\"raw\":true}");
-        verify(treeService).restore("{\"raw\":true}", PUBLISHED_ID, 55L);
+        verify(treeService).restore("{\"raw\":true}", PUBLISHED_ID, ClassificationMarket.KOREA, 55L);
         assertThat(item.id()).isEqualTo(55L);
     }
 
     @Test
     void publish_운영자_본인_데이터는_복원하지_않는다() {
-        when(treeService.serializeCurrentSnapshot(ADMIN_ID)).thenReturn("{}");
+        when(treeService.serializeCurrentSnapshot(ADMIN_ID, ClassificationMarket.KOREA))
+                .thenReturn("{}");
         when(snapshotRepository.save(any(CustomSnapshot.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.publish("고정본");
+        service.publish(ClassificationMarket.KOREA, "고정본");
 
-        verify(treeService, never()).restore(any(), org.mockito.ArgumentMatchers.eq(ADMIN_ID), any());
+        verify(treeService, never()).restore(any(), org.mockito.ArgumentMatchers.eq(ADMIN_ID), any(), any());
     }
 
     @Test
@@ -90,7 +92,9 @@ class MarketryPublishServiceTest {
         when(treeService.isCurrentSnapshotFormat("{\"v\":2}")).thenReturn(true);
         when(treeService.isCurrentSnapshotFormat("{\"v\":1}")).thenReturn(false);
 
-        assertThat(service.getVersions()).extracting(SnapshotItem::label).containsExactly("새 버전");
+        assertThat(service.getVersions(ClassificationMarket.KOREA))
+                .extracting(SnapshotItem::label)
+                .containsExactly("새 버전");
     }
 
     @Test
@@ -98,7 +102,8 @@ class MarketryPublishServiceTest {
         when(snapshotRepository.findByIdAndUserIdAndMarket(3L, PUBLISHED_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.restoreVersion(3L)).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.restoreVersion(ClassificationMarket.KOREA, 3L))
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
@@ -108,8 +113,9 @@ class MarketryPublishServiceTest {
                 .thenReturn(Optional.of(legacy));
         when(treeService.isCurrentSnapshotFormat("{\"v\":1}")).thenReturn(false);
 
-        assertThatThrownBy(() -> service.restoreVersion(3L)).isInstanceOf(BadRequestException.class);
-        verify(treeService, never()).restore(any(), any(), any());
+        assertThatThrownBy(() -> service.restoreVersion(ClassificationMarket.KOREA, 3L))
+                .isInstanceOf(BadRequestException.class);
+        verify(treeService, never()).restore(any(), any(), any(), any());
     }
 
     @Test
@@ -120,8 +126,8 @@ class MarketryPublishServiceTest {
                 .thenReturn(Optional.of(snapshot));
         when(treeService.isCurrentSnapshotFormat("{\"v\":2}")).thenReturn(true);
 
-        service.restoreVersion(3L);
+        service.restoreVersion(ClassificationMarket.KOREA, 3L);
 
-        verify(treeService).restore("{\"v\":2}", PUBLISHED_ID, 3L);
+        verify(treeService).restore("{\"v\":2}", PUBLISHED_ID, ClassificationMarket.KOREA, 3L);
     }
 }

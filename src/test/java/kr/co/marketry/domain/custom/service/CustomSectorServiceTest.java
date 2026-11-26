@@ -65,7 +65,7 @@ class CustomSectorServiceTest {
             return sector;
         });
 
-        var created = service.createParent("반도체");
+        var created = service.createParent(ClassificationMarket.KOREA, "반도체");
 
         assertThat(created.id()).isEqualTo(12L);
         assertThat(created.name()).isEqualTo("반도체");
@@ -81,7 +81,8 @@ class CustomSectorServiceTest {
         when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(List.of(ownSector));
 
-        assertThatThrownBy(() -> service.reparent(99L, null)).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.reparent(ClassificationMarket.KOREA, 99L, null))
+                .isInstanceOf(NotFoundException.class);
 
         verify(sectorRepository).findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA);
     }
@@ -91,7 +92,8 @@ class CustomSectorServiceTest {
         when(sectorRepository.findByIdAndUserIdAndMarket(99L, USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.rename(99L, "이름 변경")).isInstanceOf(NotFoundException.class);
+        assertThatThrownBy(() -> service.rename(ClassificationMarket.KOREA, 99L, "이름 변경"))
+                .isInstanceOf(NotFoundException.class);
 
         verify(sectorRepository).findByIdAndUserIdAndMarket(99L, USER_ID, ClassificationMarket.KOREA);
     }
@@ -104,7 +106,8 @@ class CustomSectorServiceTest {
         when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(List.of(listing));
 
-        assertThatThrownBy(() -> service.delete(10L, 0)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.delete(ClassificationMarket.KOREA, 10L, 0))
+                .isInstanceOf(ConflictException.class);
 
         verify(sectorRepository, Mockito.never()).delete(any());
     }
@@ -117,7 +120,7 @@ class CustomSectorServiceTest {
         when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(List.of(listing));
 
-        var preview = service.deletePreview(10L);
+        var preview = service.deletePreview(ClassificationMarket.KOREA, 10L);
 
         assertThat(preview.deletable()).isFalse();
         assertThat(preview.sectorName()).isEqualTo("신규 상장");
@@ -136,8 +139,10 @@ class CustomSectorServiceTest {
             when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
                     .thenReturn(List.of(protectedOne));
 
-            assertThatThrownBy(() -> service.delete(10L, 0)).isInstanceOf(ConflictException.class);
-            assertThat(service.deletePreview(10L).deletable()).isFalse();
+            assertThatThrownBy(() -> service.delete(ClassificationMarket.KOREA, 10L, 0))
+                    .isInstanceOf(ConflictException.class);
+            assertThat(service.deletePreview(ClassificationMarket.KOREA, 10L).deletable())
+                    .isFalse();
         }
         verify(sectorRepository, Mockito.never()).delete(any());
     }
@@ -148,7 +153,8 @@ class CustomSectorServiceTest {
         when(sectorRepository.findByIdAndUserIdAndMarket(10L, USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.of(unclassified));
 
-        assertThatThrownBy(() -> service.rename(10L, "기타")).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.rename(ClassificationMarket.KOREA, 10L, "기타"))
+                .isInstanceOf(ConflictException.class);
 
         assertThat(unclassified.getName()).isEqualTo("미분류");
     }
@@ -160,7 +166,7 @@ class CustomSectorServiceTest {
         when(sectorRepository.findByIdAndUserIdAndMarket(11L, USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.of(own));
 
-        assertThatThrownBy(() -> service.rename(11L, "거래 정지"))
+        assertThatThrownBy(() -> service.rename(ClassificationMarket.KOREA, 11L, "거래 정지"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining(ErrorCode.SECTOR_NAME_RESERVED.getMessage());
 
@@ -169,7 +175,8 @@ class CustomSectorServiceTest {
 
     @Test
     void createParent_보호_업종_이름으로는_만들_수_없다() {
-        assertThatThrownBy(() -> service.createParent("신규 상장")).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.createParent(ClassificationMarket.KOREA, "신규 상장"))
+                .isInstanceOf(ConflictException.class);
 
         verify(sectorRepository, Mockito.never()).save(any());
     }
@@ -184,8 +191,10 @@ class CustomSectorServiceTest {
         when(sectorRepository.findByIdAndUserIdAndMarket(10L, USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(Optional.of(unclassified));
 
-        assertThatThrownBy(() -> service.createChild("미분류", 20L)).isInstanceOf(ConflictException.class);
-        assertThatThrownBy(() -> service.createChild("하위", 10L)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.createChild(ClassificationMarket.KOREA, "미분류", 20L))
+                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.createChild(ClassificationMarket.KOREA, "하위", 10L))
+                .isInstanceOf(ConflictException.class);
 
         verify(sectorRepository, Mockito.never()).save(any());
     }
@@ -200,9 +209,12 @@ class CustomSectorServiceTest {
         when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(List.of(suspended, own, target));
 
-        assertThatThrownBy(() -> service.reparent(10L, 12L)).isInstanceOf(ConflictException.class);
-        assertThatThrownBy(() -> service.reparent(10L, null)).isInstanceOf(ConflictException.class);
-        assertThatThrownBy(() -> service.reparent(11L, 10L)).isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.reparent(ClassificationMarket.KOREA, 10L, 12L))
+                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.reparent(ClassificationMarket.KOREA, 10L, null))
+                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> service.reparent(ClassificationMarket.KOREA, 11L, 10L))
+                .isInstanceOf(ConflictException.class);
 
         assertThat(own.getParentId()).isNull();
         assertThat(suspended.getParentId()).isNull();
@@ -221,9 +233,9 @@ class CustomSectorServiceTest {
 
     @Test
     void reset_초기화한_뒤_보호_업종을_다시_채운다() {
-        service.reset();
+        service.reset(ClassificationMarket.KOREA);
 
-        verify(protectedSectorService).ensureForUser(USER_ID);
+        verify(protectedSectorService).ensureForUser(USER_ID, ClassificationMarket.KOREA);
         verify(suspendedClassification).applyCurrentExclusionsToUser(USER_ID);
     }
 
@@ -239,12 +251,12 @@ class CustomSectorServiceTest {
         when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.KOREA))
                 .thenReturn(List.of(parent, child));
 
-        var preview = service.deletePreview(20L);
+        var preview = service.deletePreview(ClassificationMarket.KOREA, 20L);
 
         assertThat(preview.deletable()).isFalse();
         assertThat(preview.blockReason()).isEqualTo(SectorDeleteBlockReason.HAS_SUB_SECTORS);
         assertThat(preview.subSectorNames()).containsExactly("CxO");
-        assertThatThrownBy(() -> service.delete(20L, 0))
+        assertThatThrownBy(() -> service.delete(ClassificationMarket.KOREA, 20L, 0))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining(ErrorCode.SECTOR_HAS_SUB_SECTORS.getMessage());
         verify(sectorRepository, Mockito.never()).delete(any());
@@ -260,7 +272,7 @@ class CustomSectorServiceTest {
                         CustomStockSector.create(USER_ID, ClassificationMarket.KOREA, "199730", 30L),
                         CustomStockSector.create(USER_ID, ClassificationMarket.KOREA, "223250", 30L)));
 
-        var preview = service.deletePreview(30L);
+        var preview = service.deletePreview(ClassificationMarket.KOREA, 30L);
 
         assertThat(preview.deletable()).isTrue();
         assertThat(preview.moveStockCount()).isEqualTo(2);
@@ -278,7 +290,7 @@ class CustomSectorServiceTest {
         when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 30L))
                 .thenReturn(List.of(first, second));
 
-        service.delete(30L, 2);
+        service.delete(ClassificationMarket.KOREA, 30L, 2);
 
         assertThat(first.getSectorId()).isEqualTo(40L);
         assertThat(second.getSectorId()).isEqualTo(40L);
@@ -297,7 +309,7 @@ class CustomSectorServiceTest {
         when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 30L))
                 .thenReturn(List.of(only));
 
-        assertThatThrownBy(() -> service.delete(30L, 5))
+        assertThatThrownBy(() -> service.delete(ClassificationMarket.KOREA, 30L, 5))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining(ErrorCode.SECTOR_MOVE_COUNT_CHANGED.getMessage());
 
@@ -313,10 +325,10 @@ class CustomSectorServiceTest {
         when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 31L))
                 .thenReturn(List.of());
 
-        service.delete(31L, 0);
+        service.delete(ClassificationMarket.KOREA, 31L, 0);
 
         verify(sectorRepository).delete(empty);
-        verify(protectedSectorService, Mockito.never()).ensureForUser(USER_ID);
+        verify(protectedSectorService, Mockito.never()).ensureForUser(USER_ID, ClassificationMarket.KOREA);
         verify(jdbcTemplate, Mockito.never()).update(Mockito.anyString(), Mockito.eq(USER_ID));
     }
 
@@ -330,7 +342,7 @@ class CustomSectorServiceTest {
         when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 30L))
                 .thenReturn(List.of(CustomStockSector.create(USER_ID, ClassificationMarket.KOREA, "199730", 30L)));
 
-        assertThatThrownBy(() -> service.delete(30L, 1))
+        assertThatThrownBy(() -> service.delete(ClassificationMarket.KOREA, 30L, 1))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining(ErrorCode.SECTOR_UNCLASSIFIED_MISSING.getMessage());
 
@@ -345,7 +357,7 @@ class CustomSectorServiceTest {
         when(stockSectorRepository.findLockedByIdUserIdAndSectorId(USER_ID, 31L))
                 .thenReturn(List.of());
 
-        service.delete(31L, 0);
+        service.delete(ClassificationMarket.KOREA, 31L, 0);
 
         var order = Mockito.inOrder(sectorRepository, stockSectorRepository);
         order.verify(sectorRepository).findLockedByIdAndUserIdAndMarket(31L, USER_ID, ClassificationMarket.KOREA);

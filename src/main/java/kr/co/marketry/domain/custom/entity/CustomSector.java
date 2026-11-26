@@ -67,12 +67,14 @@ public class CustomSector {
 
     /** 삭제·이름 변경·이동이 불가능한 보호 업종(신규 상장·거래 정지·미분류)인지 — 최상위에 있는 같은 이름의 업종만 해당한다. */
     public boolean isProtected() {
-        return parentId == null && ProtectedSector.isReservedName(name);
+        return parentId == null && market.isReservedName(name);
     }
 
     /** 거래 정지 종목이 자동 배정되는 "거래 정지" 업종인지 — 사용자가 직접 종목을 넣을 수 없다. */
     public boolean isSuspended() {
-        return parentId == null && ProtectedSector.SUSPENDED.getSectorName().equals(name);
+        return parentId == null
+                && market.locksSuspendedStocks()
+                && ProtectedSector.SUSPENDED.getSectorName().equals(name);
     }
 
     public static CustomSector createParent(Long userId, ClassificationMarket market, String name) {

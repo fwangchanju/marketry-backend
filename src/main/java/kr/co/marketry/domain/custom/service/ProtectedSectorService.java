@@ -1,6 +1,6 @@
 package kr.co.marketry.domain.custom.service;
 
-import kr.co.marketry.domain.custom.enums.ProtectedSector;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,24 +18,24 @@ public class ProtectedSectorService {
 
     private final JdbcTemplate jdbcTemplate;
 
-    /** 한 사용자에게 없는 보호 업종을 추가한다. 가입·전체 초기화·스냅샷 복원·업로드 뒤에 부른다. */
+    /** 한 사용자에게 없는 그 시장의 보호 업종을 추가한다. 가입·전체 초기화·스냅샷 복원·업로드 뒤에 부른다. */
     @Transactional
-    public void ensureForUser(Long userId) {
-        for (String name : ProtectedSector.sectorNames()) {
+    public void ensureForUser(Long userId, ClassificationMarket market) {
+        for (String name : market.protectedSectorNames()) {
             // INSERT ... ON CONFLICT DO NOTHING — 이미 있으면 건너뛰는 동작이 JPQL/QueryDSL에 없다.
             jdbcTemplate.update("""
                     INSERT INTO custom_sector (user_id, market, parent_id, name, depth, is_excluded, created_at, updated_at)
-                    VALUES (?, 'KOREA', NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    VALUES (?, ?, NULL, ?, 0, FALSE, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                     ON CONFLICT DO NOTHING
-                    """, userId, name);
+                    """, userId, market.name(), name);
         }
     }
 
-    /** 모든 사용자에게 없는 보호 업종을 추가한다. 앱 시작 때 한 번 부른다. 이미 있으면 아무것도 바꾸지 않는다. */
+    /** 모든 사용자에게 없는 한국 보호 업종을 추가한다. 앱 시작 때 한 번 부른다. 이미 있으면 아무것도 바꾸지 않는다. */
     @Transactional
     public int ensureForAllUsers() {
         int created = 0;
-        for (String name : ProtectedSector.sectorNames()) {
+        for (String name : ClassificationMarket.KOREA.protectedSectorNames()) {
             // INSERT ... SELECT + ON CONFLICT DO NOTHING — 전체 사용자를 문장 하나로 처리하는 집합 연산이다.
             created += jdbcTemplate.update("""
                     INSERT INTO custom_sector (user_id, market, parent_id, name, depth, is_excluded, created_at, updated_at)

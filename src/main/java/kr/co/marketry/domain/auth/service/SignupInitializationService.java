@@ -3,6 +3,7 @@ package kr.co.marketry.domain.auth.service;
 import kr.co.marketry.common.event.UserSignedUpEvent;
 import kr.co.marketry.domain.custom.entity.CustomValueTierThreshold;
 import kr.co.marketry.domain.custom.entity.UserPreference;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import kr.co.marketry.domain.custom.repository.UserPreferenceRepository;
 import kr.co.marketry.domain.custom.service.ProtectedSectorService;
@@ -49,7 +50,7 @@ public class SignupInitializationService {
                         .toList());
         copyPreference(userId);
         // 새 회원에게도 보호 업종(신규 상장·거래 정지·미분류)이 처음부터 있게 한다.
-        protectedSectorService.ensureForUser(userId);
+        protectedSectorService.ensureForUser(userId, ClassificationMarket.KOREA);
         // 지금 거래 정지로 제외 중인 종목도 처음부터 거래 정지 업종에 둔다.
         suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
     }

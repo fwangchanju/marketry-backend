@@ -8,6 +8,7 @@ import java.util.Set;
 import kr.co.marketry.common.event.StockSuspensionSyncedEvent;
 import kr.co.marketry.common.util.KstClock;
 import kr.co.marketry.domain.auth.service.SignupInitializationService;
+import kr.co.marketry.domain.custom.enums.ClassificationMarket;
 import kr.co.marketry.domain.custom.enums.ProtectedSector;
 import kr.co.marketry.domain.notification.properties.MarketryProperties;
 import kr.co.marketry.domain.stock.service.StockTradingSuspensionService;
@@ -109,7 +110,7 @@ public class SuspendedStockClassificationService {
         if (onlyUserId == null) {
             protectedSectorService.ensureForAllUsers();
         } else {
-            protectedSectorService.ensureForUser(onlyUserId);
+            protectedSectorService.ensureForUser(onlyUserId, ClassificationMarket.KOREA);
         }
         Long publishedUserId = marketryProperties.publishedUserId();
         if (onlyUserId != null && onlyUserId.equals(publishedUserId)) {

@@ -25,36 +25,35 @@ public class MarketryPublishService {
     private final MarketryProperties marketryProperties;
 
     /** 호출한 운영자의 분류(약칭 포함)를 새 고정본 버전으로 저장하고 발행 사용자의 분류 데이터를 그 내용으로 바꾼다. 운영자 본인 데이터는 읽기만 한다. */
-    public SnapshotItem publish(String label) {
+    public SnapshotItem publish(ClassificationMarket market, String label) {
         Long adminId = CurrentUser.requireId();
         Long publishedUserId = marketryProperties.publishedUserId();
-        String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(adminId);
-        CustomSnapshot saved = customSnapshotRepository.save(
-                CustomSnapshot.create(publishedUserId, ClassificationMarket.KOREA, label, snapshotJson));
-        customSectorTreeService.restore(snapshotJson, publishedUserId, saved.getId());
+        String snapshotJson = customSectorTreeService.serializeCurrentSnapshot(adminId, market);
+        CustomSnapshot saved =
+                customSnapshotRepository.save(CustomSnapshot.create(publishedUserId, market, label, snapshotJson));
+        customSectorTreeService.restore(snapshotJson, publishedUserId, market, saved.getId());
         return toItem(saved);
     }
 
     @Transactional(readOnly = true)
-    public List<SnapshotItem> getVersions() {
+    public List<SnapshotItem> getVersions(ClassificationMarket market) {
         return customSnapshotRepository
-                .findAllByUserIdAndMarketOrderByCreatedAtDesc(
-                        marketryProperties.publishedUserId(), ClassificationMarket.KOREA)
+                .findAllByUserIdAndMarketOrderByCreatedAtDesc(marketryProperties.publishedUserId(), market)
                 .stream()
                 .filter(snapshot -> customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson()))
                 .map(this::toItem)
                 .toList();
     }
 
-    public void restoreVersion(Long snapshotId) {
+    public void restoreVersion(ClassificationMarket market, Long snapshotId) {
         Long publishedUserId = marketryProperties.publishedUserId();
         CustomSnapshot snapshot = customSnapshotRepository
-                .findByIdAndUserIdAndMarket(snapshotId, publishedUserId, ClassificationMarket.KOREA)
+                .findByIdAndUserIdAndMarket(snapshotId, publishedUserId, market)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SNAPSHOT_NOT_FOUND, snapshotId));
         if (!customSectorTreeService.isCurrentSnapshotFormat(snapshot.getSnapshotJson())) {
             throw new BadRequestException(ErrorCode.SNAPSHOT_FORMAT_UNSUPPORTED);
         }
-        customSectorTreeService.restore(snapshot.getSnapshotJson(), publishedUserId, snapshotId);
+        customSectorTreeService.restore(snapshot.getSnapshotJson(), publishedUserId, market, snapshotId);
     }
 
     private SnapshotItem toItem(CustomSnapshot snapshot) {

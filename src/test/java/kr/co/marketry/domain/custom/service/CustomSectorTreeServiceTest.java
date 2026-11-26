@@ -26,7 +26,9 @@ import kr.co.marketry.domain.custom.repository.CustomStockAliasRepository;
 import kr.co.marketry.domain.custom.repository.CustomStockSectorRepository;
 import kr.co.marketry.domain.custom.repository.CustomValueTierThresholdRepository;
 import kr.co.marketry.domain.custom.repository.UserPreferenceRepository;
+import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.repository.StockInfoRepository;
+import kr.co.marketry.domain.stock.service.StockInfoCacheService;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
@@ -56,7 +58,8 @@ class CustomSectorTreeServiceTest {
             scaleThresholdRepository,
             valueTierRepository,
             userPreferenceRepository,
-            stockInfoRepository,
+            new ClassifiableStocks(
+                    Mockito.mock(StockInfoCacheService.class), stockInfoRepository, new UsaConstituents()),
             protectedSectorService,
             suspendedClassification,
             objectMapper);
@@ -83,7 +86,7 @@ class CustomSectorTreeServiceTest {
         preference.overwrite("{\"showValue\":true}");
         when(userPreferenceRepository.findById(USER_ID)).thenReturn(Optional.of(preference));
 
-        String json = service.serializeCurrentSnapshot(USER_ID);
+        String json = service.serializeCurrentSnapshot(USER_ID, ClassificationMarket.KOREA);
         CustomSnapshotPayload snapshot = objectMapper.readValue(json, CustomSnapshotPayload.class);
 
         assertThat(snapshot.snapshotVersion()).isEqualTo(3);
@@ -128,11 +131,42 @@ class CustomSectorTreeServiceTest {
         Mockito.when(stockInfoRepository.findAllById(Mockito.<Iterable<String>>any()))
                 .thenReturn(List.of());
 
-        service.restore(snapshotJson, USER_ID, 99L);
+        service.restore(snapshotJson, USER_ID, ClassificationMarket.KOREA, 99L);
 
         InOrder inOrder = Mockito.inOrder(sectorRepository);
         inOrder.verify(sectorRepository).deleteAll(Mockito.anyList());
         inOrder.verify(sectorRepository).flush();
         inOrder.verify(sectorRepository).save(Mockito.any(CustomSector.class));
+    }
+
+    @Test
+    void 일본_버전은_업종과_종목만_담고_되돌릴_때_설정을_건드리지_않는다() throws Exception {
+        CustomSector japan = CustomSector.createParent(USER_ID, ClassificationMarket.JAPAN, "자동차");
+        ReflectionTestUtils.setField(japan, "id", 20L);
+        when(sectorRepository.findAllByUserIdAndMarket(USER_ID, ClassificationMarket.JAPAN))
+                .thenReturn(List.of(japan));
+        when(stockSectorRepository.findAllByIdUserIdAndMarket(USER_ID, ClassificationMarket.JAPAN))
+                .thenReturn(List.of(CustomStockSector.create(USER_ID, ClassificationMarket.JAPAN, "7203", 20L)));
+        when(sectorRepository.save(Mockito.any(CustomSector.class))).thenAnswer(invocation -> {
+            CustomSector saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 21L);
+            return saved;
+        });
+
+        String json = service.serializeCurrentSnapshot(USER_ID, ClassificationMarket.JAPAN);
+        CustomSnapshotPayload snapshot = objectMapper.readValue(json, CustomSnapshotPayload.class);
+        service.restore(json, USER_ID, ClassificationMarket.JAPAN, 5L);
+
+        assertThat(snapshot.assignments()).containsExactly(new CustomSnapshotPayload.StockAssignment("7203", 20L));
+        assertThat(snapshot.preferences()).isEmpty();
+        verify(stockSectorRepository).deleteAllOfUserInMarket(USER_ID, ClassificationMarket.JAPAN);
+        verify(stockSectorRepository, Mockito.never()).deleteAllOfUserInMarket(USER_ID, ClassificationMarket.KOREA);
+        verify(protectedSectorService).ensureForUser(USER_ID, ClassificationMarket.JAPAN);
+        Mockito.verifyNoInteractions(
+                stockAliasRepository,
+                scaleThresholdRepository,
+                valueTierRepository,
+                userPreferenceRepository,
+                suspendedClassification);
     }
 }

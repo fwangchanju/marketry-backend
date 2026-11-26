@@ -37,64 +37,66 @@ public class CustomSectorService {
     private final SuspendedStockClassificationService suspendedStockClassificationService;
 
     @Transactional(readOnly = true)
-    public List<SectorItem> getSectors() {
-        return findAllSectors(CurrentUser.requireId()).stream()
+    public List<SectorItem> getSectors(ClassificationMarket market) {
+        return findAllSectors(CurrentUser.requireId(), market).stream()
                 .map(this::toItem)
                 .toList();
     }
 
-    public void reset() {
+    public void reset(ClassificationMarket market) {
         Long userId = CurrentUser.requireId();
-        customStockSectorRepository.deleteAllOfUserInMarket(userId, ClassificationMarket.KOREA);
-        customSectorRepository.deleteAllOfUserInMarket(userId, ClassificationMarket.KOREA);
-        protectedSectorService.ensureForUser(userId);
+        customStockSectorRepository.deleteAllOfUserInMarket(userId, market);
+        customSectorRepository.deleteAllOfUserInMarket(userId, market);
+        protectedSectorService.ensureForUser(userId, market);
         // 초기화로 지워진 배정 중 지금 거래 정지인 종목은 다시 거래 정지 업종에 놓는다.
-        suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
+        if (market.locksSuspendedStocks()) {
+            suspendedStockClassificationService.applyCurrentExclusionsToUser(userId);
+        }
     }
 
-    public SectorItem createParent(String name) {
+    public SectorItem createParent(ClassificationMarket market, String name) {
         Long userId = CurrentUser.requireId();
-        requireNotReservedName(name);
-        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, ClassificationMarket.KOREA, name)) {
+        requireNotReservedName(market, name);
+        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, market, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
-        CustomSector sector = CustomSector.createParent(userId, ClassificationMarket.KOREA, name);
+        CustomSector sector = CustomSector.createParent(userId, market, name);
         return toItem(customSectorRepository.save(sector));
     }
 
-    public SectorItem createChild(String name, Long parentId) {
+    public SectorItem createChild(ClassificationMarket market, String name, Long parentId) {
         Long userId = CurrentUser.requireId();
-        requireNotReservedName(name);
-        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, ClassificationMarket.KOREA, name)) {
+        requireNotReservedName(market, name);
+        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, market, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
         CustomSector parent = customSectorRepository
-                .findByIdAndUserIdAndMarket(parentId, userId, ClassificationMarket.KOREA)
+                .findByIdAndUserIdAndMarket(parentId, userId, market)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, parentId));
         requireNotProtected(parent);
         CustomSector sector = CustomSector.createChild(userId, name, parent);
         return toItem(customSectorRepository.save(sector));
     }
 
-    public void exclude(Long sectorId) {
-        CustomSector target = findOwnedSector(sectorId, CurrentUser.requireId());
+    public void exclude(ClassificationMarket market, Long sectorId) {
+        CustomSector target = findOwnedSector(market, sectorId, CurrentUser.requireId());
         target.exclude();
     }
 
-    public void include(Long sectorId) {
-        CustomSector target = findOwnedSector(sectorId, CurrentUser.requireId());
+    public void include(ClassificationMarket market, Long sectorId) {
+        CustomSector target = findOwnedSector(market, sectorId, CurrentUser.requireId());
         target.include();
     }
 
-    public void rename(Long sectorId, String name) {
+    public void rename(ClassificationMarket market, Long sectorId, String name) {
         Long userId = CurrentUser.requireId();
-        CustomSector target = findOwnedSector(sectorId, userId);
+        CustomSector target = findOwnedSector(market, sectorId, userId);
         requireNotProtected(target);
         if (target.getName().equals(name)) {
             return;
         }
-        requireNotReservedName(name);
-        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, ClassificationMarket.KOREA, name)) {
+        requireNotReservedName(market, name);
+        if (customSectorRepository.existsByUserIdAndMarketAndName(userId, market, name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_DUPLICATE, name);
         }
         target.rename(name);
@@ -103,8 +105,8 @@ public class CustomSectorService {
     /** sectorId를 newParentId의 자식으로 옮긴다. newParentId가 null이면 최상위(루트)로 옮긴다.
      * newParentId가 sectorId 자신이거나 그 하위 섹터면 순환 구조가 되므로 409로 막는다.
      * 하위 섹터 전체는 depth 변화량만큼 함께 갱신한다. */
-    public void reparent(Long sectorId, Long newParentId) {
-        SectorMaps maps = getSectorMaps();
+    public void reparent(ClassificationMarket market, Long sectorId, Long newParentId) {
+        SectorMaps maps = getSectorMaps(market);
         Map<Long, CustomSector> sectorById = maps.sectorById();
         Map<Long, List<CustomSector>> sectorByParentId = maps.sectorByParentId();
         CustomSector target = findSector(sectorId, sectorById);
@@ -133,9 +135,9 @@ public class CustomSectorService {
     }
 
     @Transactional(readOnly = true)
-    public SectorDeletePreview deletePreview(Long sectorId) {
+    public SectorDeletePreview deletePreview(ClassificationMarket market, Long sectorId) {
         Long userId = CurrentUser.requireId();
-        SectorMaps maps = getSectorMaps();
+        SectorMaps maps = getSectorMaps(market);
         Map<Long, CustomSector> sectorById = maps.sectorById();
         CustomSector target = findSector(sectorId, sectorById);
         if (target.isProtected()) {
@@ -158,9 +160,9 @@ public class CustomSectorService {
      * 미리보기에서 확인한 종목 수(expectedMoveCount)와 지금 옮길 종목 수를 비교해, 다르면 삭제하지 않고 다시 확인하게 한다.
      * 업종 행과 담긴 배정 행을 먼저 잠가 동시 변경을 줄이고, 그래도 겹치면 외래키 위반이 409로 바뀌어 다시 시도하게 된다.
      */
-    public void delete(Long sectorId, int expectedMoveCount) {
+    public void delete(ClassificationMarket market, Long sectorId, int expectedMoveCount) {
         Long userId = CurrentUser.requireId();
-        SectorMaps maps = getSectorMaps();
+        SectorMaps maps = getSectorMaps(market);
         Map<Long, CustomSector> sectorById = maps.sectorById();
         CustomSector target = findSector(sectorId, sectorById);
         requireNotProtected(target);
@@ -169,14 +171,14 @@ public class CustomSectorService {
         }
 
         // 잠금만 필요해 결과는 쓰지 않는다. 동시 요청을 완전히 막지는 못한다 — 외래키가 커밋 시점에 검사돼 진 쪽이 409(GlobalExceptionHandler)로 끝난다.
-        customSectorRepository.findLockedByIdAndUserIdAndMarket(sectorId, userId, ClassificationMarket.KOREA);
+        customSectorRepository.findLockedByIdAndUserIdAndMarket(sectorId, userId, market);
         List<CustomStockSector> assignments =
                 customStockSectorRepository.findLockedByIdUserIdAndSectorId(userId, sectorId);
         if (expectedMoveCount != assignments.size()) {
             throw new ConflictException(ErrorCode.SECTOR_MOVE_COUNT_CHANGED, sectorId);
         }
         if (!assignments.isEmpty()) {
-            Long unclassifiedId = findUnclassifiedSectorId(userId);
+            Long unclassifiedId = findUnclassifiedSectorId(userId, market);
             log.info("[섹터삭제] 종목을 미분류로 이동 | sectorId={}|count={}", sectorId, assignments.size());
             assignments.forEach(assignment -> assignment.reassign(unclassifiedId));
             // 배정 행을 먼저 새 업종으로 내보내야, 이 업종을 가리키는 FK 때문에 삭제가 실패하지 않는다.
@@ -190,23 +192,23 @@ public class CustomSectorService {
         customSectorRepository.delete(target);
     }
 
-    private Long findUnclassifiedSectorId(Long userId) {
-        return findOrCreateUnclassified(userId)
+    private Long findUnclassifiedSectorId(Long userId, ClassificationMarket market) {
+        return findOrCreateUnclassified(userId, market)
                 .orElseThrow(() -> new ConflictException(ErrorCode.SECTOR_UNCLASSIFIED_MISSING));
     }
 
     /** 최상위 미분류 업종을 찾는다. 없으면(오래된 데이터) 보호 업종을 채운 뒤 한 번 더 찾는다. */
-    private java.util.Optional<Long> findOrCreateUnclassified(Long userId) {
-        java.util.Optional<Long> found = findUnclassified(userId);
+    private java.util.Optional<Long> findOrCreateUnclassified(Long userId, ClassificationMarket market) {
+        java.util.Optional<Long> found = findUnclassified(userId, market);
         if (found.isPresent()) {
             return found;
         }
-        protectedSectorService.ensureForUser(userId);
-        return findUnclassified(userId);
+        protectedSectorService.ensureForUser(userId, market);
+        return findUnclassified(userId, market);
     }
 
-    private java.util.Optional<Long> findUnclassified(Long userId) {
-        return findAllSectors(userId).stream()
+    private java.util.Optional<Long> findUnclassified(Long userId, ClassificationMarket market) {
+        return findAllSectors(userId, market).stream()
                 .filter(sector -> sector.isProtected()
                         && ProtectedSector.UNCLASSIFIED.getSectorName().equals(sector.getName()))
                 .map(CustomSector::getId)
@@ -227,8 +229,8 @@ public class CustomSectorService {
     }
 
     /** 보호 업종 이름은 다른 업종이 쓸 수 없다. 보호 업종 자체는 서버가 ProtectedSectorService로 만든다. */
-    private void requireNotReservedName(String name) {
-        if (ProtectedSector.isReservedName(name)) {
+    private void requireNotReservedName(ClassificationMarket market, String name) {
+        if (market.isReservedName(name)) {
             throw new ConflictException(ErrorCode.SECTOR_NAME_RESERVED, name);
         }
     }
@@ -237,8 +239,8 @@ public class CustomSectorService {
      * reparent/deletePreview/delete처럼 둘 다 필요한 경우에만 사용. */
     private record SectorMaps(Map<Long, CustomSector> sectorById, Map<Long, List<CustomSector>> sectorByParentId) {}
 
-    private SectorMaps getSectorMaps() {
-        List<CustomSector> sectors = findAllSectors(CurrentUser.requireId());
+    private SectorMaps getSectorMaps(ClassificationMarket market) {
+        List<CustomSector> sectors = findAllSectors(CurrentUser.requireId(), market);
         Map<Long, CustomSector> sectorById = new HashMap<>();
         Map<Long, List<CustomSector>> sectorByParentId = new HashMap<>();
         for (CustomSector sector : sectors) {
@@ -250,13 +252,13 @@ public class CustomSectorService {
         return new SectorMaps(sectorById, sectorByParentId);
     }
 
-    private List<CustomSector> findAllSectors(Long userId) {
-        return customSectorRepository.findAllByUserIdAndMarket(userId, ClassificationMarket.KOREA);
+    private List<CustomSector> findAllSectors(Long userId, ClassificationMarket market) {
+        return customSectorRepository.findAllByUserIdAndMarket(userId, market);
     }
 
-    private CustomSector findOwnedSector(Long sectorId, Long userId) {
+    private CustomSector findOwnedSector(ClassificationMarket market, Long sectorId, Long userId) {
         return customSectorRepository
-                .findByIdAndUserIdAndMarket(sectorId, userId, ClassificationMarket.KOREA)
+                .findByIdAndUserIdAndMarket(sectorId, userId, market)
                 .orElseThrow(() -> new NotFoundException(ErrorCode.SECTOR_NOT_FOUND, sectorId));
     }
 
