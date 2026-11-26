@@ -1,6 +1,7 @@
 package kr.co.marketry.domain.custom.controller;
 
 import jakarta.validation.Valid;
+import java.time.LocalDateTime;
 import java.util.List;
 import kr.co.marketry.domain.custom.dto.CreateSectorRequest;
 import kr.co.marketry.domain.custom.dto.ReparentRequest;
@@ -31,6 +32,13 @@ public class CustomSectorController {
     public List<SectorItem> getSectors(@RequestParam(defaultValue = "KOREA") ClassificationMarket market) {
         return customSectorService.getSectors(market);
     }
+
+    @GetMapping("/edited-at")
+    public EditedAt getEditedAt(@RequestParam(defaultValue = "KOREA") ClassificationMarket market) {
+        return new EditedAt(customSectorService.findEditedAt(market));
+    }
+
+    public record EditedAt(LocalDateTime editedAt) {}
 
     @DeleteMapping
     public void reset(@RequestParam(defaultValue = "KOREA") ClassificationMarket market) {

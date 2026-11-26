@@ -1,5 +1,6 @@
 package kr.co.marketry.domain.custom.service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +42,20 @@ public class CustomSectorService {
         return findAllSectors(CurrentUser.requireId(), market).stream()
                 .map(this::toItem)
                 .toList();
+    }
+
+    /** 이 시장의 내 기준을 마지막으로 고친 시각(설정창 맨 아래). 업종과 종목 배정 중 늦은 쪽이다. */
+    @Transactional(readOnly = true)
+    public LocalDateTime findEditedAt(ClassificationMarket market) {
+        Long userId = CurrentUser.requireId();
+        LocalDateTime sectorEditedAt = customSectorRepository.findLatestEditedAt(userId, market);
+        LocalDateTime assignmentUpdatedAt = customStockSectorRepository.findLatestUpdatedAt(userId, market);
+        if (sectorEditedAt == null) {
+            return assignmentUpdatedAt;
+        }
+        return assignmentUpdatedAt != null && assignmentUpdatedAt.isAfter(sectorEditedAt)
+                ? assignmentUpdatedAt
+                : sectorEditedAt;
     }
 
     public void reset(ClassificationMarket market) {
@@ -286,6 +301,7 @@ public class CustomSectorService {
     }
 
     private SectorItem toItem(CustomSector sector) {
-        return new SectorItem(sector.getId(), sector.getName(), sector.getParentId(), sector.getDepth());
+        return new SectorItem(
+                sector.getId(), sector.getName(), sector.getParentId(), sector.getDepth(), sector.isExcluded());
     }
 }
