@@ -2,6 +2,7 @@ package kr.co.marketry.domain.stock.collector;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -14,7 +15,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
@@ -43,6 +46,7 @@ class JapanQuoteCollectorTest {
     private OverseasIndexQuoteRepository indexQuotes;
     private OverseasStockDailyRepository dailies;
     private JapanQuoteCollector collector;
+    private final Map<String, YahooFinanceQuoteClient.Quote> served = new HashMap<>();
 
     @BeforeEach
     void setUp() {
@@ -51,12 +55,22 @@ class JapanQuoteCollectorTest {
         indexQuotes = mock(OverseasIndexQuoteRepository.class);
         dailies = mock(OverseasStockDailyRepository.class);
         collector = new JapanQuoteCollector(client, repository, indexQuotes, dailies, duration -> {});
+        // 묶음 요청에는 준비해 둔 종목만 돌려준다(준비하지 않은 종목은 응답에 없는 것).
+        when(client.fetchTokyoQuotes(anyList())).thenAnswer(call -> {
+            Map<String, YahooFinanceQuoteClient.Quote> result = new HashMap<>();
+            for (String code : call.<List<String>>getArgument(0)) {
+                if (served.containsKey(code)) {
+                    result.put(code, served.get(code));
+                }
+            }
+            return result;
+        });
     }
 
     @Test
     void 받은_시세를_체결_시각의_5분_단위로_저장하고_시가총액을_가격만큼_조정한다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        givenQuote("7203", quote("1100", "1000", MARKET_TIME));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
@@ -74,7 +88,7 @@ class JapanQuoteCollectorTest {
     void 체결_시각이_마지막_시세보다_늦지_않으면_저장하지_않는다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
         // 2026-11-06 15:30:02 KST — 휴장일에는 직전 거래일 시각이 그대로 온다.
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1000", "990", Instant.parse("2026-11-06T06:30:02Z")));
+        givenQuote("7203", quote("1000", "990", Instant.parse("2026-11-06T06:30:02Z")));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
@@ -91,8 +105,11 @@ class JapanQuoteCollectorTest {
             last.add(lastQuote("C" + index, "1000.00", "1000000"));
         }
         givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
-        when(client.fetchTokyoQuote(anyString())).thenReturn(quote("1100", "1000", MARKET_TIME));
-        when(client.fetchTokyoQuote("C3")).thenThrow(new IllegalStateException("없음"));
+        for (int index = 0; index < 10; index++) {
+            if (index != 3) {
+                givenQuote("C" + index, quote("1100", "1000", MARKET_TIME));
+            }
+        }
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
@@ -113,8 +130,7 @@ class JapanQuoteCollectorTest {
     @Test
     void 받은_종목이_90퍼센트보다_적으면_저장하지_않는다() {
         givenLastQuotes(lastQuote("A", "1000.00", "1"), lastQuote("B", "1000.00", "1"));
-        when(client.fetchTokyoQuote("A")).thenReturn(quote("1100", "1000", MARKET_TIME));
-        when(client.fetchTokyoQuote("B")).thenThrow(new IllegalStateException("없음"));
+        givenQuote("A", quote("1100", "1000", MARKET_TIME));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
@@ -125,14 +141,31 @@ class JapanQuoteCollectorTest {
     @Test
     void 호출_제한을_받으면_남은_종목을_요청하지_않고_저장하지_않는다() {
         givenLastQuotes(lastQuote("A", "1000.00", "1"), lastQuote("B", "1000.00", "1"), lastQuote("C", "1000.00", "1"));
-        when(client.fetchTokyoQuote("A"))
+        when(client.fetchTokyoQuotes(anyList()))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "", null, null, null));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isFalse();
-        verify(client, times(1)).fetchTokyoQuote(anyString());
+        verify(client, times(1)).fetchTokyoQuotes(anyList());
         verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void 종목을_20개씩_묶어_부른다() {
+        List<OverseasStockQuote> last = new ArrayList<>();
+        for (int index = 0; index < 45; index++) {
+            last.add(lastQuote("S" + index, "1000.00", "1000000"));
+            givenQuote("S" + index, quote("1100", "1000", MARKET_TIME));
+        }
+        givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
+
+        assertThat(collector.collect(COLLECTION_DATE).saved()).isTrue();
+
+        ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
+        verify(client, times(3)).fetchTokyoQuotes(captor.capture());
+        assertThat(captor.getAllValues()).extracting(List::size).containsExactly(20, 20, 5);
     }
 
     @Test
@@ -142,7 +175,7 @@ class JapanQuoteCollectorTest {
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
         assertThat(result.saved()).isFalse();
-        verify(client, never()).fetchTokyoQuote(anyString());
+        verify(client, never()).fetchTokyoQuotes(anyList());
     }
 
     @Test
@@ -154,7 +187,7 @@ class JapanQuoteCollectorTest {
     @Test
     void 전일_시각_응답은_오늘_시세_집계에서_분리한다() {
         givenTodayQuotesWithHalted(9);
-        when(client.fetchTokyoQuote("2914")).thenReturn(quote("6269", "6269", Instant.parse("2026-11-06T06:30:00Z")));
+        givenQuote("2914", quote("6269", "6269", Instant.parse("2026-11-06T06:30:00Z")));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
@@ -176,11 +209,11 @@ class JapanQuoteCollectorTest {
         for (int index = 0; index < 10; index++) last.add(lastQuote("10" + index + "0", "1000.00", "1000000"));
         givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
         for (int index = 0; index < 10; index++) {
-            when(client.fetchTokyoQuote("10" + index + "0"))
-                    .thenReturn(
-                            index < 2
-                                    ? quote("1100", "1000", MARKET_TIME)
-                                    : quote("1000", "990", Instant.parse("2026-11-06T06:30:00Z")));
+            givenQuote(
+                    "10" + index + "0",
+                    index < 2
+                            ? quote("1100", "1000", MARKET_TIME)
+                            : quote("1000", "990", Instant.parse("2026-11-06T06:30:00Z")));
         }
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
@@ -198,7 +231,7 @@ class JapanQuoteCollectorTest {
         List<OverseasStockQuote> last = new ArrayList<>();
         for (int index = 0; index < 10; index++) {
             last.add(lastQuote("30" + index + "0", "1000.00", "990.00", "1000000"));
-            when(client.fetchTokyoQuote("30" + index + "0")).thenReturn(quote("1000", "990", OPENING_TIME));
+            givenQuote("30" + index + "0", quote("1000", "990", OPENING_TIME));
         }
         givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
 
@@ -217,7 +250,7 @@ class JapanQuoteCollectorTest {
         List<OverseasStockQuote> last = new ArrayList<>();
         for (int index = 0; index < 10; index++) {
             last.add(lastQuote("40" + index + "0", "1000.00", "990.00", "1000000"));
-            when(client.fetchTokyoQuote("40" + index + "0")).thenReturn(quote("1000", "1000", OPENING_TIME));
+            givenQuote("40" + index + "0", quote("1000", "1000", OPENING_TIME));
         }
         givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
 
@@ -240,7 +273,7 @@ class JapanQuoteCollectorTest {
                 new BigDecimal("1000000"));
         when(repository.findFirstByIdMarketOrderByIdSnapshotTimeDesc("JAPAN")).thenReturn(Optional.of(base));
         when(repository.findAllByIdMarketAndIdSnapshotTime("JAPAN", morning)).thenReturn(List.of(base));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1000", "990", MARKET_TIME));
+        givenQuote("7203", quote("1000", "990", MARKET_TIME));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
 
@@ -252,8 +285,9 @@ class JapanQuoteCollectorTest {
     @SuppressWarnings("unchecked")
     void 오늘_시세와_함께_야후의_오늘_일봉을_일봉_표에_넣는다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
-        when(client.fetchTokyoQuote("7203"))
-                .thenReturn(new YahooFinanceQuoteClient.Quote(
+        givenQuote(
+                "7203",
+                new YahooFinanceQuoteClient.Quote(
                         new BigDecimal("1100"),
                         new BigDecimal("1000"),
                         MARKET_TIME,
@@ -278,7 +312,7 @@ class JapanQuoteCollectorTest {
         java.util.List<OverseasStockQuote> last = new java.util.ArrayList<>();
         for (int index = 0; index < todayCount; index++) {
             last.add(lastQuote("20" + index + "0", "1000.00", "1000000"));
-            when(client.fetchTokyoQuote("20" + index + "0")).thenReturn(quote("1100", "1000", MARKET_TIME));
+            givenQuote("20" + index + "0", quote("1100", "1000", MARKET_TIME));
         }
         last.add(lastQuote("2914", "6269.00", "1000000"));
         givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
@@ -287,7 +321,7 @@ class JapanQuoteCollectorTest {
     @Test
     void 종목_시세를_저장한_뒤_닛케이_지수를_같은_시각으로_저장한다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        givenQuote("7203", quote("1100", "1000", MARKET_TIME));
         when(client.fetchQuote("^N225")).thenReturn(quote("61142.35", "61077.90", MARKET_TIME));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
@@ -306,7 +340,7 @@ class JapanQuoteCollectorTest {
     @Test
     void 지수를_받지_못해도_종목_시세는_저장한다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        givenQuote("7203", quote("1100", "1000", MARKET_TIME));
         when(client.fetchQuote("^N225")).thenThrow(new IllegalStateException("지수 없음"));
 
         JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
@@ -319,7 +353,7 @@ class JapanQuoteCollectorTest {
     @Test
     void 지수_응답이_비어_있으면_저장하지_않고_종목_시세는_저장한다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1100", "1000", MARKET_TIME));
+        givenQuote("7203", quote("1100", "1000", MARKET_TIME));
         when(client.fetchQuote("^N225")).thenReturn(null);
 
         assertThat(collector.collect(COLLECTION_DATE).saved()).isTrue();
@@ -329,12 +363,16 @@ class JapanQuoteCollectorTest {
     @Test
     void 종목_시세를_저장하지_않으면_지수도_저장하지_않는다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
-        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1000", "990", Instant.parse("2026-11-06T06:30:02Z")));
+        givenQuote("7203", quote("1000", "990", Instant.parse("2026-11-06T06:30:02Z")));
         when(client.fetchQuote("^N225")).thenReturn(quote("61142.35", "61077.90", MARKET_TIME));
 
         assertThat(collector.collect(COLLECTION_DATE).saved()).isFalse();
         verify(client, never()).fetchQuote(anyString());
         verify(indexQuotes, never()).save(any());
+    }
+
+    private void givenQuote(String code, YahooFinanceQuoteClient.Quote quote) {
+        served.put(code, quote);
     }
 
     private void givenLastQuotes(OverseasStockQuote... quotes) {

@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.common.util.KstClock;
@@ -162,32 +163,44 @@ public class JapanQuoteCollector {
         }
     }
 
+    // 20종목씩 묶어 받는다(2026-11-27, 종목마다 부르던 225번을 12번으로). 야후가 호출을 제한하면(429) 나머지 묶음은 부르지 않는다.
+    // 응답에 없는 종목은 받지 못한 것으로 다룬다.
     private List<Fetched> fetchAll(List<OverseasStockQuote> lastQuotes) {
         List<Fetched> fetched = new ArrayList<>(lastQuotes.size());
         boolean limited = false;
-        for (OverseasStockQuote last : lastQuotes) {
-            String stockCode = last.getId().getStockCode();
-            if (limited) {
-                fetched.add(new Fetched(last, null));
-                continue;
+        for (int start = 0; start < lastQuotes.size(); start += YahooFinanceQuoteClient.SPARK_MAX_SYMBOLS) {
+            List<OverseasStockQuote> batch = lastQuotes.subList(
+                    start, Math.min(lastQuotes.size(), start + YahooFinanceQuoteClient.SPARK_MAX_SYMBOLS));
+            Map<String, YahooFinanceQuoteClient.Quote> quotes = Map.of();
+            if (limited == false) {
+                try {
+                    quotes = client.fetchTokyoQuotes(batch.stream()
+                            .map(last -> last.getId().getStockCode())
+                            .toList());
+                } catch (RestClientResponseException failure) {
+                    limited = failure.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS);
+                    log.warn(
+                            "[일본시세] 묶음 조회 실패: status={} | context : {}",
+                            failure.getStatusCode(),
+                            batch.getFirst().getId().getStockCode());
+                } catch (RuntimeException failure) {
+                    log.warn(
+                            "[일본시세] 묶음 조회 실패: {} | context : {}",
+                            failure.getMessage(),
+                            batch.getFirst().getId().getStockCode());
+                }
+                sleeper.accept(REQUEST_INTERVAL);
             }
-            try {
-                fetched.add(new Fetched(last, client.fetchTokyoQuote(stockCode)));
-            } catch (RestClientResponseException failure) {
-                limited = failure.getStatusCode().isSameCodeAs(HttpStatus.TOO_MANY_REQUESTS);
-                log.warn("[일본시세] {} 조회 실패: status={}", stockCode, failure.getStatusCode());
-                fetched.add(new Fetched(last, null));
-            } catch (RuntimeException failure) {
-                log.warn("[일본시세] {} 조회 실패: {}", stockCode, failure.getMessage());
-                fetched.add(new Fetched(last, null));
+            for (OverseasStockQuote last : batch) {
+                fetched.add(new Fetched(last, quotes.get(last.getId().getStockCode())));
             }
-            sleeper.accept(REQUEST_INTERVAL);
         }
         return fetched;
     }
 
     /**
-     * 장중 오늘 일봉(야후의 시가·고가·저가·거래량, 종가 자리는 지금 값)을 일봉 표에 덮어쓴다. 저녁 종가 확인이 같은 줄을 최종값으로 다시 덮어쓴다.
+     * 장중 오늘 일봉(야후의 시가·고가·저가·거래량, 종가 자리는 지금 값)을 일봉 표에 덮어쓴다.
+     * 묶음 요청(2026-11-27부터)에는 오늘 일봉이 없어 지금은 거의 저장하지 않는다(응답에 일봉이 있을 때만). 저녁 종가 확인이 같은 줄을 최종값으로 다시 덮어쓴다.
      * 차트 임시 봉이 첫 5분 시세 대신 실제 시가를 쓰게 하려는 것이다. 실패해도 시세 저장은 막지 않는다.
      */
     private void saveTodayCandles(List<Fetched> fetched, LocalDate collectionDate, boolean firstOfDay) {
