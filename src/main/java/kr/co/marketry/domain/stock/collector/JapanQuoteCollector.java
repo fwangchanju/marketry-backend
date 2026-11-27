@@ -89,13 +89,9 @@ public class JapanQuoteCollector {
         List<Fetched> fetched = fetchAll(lastQuotes);
         long successCount =
                 fetched.stream().filter(item -> item.quote() != null).count();
+        boolean firstOfDay = lastSnapshotTime.toLocalDate().isBefore(collectionDate);
         int todayQuoteCount = (int) fetched.stream()
-                .filter(item -> item.quote() != null)
-                .filter(item -> item.quote()
-                        .marketTime()
-                        .atZone(Zone.KST.zoneId())
-                        .toLocalDate()
-                        .equals(collectionDate))
+                .filter(item -> isTodayQuote(item, collectionDate, firstOfDay))
                 .count();
         int otherDateQuoteCount = (int) successCount - todayQuoteCount;
         int failureCount = fetched.size() - (int) successCount;
@@ -127,7 +123,7 @@ public class JapanQuoteCollector {
         List<OverseasStockQuote> quotes =
                 fetched.stream().map(item -> toQuote(item, snapshotTime)).toList();
         repository.saveAll(quotes);
-        saveTodayCandles(fetched, collectionDate);
+        saveTodayCandles(fetched, collectionDate, firstOfDay);
         String indexFailure = saveIndexQuote(snapshotTime);
         return new Result(
                 true,
@@ -194,15 +190,11 @@ public class JapanQuoteCollector {
      * 장중 오늘 일봉(야후의 시가·고가·저가·거래량, 종가 자리는 지금 값)을 일봉 표에 덮어쓴다. 저녁 종가 확인이 같은 줄을 최종값으로 다시 덮어쓴다.
      * 차트 임시 봉이 첫 5분 시세 대신 실제 시가를 쓰게 하려는 것이다. 실패해도 시세 저장은 막지 않는다.
      */
-    private void saveTodayCandles(List<Fetched> fetched, LocalDate collectionDate) {
+    private void saveTodayCandles(List<Fetched> fetched, LocalDate collectionDate, boolean firstOfDay) {
         LocalDateTime now = KstClock.now();
         List<OverseasStockDaily> candles = fetched.stream()
                 .filter(item -> item.quote() != null && item.quote().today() != null)
-                .filter(item -> item.quote()
-                        .marketTime()
-                        .atZone(Zone.KST.zoneId())
-                        .toLocalDate()
-                        .equals(collectionDate))
+                .filter(item -> isTodayQuote(item, collectionDate, firstOfDay))
                 .map(item -> OverseasStockDaily.create(
                         MARKET,
                         item.last().getId().getStockCode(),
@@ -219,6 +211,31 @@ public class JapanQuoteCollector {
         } catch (RuntimeException failure) {
             log.warn("[일본시세] 장중 일봉 저장 실패: {}", failure.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * 오늘 시세인지 판단한다. 체결 시각이 오늘이어야 한다.
+     *
+     * <p>그날 첫 회차에는 값도 본다. 개장 직후 야후가 시각만 오늘 09:00으로 주고 현재가·전일 종가는 어제 응답 그대로 주는
+     * 때가 있다(2026-11-27 09:18 회차: 225종목 모두). 현재가와 전일 종가가 어제 마지막 시세와 둘 다 같으면 어제 값으로 본다.
+     * 오늘 시세라면 전일 종가가 어제 종가(어제 마지막 현재가)로 넘어와 있어야 한다. 장중 회차는 기준이 오늘 시세라 시각만 본다.
+     */
+    private static boolean isTodayQuote(Fetched item, LocalDate collectionDate, boolean firstOfDay) {
+        if (item.quote() == null) {
+            return false;
+        }
+        boolean todayTime = item.quote()
+                .marketTime()
+                .atZone(Zone.KST.zoneId())
+                .toLocalDate()
+                .equals(collectionDate);
+        if (todayTime == false || firstOfDay == false) {
+            return todayTime;
+        }
+        boolean samePrice = item.quote().currentPrice().compareTo(item.last().getCurrentPrice()) == 0;
+        boolean samePreviousClose =
+                item.quote().previousClose().compareTo(item.last().getLastPrice()) == 0;
+        return (samePrice && samePreviousClose) == false;
     }
 
     // 야후의 체결 시각을 5분 단위로 내려 저장한다. 수집 시각을 쓰면 지연된 시세가 최신처럼 보이기 때문이다.

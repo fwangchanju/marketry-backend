@@ -35,6 +35,8 @@ class JapanQuoteCollectorTest {
     private static final LocalDate COLLECTION_DATE = LocalDate.of(2026, 11, 9);
     // 2026-11-09 10:07:30 KST
     private static final Instant MARKET_TIME = Instant.parse("2026-11-09T01:07:30Z");
+    // 2026-11-09 09:00:00 KST
+    private static final Instant OPENING_TIME = Instant.parse("2026-11-09T00:00:00Z");
 
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository repository;
@@ -190,6 +192,63 @@ class JapanQuoteCollectorTest {
     }
 
     @Test
+    void 개장_직후_시각만_오늘이고_값은_어제_그대로면_오늘_시세로_세지_않고_기다린다() {
+        // 2026-11-27 09:18 첫 회차: 야후가 225종목 모두 시각은 오늘 09:00으로 주면서 현재가·전일 종가는 어제 응답 그대로였다.
+        // 그대로 저장되어 첫 지도와 텔레그램 이미지가 비었다.
+        List<OverseasStockQuote> last = new ArrayList<>();
+        for (int index = 0; index < 10; index++) {
+            last.add(lastQuote("30" + index + "0", "1000.00", "990.00", "1000000"));
+            when(client.fetchTokyoQuote("30" + index + "0")).thenReturn(quote("1000", "990", OPENING_TIME));
+        }
+        givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isFalse();
+        assertThat(result.reason()).startsWith(JapanQuoteCollector.WAITING_TODAY_REASON);
+        assertThat(result.todayQuoteCount()).isZero();
+        assertThat(result.otherDateQuoteCount()).isEqualTo(10);
+        verify(repository, never()).saveAll(any());
+    }
+
+    @Test
+    void 개장_직후_전일_종가가_어제_종가로_바뀌었으면_값이_같아도_오늘_시세로_센다() {
+        // 어제 종가 1000으로 시작해 아직 움직이지 않은 종목: 전일 종가가 어제 종가(1000)로 넘어와 있으면 오늘 시세다.
+        List<OverseasStockQuote> last = new ArrayList<>();
+        for (int index = 0; index < 10; index++) {
+            last.add(lastQuote("40" + index + "0", "1000.00", "990.00", "1000000"));
+            when(client.fetchTokyoQuote("40" + index + "0")).thenReturn(quote("1000", "1000", OPENING_TIME));
+        }
+        givenLastQuotes(last.toArray(OverseasStockQuote[]::new));
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isTrue();
+        assertThat(result.todayQuoteCount()).isEqualTo(10);
+        assertThat(savedQuotes().getFirst().getLastPrice()).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    void 같은_날_장중에는_값이_그대로여도_오늘_시세로_센다() {
+        // 장중 회차의 기준 시세는 오늘 것이라 현재가·전일 종가가 같아도 어제 응답이 아니다.
+        LocalDateTime morning = LocalDateTime.of(2026, 11, 9, 10, 0);
+        OverseasStockQuote base = OverseasStockQuote.create(
+                new OverseasStockQuoteId("JAPAN", "7203", morning),
+                new BigDecimal("1000.00"),
+                new BigDecimal("990.00"),
+                BigDecimal.ZERO,
+                new BigDecimal("1000000"));
+        when(repository.findFirstByIdMarketOrderByIdSnapshotTimeDesc("JAPAN")).thenReturn(Optional.of(base));
+        when(repository.findAllByIdMarketAndIdSnapshotTime("JAPAN", morning)).thenReturn(List.of(base));
+        when(client.fetchTokyoQuote("7203")).thenReturn(quote("1000", "990", MARKET_TIME));
+
+        JapanQuoteCollector.Result result = collector.collect(COLLECTION_DATE);
+
+        assertThat(result.saved()).isTrue();
+        assertThat(result.todayQuoteCount()).isEqualTo(1);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void 오늘_시세와_함께_야후의_오늘_일봉을_일봉_표에_넣는다() {
         givenLastQuotes(lastQuote("7203", "1000.00", "1000000"));
@@ -291,10 +350,14 @@ class JapanQuoteCollectorTest {
     }
 
     private static OverseasStockQuote lastQuote(String code, String price, String marketValue) {
+        return lastQuote(code, price, price, marketValue);
+    }
+
+    private static OverseasStockQuote lastQuote(String code, String price, String lastPrice, String marketValue) {
         return OverseasStockQuote.create(
                 new OverseasStockQuoteId("JAPAN", code, LAST_TIME),
                 new BigDecimal(price),
-                new BigDecimal(price),
+                new BigDecimal(lastPrice),
                 BigDecimal.ZERO,
                 new BigDecimal(marketValue));
     }
