@@ -35,6 +35,7 @@ class UsaControllerTest {
             mock(kr.co.marketry.domain.custom.service.PublishedClassificationService.class),
             constituents,
             indexCloses,
+            mock(kr.co.marketry.domain.stock.service.OverseasIndexQuoteService.class),
             names);
 
     @Test

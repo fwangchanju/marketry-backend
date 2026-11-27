@@ -17,8 +17,11 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.ExtendedQuote;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.PricePoint;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.SessionTimes;
 import kr.co.marketry.domain.stock.collector.UsaConstituents.Constituent;
+import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
+import kr.co.marketry.domain.stock.entity.OverseasIndexQuoteId;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +45,8 @@ import org.springframework.web.client.RestClientResponseException;
 @Component
 public class UsaIntradayCollector {
     static final String MARKET = "USA";
+    static final String INDEX_MARKET = "SP500";
+    static final String INDEX_SYMBOL = "^GSPC";
     static final double MIN_SUCCESS_RATIO = 0.9;
     private static final Duration REQUEST_INTERVAL = Duration.ofMillis(200);
     private static final int SNAPSHOT_GRID_MINUTES = 5;
@@ -51,24 +56,30 @@ public class UsaIntradayCollector {
 
     private final YahooFinanceQuoteClient client;
     private final OverseasStockQuoteRepository repository;
+    private final OverseasIndexQuoteRepository indexQuotes;
     private final UsaConstituents constituents;
     private final Consumer<Duration> sleeper;
     private final Clock clock;
 
     @Autowired
     public UsaIntradayCollector(
-            YahooFinanceQuoteClient client, OverseasStockQuoteRepository repository, UsaConstituents constituents) {
-        this(client, repository, constituents, UsaIntradayCollector::sleep, Clock.systemUTC());
+            YahooFinanceQuoteClient client,
+            OverseasStockQuoteRepository repository,
+            OverseasIndexQuoteRepository indexQuotes,
+            UsaConstituents constituents) {
+        this(client, repository, indexQuotes, constituents, UsaIntradayCollector::sleep, Clock.systemUTC());
     }
 
     UsaIntradayCollector(
             YahooFinanceQuoteClient client,
             OverseasStockQuoteRepository repository,
+            OverseasIndexQuoteRepository indexQuotes,
             UsaConstituents constituents,
             Consumer<Duration> sleeper,
             Clock clock) {
         this.client = client;
         this.repository = repository;
+        this.indexQuotes = indexQuotes;
         this.constituents = constituents;
         this.sleeper = sleeper;
         this.clock = clock;
@@ -126,7 +137,34 @@ public class UsaIntradayCollector {
             rows.add(toQuote(symbol, quote, last, snapshotTime));
         }
         repository.saveAll(rows);
+        saveIndexQuote(snapshotTime);
         return Result.saved(snapshotTime, rows.size(), symbols.size());
+    }
+
+    /**
+     * S&amp;P 500 지수의 지금 값을 종목 시세와 같은 시각으로 저장한다(2026-11-27, 일본 닛케이와 같은 방식). 지수는 정규장에만 움직여 프리마켓은
+     * 전일 종가(0%), 애프터마켓은 그날 종가 값이 그대로 저장된다. 받지 못해도 종목 시세는 그대로 두고, 그 시각 지수가 없으면 그래프는 종가 기준
+     * 막대로 대신한다.
+     */
+    private void saveIndexQuote(LocalDateTime snapshotTime) {
+        try {
+            YahooFinanceQuoteClient.Quote quote = client.fetchQuote(INDEX_SYMBOL);
+            if (quote == null) {
+                log.warn("[미국지수] 지수 값을 받지 못했습니다: {}", snapshotTime);
+                return;
+            }
+            BigDecimal value = quote.currentPrice().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+            BigDecimal previousClose = quote.previousClose().setScale(PRICE_SCALE, RoundingMode.HALF_UP);
+            indexQuotes.save(OverseasIndexQuote.create(
+                    new OverseasIndexQuoteId(INDEX_MARKET, snapshotTime),
+                    value,
+                    previousClose,
+                    value.subtract(previousClose)
+                            .multiply(PERCENT)
+                            .divide(previousClose, PRICE_SCALE, RoundingMode.HALF_UP)));
+        } catch (RuntimeException failure) {
+            log.warn("[미국지수] 지수 저장 실패: {} {}", snapshotTime, failure.getMessage());
+        }
     }
 
     // 20개씩 묶어 받는다. 야후가 호출을 제한하면(429) 나머지 묶음은 부르지 않는다.
