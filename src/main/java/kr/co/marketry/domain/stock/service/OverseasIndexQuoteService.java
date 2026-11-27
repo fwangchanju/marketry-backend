@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class OverseasIndexQuoteService {
-    private static final Set<String> INDEX_MARKETS = Set.of("NIKKEI225");
+    private static final Set<String> INDEX_MARKETS = Set.of("NIKKEI225", "SP500");
 
     private final OverseasIndexQuoteRepository repository;
 

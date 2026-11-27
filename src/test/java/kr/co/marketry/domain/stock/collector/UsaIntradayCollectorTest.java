@@ -24,8 +24,10 @@ import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.ExtendedQuote;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.PricePoint;
 import kr.co.marketry.domain.stock.client.YahooFinanceQuoteClient.SessionTimes;
+import kr.co.marketry.domain.stock.entity.OverseasIndexQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuote;
 import kr.co.marketry.domain.stock.entity.OverseasStockQuoteId;
+import kr.co.marketry.domain.stock.repository.OverseasIndexQuoteRepository;
 import kr.co.marketry.domain.stock.repository.OverseasStockQuoteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,11 +48,13 @@ class UsaIntradayCollectorTest {
 
     private YahooFinanceQuoteClient client;
     private OverseasStockQuoteRepository repository;
+    private OverseasIndexQuoteRepository indexQuotes;
 
     @BeforeEach
     void setUp() {
         client = mock(YahooFinanceQuoteClient.class);
         repository = mock(OverseasStockQuoteRepository.class);
+        indexQuotes = mock(OverseasIndexQuoteRepository.class);
     }
 
     @Test
@@ -235,6 +239,33 @@ class UsaIntradayCollectorTest {
         assertThat(captor.getAllValues()).extracting(List::size).containsExactly(20, 20, 5);
     }
 
+    @Test
+    void 종목을_저장하면_같은_시각의_SP500_지수_값도_저장한다() {
+        givenLast(LAST_CLOSE, row("AAPL", "100.00", "1000000"));
+        givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
+        when(client.fetchQuote("^GSPC"))
+                .thenReturn(new YahooFinanceQuoteClient.Quote(
+                        new BigDecimal("5100.00"), new BigDecimal("5000.00"), IN_PRE_MARKET));
+
+        collector(IN_PRE_MARKET, "AAPL").collect();
+
+        ArgumentCaptor<OverseasIndexQuote> captor = ArgumentCaptor.forClass(OverseasIndexQuote.class);
+        verify(indexQuotes).save(captor.capture());
+        assertThat(captor.getValue().getId().getMarket()).isEqualTo("SP500");
+        assertThat(captor.getValue().getId().getSnapshotTime()).isEqualTo(LocalDateTime.of(2026, 11, 12, 8, 10));
+        assertThat(captor.getValue().getChangeRate()).isEqualByComparingTo("2.00");
+    }
+
+    @Test
+    void 지수를_받지_못해도_종목_저장은_성공한다() {
+        givenLast(LAST_CLOSE, row("AAPL", "100.00", "1000000"));
+        givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
+        when(client.fetchQuote("^GSPC")).thenThrow(new IllegalStateException("실패"));
+
+        assertThat(collector(IN_PRE_MARKET, "AAPL").collect().saved()).isTrue();
+        verify(indexQuotes, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
     private UsaIntradayCollector collector(Instant now, String... symbols) {
         StringBuilder csv = new StringBuilder("symbol,name,date_added\n");
         for (String symbol : symbols) {
@@ -243,7 +274,7 @@ class UsaIntradayCollectorTest {
         UsaConstituents constituents =
                 new UsaConstituents(new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)));
         return new UsaIntradayCollector(
-                client, repository, constituents, duration -> {}, Clock.fixed(now, ZoneOffset.UTC));
+                client, repository, indexQuotes, constituents, duration -> {}, Clock.fixed(now, ZoneOffset.UTC));
     }
 
     private void givenLast(LocalDateTime time, OverseasStockQuote... rows) {

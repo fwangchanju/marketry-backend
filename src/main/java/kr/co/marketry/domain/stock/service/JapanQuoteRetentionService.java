@@ -25,6 +25,7 @@ public class JapanQuoteRetentionService {
     static final String USA_MARKET = "USA";
     private static final java.time.LocalTime USA_CLOSE_TIME = java.time.LocalTime.of(16, 0);
     static final String INDEX_MARKET = "NIKKEI225";
+    static final String USA_INDEX_MARKET = "SP500";
 
     private final OverseasStockQuoteRepository repository;
     private final OverseasIndexQuoteRepository indexRepository;
@@ -55,6 +56,7 @@ public class JapanQuoteRetentionService {
                 Integer deleted = transactionTemplate.execute(status -> repository.deleteDayExcept(
                         USA_MARKET, date.atStartOfDay(), date.plusDays(1).atStartOfDay(), close));
                 log.info("[해외시세정리] 삭제완료 | context : {}|{}|{}", USA_MARKET, date, deleted);
+                cleanupUsaIndexQuotes(date, close);
             }
         }
     }
@@ -80,6 +82,26 @@ public class JapanQuoteRetentionService {
             }
         }
         return targets;
+    }
+
+    // 미국 지수 장중 값도 종목처럼 16:00 줄만 남긴다. 일봉 종가는 별도 표(market_index_daily)라 영향이 없다.
+    private void cleanupUsaIndexQuotes(LocalDate date, LocalDateTime close) {
+        try {
+            List<OverseasIndexQuote> older = indexRepository
+                    .findByIdMarketAndIdSnapshotTimeGreaterThanEqualAndIdSnapshotTimeLessThanOrderByIdSnapshotTimeAsc(
+                            USA_INDEX_MARKET,
+                            date.atStartOfDay(),
+                            date.plusDays(1).atStartOfDay())
+                    .stream()
+                    .filter(quote -> close.equals(quote.getId().getSnapshotTime()) == false)
+                    .toList();
+            if (older.isEmpty() == false) {
+                transactionTemplate.executeWithoutResult(status -> indexRepository.deleteAll(older));
+                log.info("[미국지수정리] 삭제완료 | context : {}|{}", date, older.size());
+            }
+        } catch (RuntimeException failure) {
+            log.warn("[미국지수정리] 실패: {} {}", date, failure.getMessage());
+        }
     }
 
     // 종목과 같은 날짜의 지수 값도 마지막 값만 남긴다. 지수 정리가 실패해도 종목 정리는 이미 끝났다.

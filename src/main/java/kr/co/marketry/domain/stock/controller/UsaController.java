@@ -12,6 +12,8 @@ import kr.co.marketry.domain.custom.service.PublishedClassificationService.Class
 import kr.co.marketry.domain.stock.collector.UsaConstituents;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService;
 import kr.co.marketry.domain.stock.service.OverseasIndexCloseService.IndexClose;
+import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService;
+import kr.co.marketry.domain.stock.service.OverseasIndexQuoteService.IndexQuote;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService;
 import kr.co.marketry.domain.stock.service.OverseasStockQuoteService.QuoteSnapshot;
 import kr.co.marketry.domain.stock.service.UsaStockKoreanNameService;
@@ -35,6 +37,7 @@ public class UsaController {
     private final PublishedClassificationService publishedClassifications;
     private final UsaConstituents constituents;
     private final OverseasIndexCloseService indexCloseService;
+    private final OverseasIndexQuoteService indexQuoteService;
     private final UsaStockKoreanNameService nameService;
 
     @GetMapping("/quotes")
@@ -63,6 +66,13 @@ public class UsaController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return indexCloseService.findCloses(INDEX_MARKET, from, to);
+    }
+
+    @GetMapping("/index-quotes")
+    public List<IndexQuote> findIndexQuotes(
+            @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return indexQuoteService.findQuotes(INDEX_MARKET, date);
     }
 
     @GetMapping("/classifications")
