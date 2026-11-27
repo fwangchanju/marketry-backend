@@ -77,6 +77,32 @@ class UsaQuoteCollectorTest {
     }
 
     @Test
+    void 그날_프리마켓_시세가_먼저_쌓여_있어도_종가를_저장하고_시가총액은_전_거래일_종가에서_잇는다() {
+        // 가장 최근 시세는 그날 09:25 프리마켓(가격 105, 시가총액 1,050,000). 종가 기준은 전 거래일 16:00(가격 100, 시가총액 1,000,000)이다.
+        LocalDateTime preMarket = LocalDateTime.of(2026, 11, 12, 9, 25);
+        givenLast(preMarket, lastRow("AAPL", "105.00", "1050000"));
+        when(repository.findSnapshotTimes("USA"))
+                .thenReturn(List.of(LAST_TIME, LocalDateTime.of(2026, 11, 12, 9, 20), preMarket));
+        when(repository.findAllByIdMarketAndIdSnapshotTime("USA", LAST_TIME))
+                .thenReturn(List.of(OverseasStockQuote.create(
+                        new OverseasStockQuoteId("USA", "AAPL", LAST_TIME),
+                        new BigDecimal("100.00"),
+                        new BigDecimal("95.00"),
+                        new BigDecimal("5.26"),
+                        new BigDecimal("1000000"))));
+        givenBars("AAPL", bar("2026-11-11", "100"), bar("2026-11-12", "110"));
+
+        UsaQuoteCollector.Result result = collector(AFTER_DELAY, "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        assertThat(result.snapshotTime()).isEqualTo(LocalDateTime.of(2026, 11, 12, 16, 0));
+        OverseasStockQuote saved = savedRows().getFirst();
+        assertThat(saved.getCurrentPrice()).isEqualByComparingTo("110.00");
+        assertThat(saved.getLastPrice()).isEqualByComparingTo("100.00");
+        assertThat(saved.getTotalMarketValue()).isEqualByComparingTo("1100000");
+    }
+
+    @Test
     void 마감_후_대기_시간이_지나기_전에는_저장하지_않는다() {
         givenLast(LAST_TIME, lastRow("AAPL", "100.00", "1000000"));
 

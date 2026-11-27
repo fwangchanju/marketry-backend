@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SnapshotRetentionScheduler {
 
-    // 5분 시세를 그대로 두는 최근 거래일 수. 그 앞 날짜는 종가 시점만 남긴다. 한국과 일본이 같다.
+    // 5분 시세를 그대로 두는 최근 거래일 수. 그 앞 날짜는 종가 시점만 남긴다. 한국·일본·미국이 같다.
     private static final int RETAINED_TRADING_DAYS = 5;
     private static final String KST_ZONE_ID = "Asia/Seoul";
 
@@ -41,6 +41,7 @@ public class SnapshotRetentionScheduler {
             run("섹터가격스냅샷정리 " + date, () -> sectorPriceSnapshotService.cleanupSnapshotsForDate(date));
         }
         run("일본시세정리", () -> japanQuoteRetentionService.cleanup(RETAINED_TRADING_DAYS));
+        run("미국시세정리", () -> japanQuoteRetentionService.cleanupUsa(RETAINED_TRADING_DAYS));
         log.info("스냅샷 정리 배치 종료");
     }
 

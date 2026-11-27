@@ -9,6 +9,7 @@ import java.util.List;
 import kr.co.marketry.domain.stock.dto.YahooChartResponse;
 import kr.co.marketry.domain.stock.dto.YahooDailyResponse;
 import kr.co.marketry.domain.stock.dto.YahooSessionResponse;
+import kr.co.marketry.domain.stock.dto.YahooSparkResponse;
 import org.junit.jupiter.api.Test;
 
 class YahooFinanceQuoteClientTest {
@@ -186,5 +187,39 @@ class YahooFinanceQuoteClientTest {
                 new YahooSessionResponse.Meta(
                         new YahooSessionResponse.CurrentTradingPeriod(new YahooSessionResponse.Period(regularEnd))),
                 timestamps))));
+    }
+
+    @Test
+    void 여러_종목_응답에서_전일_종가와_세션_시각과_빈칸을_뺀_5분_가격을_읽는다() {
+        YahooSparkResponse.TradingPeriods periods = new YahooSparkResponse.TradingPeriods(
+                new YahooSparkResponse.Period(1000L, 2000L),
+                new YahooSparkResponse.Period(2000L, 3000L),
+                new YahooSparkResponse.Period(3000L, 4000L));
+        YahooSparkResponse response = new YahooSparkResponse(new YahooSparkResponse.Spark(List.of(
+                new YahooSparkResponse.Result(
+                        "AAPL",
+                        List.of(new YahooSparkResponse.Response(
+                                new YahooSparkResponse.Meta(null, 100.0, periods),
+                                List.of(1000L, 1300L, 1600L),
+                                new YahooSparkResponse.Indicators(List.of(
+                                        new YahooSparkResponse.Closes(java.util.Arrays.asList(101.0, null, 102.5))))))),
+                // 전일 종가가 없는 종목은 뺀다.
+                new YahooSparkResponse.Result(
+                        "MSFT",
+                        List.of(new YahooSparkResponse.Response(
+                                new YahooSparkResponse.Meta(null, null, periods), List.of(), null))))));
+
+        List<YahooFinanceQuoteClient.ExtendedQuote> quotes = YahooFinanceQuoteClient.toExtendedQuotes(response);
+
+        assertThat(quotes).hasSize(1);
+        YahooFinanceQuoteClient.ExtendedQuote aapl = quotes.getFirst();
+        assertThat(aapl.symbol()).isEqualTo("AAPL");
+        assertThat(aapl.previousClose()).isEqualByComparingTo("100");
+        assertThat(aapl.sessions().preStart()).isEqualTo(Instant.ofEpochSecond(1000));
+        assertThat(aapl.sessions().regularStart()).isEqualTo(Instant.ofEpochSecond(2000));
+        assertThat(aapl.prices())
+                .extracting(YahooFinanceQuoteClient.PricePoint::time)
+                .containsExactly(Instant.ofEpochSecond(1000), Instant.ofEpochSecond(1600));
+        assertThat(aapl.prices().getLast().price()).isEqualByComparingTo("102.5");
     }
 }
