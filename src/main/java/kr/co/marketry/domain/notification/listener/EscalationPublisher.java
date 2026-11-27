@@ -79,7 +79,9 @@ public class EscalationPublisher {
         failureBySource.put(errorKey, new FailureState(occurrence, failures));
 
         String summary = e.getMessage().replace("에 실패했습니다.", " 실패.");
-        String notification = "[" + e.getErrorCode().name() + "]\n⚠️ " + summary + " " + occurrence + "회차.";
+        // 첫 줄은 사람이 읽는 문장 + (n회차), 한 줄 띄우고 오류 코드·원인·상세 순으로 적는다.
+        String notification = "⚠️ " + summary + " (" + occurrence + "회차)\n\n["
+                + e.getErrorCode().name() + "]";
         if (marketMapImageFailure) {
             notification = "⚠️ " + source + " " + summary.replaceAll("\\.$", "") + " (" + occurrence + "회차)";
             if (e.getCause() != null) {
@@ -90,7 +92,8 @@ public class EscalationPublisher {
                 }
             }
         } else if (e.getCauseMessage().isBlank() == false) {
-            notification += "\n" + e.getCauseMessage();
+            // getCauseMessage()가 줄바꿈으로 시작하므로 그대로 붙인다.
+            notification += e.getCauseMessage();
         }
 
         String channelMessage = null;
