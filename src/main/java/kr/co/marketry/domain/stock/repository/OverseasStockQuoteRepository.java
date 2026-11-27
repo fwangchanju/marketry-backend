@@ -47,4 +47,8 @@ public interface OverseasStockQuoteRepository
     List<OverseasStockQuote> findAllByIdMarketAndIdSnapshotTime(String market, LocalDateTime snapshotTime);
 
     Optional<OverseasStockQuote> findFirstByIdMarketOrderByIdSnapshotTimeDesc(String market);
+
+    /** 그 시각 이전(그 시각 포함)에 저장된 가장 최근 시세 한 줄. 같은 시각이 이미 있으면 그 줄이 나온다. */
+    Optional<OverseasStockQuote> findFirstByIdMarketAndIdSnapshotTimeLessThanEqualOrderByIdSnapshotTimeDesc(
+            String market, LocalDateTime snapshotTime);
 }

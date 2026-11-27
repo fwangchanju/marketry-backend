@@ -101,8 +101,10 @@ public class UsaIntradayCollector {
         if (CLOSE_TIME.equals(snapshotTime.toLocalTime())) {
             return Result.skipped("16:00 줄은 종가 수집이 저장합니다");
         }
+        // 가장 최근 줄이 아니라 이 시각 이전의 가장 최근 줄을 기준으로 삼는다. 조기 마감일(13:00 마감)에는 종가 수집이 16:00 줄을 먼저 저장해서,
+        // 최근 줄 기준이면 그 뒤 15:05~15:55 칸이 모두 "16:00보다 앞"이라 저장되지 않고 비었다(2026-11-27).
         LocalDateTime lastSnapshotTime = repository
-                .findFirstByIdMarketOrderByIdSnapshotTimeDesc(MARKET)
+                .findFirstByIdMarketAndIdSnapshotTimeLessThanEqualOrderByIdSnapshotTimeDesc(MARKET, snapshotTime)
                 .map(quote -> quote.getId().getSnapshotTime())
                 .orElse(null);
         if (lastSnapshotTime == null) {

@@ -1,7 +1,9 @@
 package kr.co.marketry.domain.stock.collector;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -133,6 +135,37 @@ class UsaIntradayCollectorTest {
     }
 
     @Test
+    void 조기_마감일에_종가_줄이_먼저_저장돼도_그보다_앞선_칸은_저장한다() {
+        // 11/27처럼 13:00에 마감하는 날은 종가 수집이 한국 05:03(뉴욕 15:03)에 16:00 줄을 먼저 저장한다. 15:00 칸까지 저장된 상태에서 15:05 칸을 받는다.
+        OverseasStockQuote close = OverseasStockQuote.create(
+                new OverseasStockQuoteId("USA", "AAPL", LocalDateTime.of(2026, 11, 12, 16, 0)),
+                new BigDecimal("110.00"),
+                new BigDecimal("100.00"),
+                new BigDecimal("10.00"),
+                new BigDecimal("1100000"));
+        OverseasStockQuote fifteenHundred = OverseasStockQuote.create(
+                new OverseasStockQuoteId("USA", "AAPL", LocalDateTime.of(2026, 11, 12, 15, 0)),
+                new BigDecimal("109.00"),
+                new BigDecimal("100.00"),
+                new BigDecimal("9.00"),
+                new BigDecimal("1090000"));
+        when(repository.findFirstByIdMarketAndIdSnapshotTimeLessThanEqualOrderByIdSnapshotTimeDesc(
+                        "USA", LocalDateTime.of(2026, 11, 12, 15, 5)))
+                .thenReturn(Optional.of(fifteenHundred));
+        when(repository.findFirstByIdMarketOrderByIdSnapshotTimeDesc("USA")).thenReturn(Optional.of(close));
+        when(repository.findAllByIdMarketAndIdSnapshotTime("USA", LocalDateTime.of(2026, 11, 12, 15, 0)))
+                .thenReturn(List.of(fifteenHundred));
+        givenQuotes(quote("AAPL", "100", point("2026-11-12T20:05:00Z", "111")));
+
+        UsaIntradayCollector.Result result =
+                collector(Instant.parse("2026-11-12T20:08:00Z"), "AAPL").collect();
+
+        assertThat(result.saved()).isTrue();
+        assertThat(result.snapshotTime()).isEqualTo(LocalDateTime.of(2026, 11, 12, 15, 5));
+        assertThat(savedRows().getFirst().getCurrentPrice()).isEqualByComparingTo("111.00");
+    }
+
+    @Test
     void 이미_저장한_시각보다_새_시세가_아니면_저장하지_않는다() {
         givenLast(LocalDateTime.of(2026, 11, 12, 8, 10), row("AAPL", "105.00", "1050000"));
         givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
@@ -223,7 +256,10 @@ class UsaIntradayCollectorTest {
                     row.getChangeRate(),
                     row.getTotalMarketValue()));
         }
-        when(repository.findFirstByIdMarketOrderByIdSnapshotTimeDesc("USA")).thenReturn(Optional.of(all.getFirst()));
+        when(repository.findFirstByIdMarketAndIdSnapshotTimeLessThanEqualOrderByIdSnapshotTimeDesc(eq("USA"), any()))
+                .thenAnswer(call -> ((LocalDateTime) call.getArgument(1)).isBefore(time)
+                        ? Optional.empty()
+                        : Optional.of(all.getFirst()));
         when(repository.findAllByIdMarketAndIdSnapshotTime("USA", time)).thenReturn(all);
     }
 
