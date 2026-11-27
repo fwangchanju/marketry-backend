@@ -97,6 +97,12 @@ public class AdminDashboardMetricRepository {
                 FROM admin_client_metrics_daily WHERE metric_type = 'MAP_MOBILE_CAPTURE' AND metric_date >= ? AND metric_date <= ?
                 """, (rs, rowNum) -> new Long[] {rs.getLong(1), rs.getLong(2)}, today.minusDays(days - 1L), today);
         long mobileCaptures = captureTotals[0];
+        Long[] pcTotals = jdbcTemplate.queryForObject(
+                """
+                SELECT COALESCE(SUM(event_count), 0), COALESCE(SUM(total_duration_ms), 0)
+                FROM admin_client_metrics_daily WHERE metric_type = 'PC_CAPTURE' AND metric_date >= ? AND metric_date <= ?
+                """, (rs, rowNum) -> new Long[] {rs.getLong(1), rs.getLong(2)}, today.minusDays(days - 1L), today);
+        long pcCaptures = pcTotals[0];
         return new AdminDashboardMetricResponse(
                 classificationEligible,
                 classified,
@@ -104,7 +110,9 @@ public class AdminDashboardMetricRepository {
                 returning,
                 pages,
                 mobileCaptures,
-                mobileCaptures == 0 ? 0 : captureTotals[1] / mobileCaptures);
+                mobileCaptures == 0 ? 0 : captureTotals[1] / mobileCaptures,
+                pcCaptures,
+                pcCaptures == 0 ? 0 : pcTotals[1] / pcCaptures);
     }
 
     public void purgeBefore(LocalDate before) {
