@@ -10,7 +10,11 @@ public record YahooDailyResponse(Chart chart) {
     public record Chart(List<Result> result) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Result(List<Long> timestamp, Indicators indicators) {}
+    public record Result(List<Long> timestamp, Indicators indicators, Meta meta) {}
+
+    /** exchangeTimezoneName은 그 거래소의 시간대(예: America/New_York)다. 일봉 날짜를 거래소 달력으로 읽는 데 쓴다. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Meta(String exchangeTimezoneName) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Indicators(List<Quote> quote) {}

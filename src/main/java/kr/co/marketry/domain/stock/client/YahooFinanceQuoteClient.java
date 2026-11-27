@@ -5,6 +5,7 @@ import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -295,6 +296,7 @@ public class YahooFinanceQuoteClient {
             throw new IllegalStateException("야후 응답에 일봉이 없습니다: " + symbol);
         }
         YahooDailyResponse.Quote quote = result.indicators().quote().getFirst();
+        ZoneId zone = exchangeZoneOf(result.meta());
         List<DailyBar> bars = new ArrayList<>();
         for (int index = 0; index < result.timestamp().size(); index++) {
             Double close = quote.close().get(index);
@@ -309,7 +311,7 @@ public class YahooFinanceQuoteClient {
             Long volume = quote.volume() == null ? null : quote.volume().get(index);
             bars.add(new DailyBar(
                     Instant.ofEpochSecond(result.timestamp().get(index))
-                            .atZone(Zone.KST.zoneId())
+                            .atZone(zone)
                             .toLocalDate(),
                     BigDecimal.valueOf(open),
                     BigDecimal.valueOf(high),
@@ -318,6 +320,23 @@ public class YahooFinanceQuoteClient {
                     volume == null ? 0 : volume));
         }
         return bars;
+    }
+
+    /**
+     * 일봉 날짜를 읽는 시간대. 응답의 거래소 시간대를 쓰고, 없으면 한국 시간이다.
+     * 야후는 보통 일봉을 장 시작 시각(미국 14:30Z, 한국 날짜와 같음)으로 찍지만, 조기 마감일처럼 마지막 체결·마감 시각(18:00Z)으로
+     * 찍을 때가 있다. 그 시각은 한국 달력으로 다음 날이라 그날 봉을 못 찾아 종가와 지수가 저장되지 않았다(2026-11-27).
+     * 거래소 달력으로 읽으면 두 경우 모두 같은 거래일이다(도쿄는 거래소와 한국 시간이 같다).
+     */
+    static ZoneId exchangeZoneOf(YahooDailyResponse.Meta meta) {
+        if (meta == null || meta.exchangeTimezoneName() == null) {
+            return Zone.KST.zoneId();
+        }
+        try {
+            return ZoneId.of(meta.exchangeTimezoneName());
+        } catch (java.time.DateTimeException invalid) {
+            return Zone.KST.zoneId();
+        }
     }
 
     /** 야후의 가장 최근 시가총액과 그 날짜. 차트 주소에 없어 재무 시계열 주소에서 받는다. */
