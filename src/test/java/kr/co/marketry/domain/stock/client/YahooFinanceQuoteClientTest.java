@@ -222,4 +222,42 @@ class YahooFinanceQuoteClientTest {
                 .containsExactly(Instant.ofEpochSecond(1000), Instant.ofEpochSecond(1600));
         assertThat(aapl.prices().getLast().price()).isEqualByComparingTo("102.5");
     }
+
+    @Test
+    void 도쿄_묶음_응답은_마지막_5분_가격을_현재가로_칸_끝을_체결_시각으로_쓴다() {
+        Instant slotStart = Instant.parse("2026-11-27T06:25:00Z"); // 15:25 KST 칸, 장 마감 칸
+        YahooFinanceQuoteClient.ExtendedQuote extended = extended(
+                new YahooFinanceQuoteClient.PricePoint(slotStart.minusSeconds(300), new java.math.BigDecimal("3390")),
+                new YahooFinanceQuoteClient.PricePoint(slotStart, new java.math.BigDecimal("3397")));
+
+        YahooFinanceQuoteClient.Quote closed =
+                YahooFinanceQuoteClient.toTokyoQuote(extended, Instant.parse("2026-11-27T06:58:00Z"));
+        YahooFinanceQuoteClient.Quote running =
+                YahooFinanceQuoteClient.toTokyoQuote(extended, Instant.parse("2026-11-27T06:27:10Z"));
+
+        assertThat(closed.currentPrice()).isEqualByComparingTo("3397");
+        assertThat(closed.previousClose()).isEqualByComparingTo("3312");
+        // 마감 칸은 끝(15:30)이 체결 시각이라 15:30 종가 시세로 저장된다.
+        assertThat(closed.marketTime()).isEqualTo(Instant.parse("2026-11-27T06:30:00Z"));
+        // 아직 진행 중인 칸은 지금 시각이다.
+        assertThat(running.marketTime()).isEqualTo(Instant.parse("2026-11-27T06:27:10Z"));
+        assertThat(closed.today()).isNull();
+    }
+
+    @Test
+    void 도쿄_묶음_응답에_가격이_없으면_그_종목은_없는_것으로_본다() {
+        assertThat(YahooFinanceQuoteClient.toTokyoQuote(extended(), Instant.parse("2026-11-27T06:58:00Z")))
+                .isNull();
+    }
+
+    private static YahooFinanceQuoteClient.ExtendedQuote extended(YahooFinanceQuoteClient.PricePoint... points) {
+        return new YahooFinanceQuoteClient.ExtendedQuote(
+                "7203.T",
+                new java.math.BigDecimal("3312"),
+                new YahooFinanceQuoteClient.SessionTimes(
+                        Instant.parse("2026-11-27T00:00:00Z"),
+                        Instant.parse("2026-11-27T00:00:00Z"),
+                        Instant.parse("2026-11-27T06:30:00Z")),
+                List.of(points));
+    }
 }

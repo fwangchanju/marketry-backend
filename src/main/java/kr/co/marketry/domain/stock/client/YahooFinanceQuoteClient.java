@@ -2,9 +2,11 @@ package kr.co.marketry.domain.stock.client;
 
 import java.math.BigDecimal;
 import java.time.DateTimeException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import kr.co.marketry.common.enums.Zone;
@@ -41,11 +43,13 @@ public class YahooFinanceQuoteClient {
     private static final String SPARK_URL = "https://query1.finance.yahoo.com/v7/finance/spark"
             + "?symbols={symbols}&range=1d&interval=5m&includePrePost=true";
     public static final int SPARK_MAX_SYMBOLS = 20;
+    private static final long SPARK_SLOT_MINUTES = 5;
     private static final String TOKYO_SUFFIX = ".T";
     private static final String USER_AGENT = "Mozilla/5.0";
 
     private final RestClient restClient;
 
+    // TODO 묶음 방식(fetchTokyoQuotes)이 운영에서 안정되면 삭제한다.
     public Quote fetchTokyoQuote(String stockCode) {
         YahooChartResponse response = restClient
                 .get()
@@ -54,6 +58,37 @@ public class YahooFinanceQuoteClient {
                 .retrieve()
                 .body(YahooChartResponse.class);
         return toQuote(stockCode, response);
+    }
+
+    /**
+     * 도쿄 거래소 종목 여러 개(최대 {@link #SPARK_MAX_SYMBOLS}개)의 시세를 한 번에 받는다(2026-11-27). 응답에 없거나 값이 비정상인 종목은 결과에서 빠진다.
+     * 오늘 일봉(시가·고가·저가·거래량)은 이 요청에 없어 비어 있다. 저녁 종가 확인이 일봉 표를 채운다.
+     */
+    public Map<String, Quote> fetchTokyoQuotes(List<String> stockCodes) {
+        List<String> symbols =
+                stockCodes.stream().map(code -> code + TOKYO_SUFFIX).toList();
+        Instant now = Instant.now();
+        Map<String, Quote> quotes = new HashMap<>();
+        for (ExtendedQuote extended : fetchExtendedQuotes(symbols)) {
+            Quote quote = toTokyoQuote(extended, now);
+            if (quote != null) {
+                quotes.put(extended.symbol().substring(0, extended.symbol().length() - TOKYO_SUFFIX.length()), quote);
+            }
+        }
+        return quotes;
+    }
+
+    /**
+     * 5분 가격의 마지막 값을 현재가로, 그 5분 칸의 끝(아직 진행 중이면 지금)을 체결 시각으로 쓴다. 칸 끝을 쓰는 것은 마감 직전 15:25 칸이 15:30
+     * 종가 시세로 저장되게 하려는 것이다. 가격이 하나도 없으면 null이다. 개장 전에는 어제 칸이 와서 체결 시각이 어제 날짜가 되므로 오늘 시세로 세지 않는다.
+     */
+    static Quote toTokyoQuote(ExtendedQuote extended, Instant now) {
+        if (extended.prices().isEmpty()) {
+            return null;
+        }
+        PricePoint last = extended.prices().getLast();
+        Instant slotEnd = last.time().plus(Duration.ofMinutes(SPARK_SLOT_MINUTES));
+        return new Quote(last.price(), extended.previousClose(), slotEnd.isAfter(now) ? now : slotEnd);
     }
 
     /** 접미사 없는 심볼(미국 종목)의 시세. 종목 코드 그대로 야후에 요청한다. */
