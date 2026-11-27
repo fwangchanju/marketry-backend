@@ -171,7 +171,7 @@ public class UsaQuoteCollector {
     }
 
     /**
-     * 가장 최근 종가 시세(16:00)의 시각. 프리마켓 5분 시세(UsaPreMarketCollector)가 그날 종가보다 먼저 쌓이므로, 가장 최근 시세가 아니라
+     * 가장 최근 종가 시세(16:00)의 시각. 장중 5분 시세(UsaIntradayCollector)가 그날 종가보다 먼저 쌓이므로, 가장 최근 시세가 아니라
      * 종가 시세를 기준으로 삼아야 그날을 이미 저장한 것으로 잘못 보지 않고 시가총액도 전 거래일 종가에서 이어진다(2026-11-27).
      */
     private LocalDateTime lastCloseSnapshotTime() {

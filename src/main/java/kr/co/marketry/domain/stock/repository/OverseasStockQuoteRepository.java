@@ -25,6 +25,22 @@ public interface OverseasStockQuoteRepository
             @Param("dayEnd") LocalDateTime dayEnd,
             @Param("keep") LocalDateTime keep);
 
+    /**
+     * 같은 날의 지정한 시각 줄만 남기고 나머지를 지운다. 미국은 하루의 마지막 줄이 애프터마켓 시세라서 16:00 종가 줄을 지정해 남긴다.
+     * 파생 삭제 메서드는 행마다 지워 하루 수만 줄에는 느려서 직접 쿼리를 쓴다(deleteDayExceptLast와 같은 이유).
+     */
+    @Modifying
+    @Query(value = """
+                    DELETE FROM overseas_stock_quote
+                    WHERE market = :market AND snapshot_time >= :dayStart AND snapshot_time < :dayEnd
+                      AND snapshot_time <> :keep
+                    """, nativeQuery = true)
+    int deleteDayExcept(
+            @Param("market") String market,
+            @Param("dayStart") LocalDateTime dayStart,
+            @Param("dayEnd") LocalDateTime dayEnd,
+            @Param("keep") LocalDateTime keep);
+
     List<OverseasStockQuote> findAllByIdMarketAndIdStockCodeAndIdSnapshotTimeAfter(
             String market, String stockCode, LocalDateTime snapshotTime);
 

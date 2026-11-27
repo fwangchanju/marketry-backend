@@ -257,6 +257,7 @@ class YahooFinanceQuoteClientTest {
                 new YahooFinanceQuoteClient.SessionTimes(
                         Instant.parse("2026-11-27T00:00:00Z"),
                         Instant.parse("2026-11-27T00:00:00Z"),
+                        Instant.parse("2026-11-27T06:30:00Z"),
                         Instant.parse("2026-11-27T06:30:00Z")),
                 List.of(points));
     }

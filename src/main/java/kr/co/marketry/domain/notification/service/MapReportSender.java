@@ -241,7 +241,9 @@ public class MapReportSender {
         CaptureResult captured;
         try {
             captured = screenshotClient.captureWithRows(
-                    RenderTarget.USA_MAP_MOBILE.path(), RenderTarget.USA_MAP_MOBILE.selector(), MAP_ROW_SELECTOR);
+                    RenderTarget.USA_MAP_MOBILE.path(Optional.of(RenderBasis.CLOSE)),
+                    RenderTarget.USA_MAP_MOBILE.selector(),
+                    MAP_ROW_SELECTOR);
         } catch (Exception e) {
             escalationPublisher.report(
                     USA_MAP_ERROR_SOURCE, EscalateException.wrap(ErrorCode.SCREENSHOT_CAPTURE_FAILED, e));
