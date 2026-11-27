@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class JapanQuoteRetentionService {
     static final String MARKET = "JAPAN";
     static final String USA_MARKET = "USA";
+    private static final java.time.LocalTime USA_CLOSE_TIME = java.time.LocalTime.of(16, 0);
     static final String INDEX_MARKET = "NIKKEI225";
 
     private final OverseasStockQuoteRepository repository;
@@ -36,12 +37,26 @@ public class JapanQuoteRetentionService {
     }
 
     /**
-     * 미국 프리마켓 5분 시세도 같은 규칙으로 정리한다(2026-11-27). 미국은 하루의 마지막 시세가 16:00 종가라 종가만 남는다. 미국 지수는 일봉 표에
-     * 하루 한 줄이라 정리할 것이 없다.
+     * 미국 장중 5분 시세도 같은 규칙으로 정리하되, 마지막 줄이 아니라 16:00 종가 줄만 남긴다(마지막 줄은 애프터마켓 시세다). 16:00 줄이 없는 날은
+     * 종가가 아직 저장되지 않았을 수 있어 건드리지 않는다. 미국 지수는 일봉 표에 하루 한 줄이라 정리할 것이 없다.
      */
     // TODO 일본·미국을 함께 정리하게 됐으니 클래스 이름을 OverseasQuoteRetentionService로 바꾼다(테스트·스케줄러 이름 함께).
     public void cleanupUsa(int retainedTradingDays) {
-        cleanupStockQuotes(USA_MARKET, retainedTradingDays);
+        Map<LocalDate, List<LocalDateTime>> timesByDate = new TreeMap<>();
+        for (LocalDateTime time : repository.findSnapshotTimes(USA_MARKET)) {
+            timesByDate
+                    .computeIfAbsent(time.toLocalDate(), ignored -> new java.util.ArrayList<>())
+                    .add(time);
+        }
+        for (LocalDate date : cleanupDates(List.copyOf(timesByDate.keySet()), retainedTradingDays)) {
+            LocalDateTime close = date.atTime(USA_CLOSE_TIME);
+            List<LocalDateTime> times = timesByDate.get(date);
+            if (times.size() >= 2 && times.contains(close)) {
+                Integer deleted = transactionTemplate.execute(status -> repository.deleteDayExcept(
+                        USA_MARKET, date.atStartOfDay(), date.plusDays(1).atStartOfDay(), close));
+                log.info("[해외시세정리] 삭제완료 | context : {}|{}|{}", USA_MARKET, date, deleted);
+            }
+        }
     }
 
     // 정리 대상 날짜(최근 거래일 몇 개를 뺀 앞 날짜)마다 그날 마지막 시세만 남긴다. 정리 대상 날짜를 돌려준다.

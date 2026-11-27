@@ -121,6 +121,21 @@ class MapReportSenderTest {
     }
 
     @Test
+    void 미국_지도는_애프터마켓_시세가_쌓여_있어도_종가_기준_화면으로_캡처한다() {
+        when(screenshotClient.captureWithRows(
+                        "/map/usa?capture=mobile&basis=close", RenderTarget.USA_MAP_MOBILE.selector(), ROW_SELECTOR))
+                .thenReturn(new CaptureResult(List.of(MAP_IMAGE), ROWS));
+        when(sectorRankingTextBuilder.buildCaptionFromRenderedRows(ROWS, 2)).thenReturn("캡션");
+
+        sender.sendUsa();
+
+        verify(screenshotClient)
+                .captureWithRows(
+                        "/map/usa?capture=mobile&basis=close", RenderTarget.USA_MAP_MOBILE.selector(), ROW_SELECTOR);
+        verify(telegramClient).sendPhoto(any(), any(), any());
+    }
+
+    @Test
     void 국내_테스트_발송은_캡처가_실패하면_캡처_실패로_알린다() {
         givenTodaySnapshot();
         when(screenshotClient.captureWithRows(any(), any(), any()))

@@ -44,18 +44,22 @@ class JapanQuoteRetentionServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void 미국은_오래된_날의_프리마켓_시세를_지우고_16시_종가만_남긴다() {
+    void 미국은_오래된_날의_장중_시세를_지우고_16시_종가_줄만_남긴다() {
         var repository = mock(OverseasStockQuoteRepository.class);
         var transactions = mock(TransactionTemplate.class);
         when(transactions.execute(any(TransactionCallback.class)))
                 .thenAnswer(call -> ((TransactionCallback<Integer>) call.getArgument(0)).doInTransaction(null));
         LocalDate old = LocalDate.of(2026, 11, 2);
-        LocalDate recent = LocalDate.of(2026, 11, 3);
+        LocalDate noClose = LocalDate.of(2026, 11, 3);
+        LocalDate recent = LocalDate.of(2026, 11, 4);
+        // 마지막 줄은 애프터마켓(19:55)이라 종가 줄(16:00)을 지정해 남긴다.
         when(repository.findSnapshotTimes("USA"))
                 .thenReturn(List.of(
                         old.atTime(4, 5),
-                        old.atTime(9, 25),
                         old.atTime(16, 0),
+                        old.atTime(19, 55),
+                        noClose.atTime(4, 5),
+                        noClose.atTime(9, 25),
                         recent.atTime(4, 5),
                         recent.atTime(16, 0)));
 
@@ -63,10 +67,13 @@ class JapanQuoteRetentionServiceTest {
                 .cleanupUsa(1);
 
         verify(repository)
-                .deleteDayExceptLast(
+                .deleteDayExcept(
                         eq("USA"), eq(old.atStartOfDay()), eq(old.plusDays(1).atStartOfDay()), eq(old.atTime(16, 0)));
+        // 종가 줄이 없는 날은 건드리지 않고, 최근 날도 건드리지 않는다.
         verify(repository, never())
-                .deleteDayExceptLast(eq("USA"), eq(recent.atStartOfDay()), any(LocalDateTime.class), any());
+                .deleteDayExcept(eq("USA"), eq(noClose.atStartOfDay()), any(LocalDateTime.class), any());
+        verify(repository, never())
+                .deleteDayExcept(eq("USA"), eq(recent.atStartOfDay()), any(LocalDateTime.class), any());
     }
 
     @Test

@@ -253,13 +253,16 @@ public class YahooFinanceQuoteClient {
                 || periods.regular() == null
                 || periods.pre().start() == null
                 || periods.regular().start() == null
-                || periods.regular().end() == null) {
+                || periods.regular().end() == null
+                || periods.post() == null
+                || periods.post().end() == null) {
             return null;
         }
         return new SessionTimes(
                 Instant.ofEpochSecond(periods.pre().start()),
                 Instant.ofEpochSecond(periods.regular().start()),
-                Instant.ofEpochSecond(periods.regular().end()));
+                Instant.ofEpochSecond(periods.regular().end()),
+                Instant.ofEpochSecond(periods.post().end()));
     }
 
     /** 그 기간의 일봉. 값이 빈 날은 뺀다. 가격은 야후가 분할을 반영해 준 값이다. */
@@ -393,8 +396,8 @@ public class YahooFinanceQuoteClient {
     public record ExtendedQuote(
             String symbol, BigDecimal previousClose, SessionTimes sessions, List<PricePoint> prices) {}
 
-    /** 그날 프리마켓 시작, 정규장 시작·종료 시각. */
-    public record SessionTimes(Instant preStart, Instant regularStart, Instant regularEnd) {}
+    /** 그날 프리마켓 시작, 정규장 시작·종료, 애프터마켓 종료 시각. */
+    public record SessionTimes(Instant preStart, Instant regularStart, Instant regularEnd, Instant postEnd) {}
 
     /** 5분 칸의 시작 시각과 그 칸의 마지막 가격. */
     public record PricePoint(Instant time, BigDecimal price) {}

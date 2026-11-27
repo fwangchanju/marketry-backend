@@ -31,12 +31,14 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.client.HttpClientErrorException;
 
-class UsaPreMarketCollectorTest {
-    // 2026-11-12(EST, UTC-5): 프리마켓 04:00 = 09:00Z, 정규장 09:30 = 14:30Z, 정규장 종료 16:00 = 21:00Z
+class UsaIntradayCollectorTest {
+    // 2026-11-12(EST, UTC-5): 프리마켓 04:00 = 09:00Z, 정규장 09:30 = 14:30Z, 정규장 종료 16:00 = 21:00Z, 애프터마켓 종료 20:00 =
+    // 01:00Z(다음 날)
     private static final SessionTimes SESSIONS = new SessionTimes(
             Instant.parse("2026-11-12T09:00:00Z"),
             Instant.parse("2026-11-12T14:30:00Z"),
-            Instant.parse("2026-11-12T21:00:00Z"));
+            Instant.parse("2026-11-12T21:00:00Z"),
+            Instant.parse("2026-11-13T01:00:00Z"));
     private static final LocalDateTime LAST_CLOSE = LocalDateTime.of(2026, 11, 11, 16, 0);
     private static final Instant IN_PRE_MARKET = Instant.parse("2026-11-12T13:12:00Z");
 
@@ -55,7 +57,7 @@ class UsaPreMarketCollectorTest {
         // 08:05 EST 칸(13:05Z) 가격 103.4, 08:10 칸(13:10Z) 105
         givenQuotes(quote("AAPL", "100", point("2026-11-12T13:05:00Z", "103.4"), point("2026-11-12T13:10:00Z", "105")));
 
-        UsaPreMarketCollector.Result result = collector(IN_PRE_MARKET, "AAPL").collect();
+        UsaIntradayCollector.Result result = collector(IN_PRE_MARKET, "AAPL").collect();
 
         assertThat(result.saved()).isTrue();
         assertThat(result.snapshotTime()).isEqualTo(LocalDateTime.of(2026, 11, 12, 8, 10));
@@ -87,17 +89,46 @@ class UsaPreMarketCollectorTest {
     }
 
     @Test
-    void 프리마켓_시작_전이나_정규장_시작_뒤에는_저장하지_않는다() {
+    void 프리마켓_시작_전이나_애프터마켓_종료_뒤에는_저장하지_않는다() {
         givenLast(LAST_CLOSE, row("AAPL", "100.00", "1000000"));
         givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
 
-        UsaPreMarketCollector.Result before =
+        UsaIntradayCollector.Result before =
                 collector(Instant.parse("2026-11-12T08:59:00Z"), "AAPL").collect();
-        UsaPreMarketCollector.Result after =
-                collector(Instant.parse("2026-11-12T14:30:00Z"), "AAPL").collect();
+        UsaIntradayCollector.Result after =
+                collector(Instant.parse("2026-11-13T01:01:00Z"), "AAPL").collect();
 
         assertThat(before.saved()).isFalse();
         assertThat(after.saved()).isFalse();
+        verify(repository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void 정규장과_애프터마켓에도_가장_최근_5분_가격을_저장한다() {
+        givenLast(LAST_CLOSE, row("AAPL", "100.00", "1000000"));
+        // 정규장 10:30 EST 칸(15:30Z) 가격 110, 애프터마켓 16:05 칸(21:05Z) 가격 108
+        givenQuotes(quote("AAPL", "100", point("2026-11-12T15:30:00Z", "110"), point("2026-11-12T21:05:00Z", "108")));
+
+        UsaIntradayCollector.Result afterHours =
+                collector(Instant.parse("2026-11-12T21:08:00Z"), "AAPL").collect();
+
+        assertThat(afterHours.saved()).isTrue();
+        assertThat(afterHours.snapshotTime()).isEqualTo(LocalDateTime.of(2026, 11, 12, 16, 5));
+        OverseasStockQuote saved = savedRows().getFirst();
+        assertThat(saved.getCurrentPrice()).isEqualByComparingTo("108.00");
+        assertThat(saved.getChangeRate()).isEqualByComparingTo("8.00");
+    }
+
+    @Test
+    void 애프터마켓_첫_칸이_16시이면_종가_줄을_덮어쓰지_않도록_저장하지_않는다() {
+        givenLast(LocalDateTime.of(2026, 11, 12, 15, 55), row("AAPL", "110.00", "1100000"));
+        givenQuotes(quote("AAPL", "100", point("2026-11-12T20:55:00Z", "110"), point("2026-11-12T21:00:00Z", "109")));
+
+        UsaIntradayCollector.Result result =
+                collector(Instant.parse("2026-11-12T21:02:00Z"), "AAPL").collect();
+
+        assertThat(result.saved()).isFalse();
+        assertThat(result.reason()).startsWith("16:00 줄은 종가 수집이");
         verify(repository, never()).saveAll(anyList());
     }
 
@@ -106,7 +137,7 @@ class UsaPreMarketCollectorTest {
         givenLast(LocalDateTime.of(2026, 11, 12, 8, 10), row("AAPL", "105.00", "1050000"));
         givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
 
-        UsaPreMarketCollector.Result result = collector(IN_PRE_MARKET, "AAPL").collect();
+        UsaIntradayCollector.Result result = collector(IN_PRE_MARKET, "AAPL").collect();
 
         assertThat(result.saved()).isFalse();
         assertThat(result.reason()).isEqualTo("새 시세가 없습니다");
@@ -117,7 +148,7 @@ class UsaPreMarketCollectorTest {
         givenLast(LAST_CLOSE, row("AAPL", "100.00", "1000000"), row("MSFT", "200.00", "2000000"));
         givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
 
-        UsaPreMarketCollector.Result result =
+        UsaIntradayCollector.Result result =
                 collector(IN_PRE_MARKET, "AAPL", "MSFT").collect();
 
         assertThat(result.saved()).isFalse();
@@ -133,7 +164,7 @@ class UsaPreMarketCollectorTest {
         when(client.fetchExtendedQuotes(anyList()))
                 .thenThrow(HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "limit", null, null, null));
 
-        UsaPreMarketCollector.Result result =
+        UsaIntradayCollector.Result result =
                 collector(IN_PRE_MARKET, symbols.toArray(String[]::new)).collect();
 
         assertThat(result.saved()).isFalse();
@@ -157,14 +188,14 @@ class UsaPreMarketCollectorTest {
         assertThat(captor.getAllValues()).extracting(List::size).containsExactly(20, 20, 5);
     }
 
-    private UsaPreMarketCollector collector(Instant now, String... symbols) {
+    private UsaIntradayCollector collector(Instant now, String... symbols) {
         StringBuilder csv = new StringBuilder("symbol,name,date_added\n");
         for (String symbol : symbols) {
             csv.append(symbol).append(",").append(symbol).append(" Inc,2020-01-01\n");
         }
         UsaConstituents constituents =
                 new UsaConstituents(new ByteArrayInputStream(csv.toString().getBytes(StandardCharsets.UTF_8)));
-        return new UsaPreMarketCollector(
+        return new UsaIntradayCollector(
                 client, repository, constituents, duration -> {}, Clock.fixed(now, ZoneOffset.UTC));
     }
 
