@@ -46,7 +46,7 @@ class OverseasIndexQuoteServiceTest {
 
     @Test
     void 지원하지_않는_지수는_조회하지_않고_막는다() {
-        assertThatThrownBy(() -> service.findQuotes("SP500", LocalDate.of(2026, 11, 13)))
+        assertThatThrownBy(() -> service.findQuotes("KOSPI", LocalDate.of(2026, 11, 13)))
                 .isInstanceOf(BadRequestException.class);
         verifyNoInteractions(repository);
     }
