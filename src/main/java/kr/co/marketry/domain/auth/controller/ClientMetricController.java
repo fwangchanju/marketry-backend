@@ -18,8 +18,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/metrics/client-events")
 @RequiredArgsConstructor
 public class ClientMetricController {
-    private static final String[] PAGES = {"HOME", "MAP", "GRAPH", "CUSTOM"};
-    private static final Set<String> TYPES = Set.of("PAGE_LOAD", "CLIENT_ERROR", "MAP_MOBILE_CAPTURE");
+    private static final String[] PAGES = {"HOME", "MAP", "GRAPH", "CUSTOM", "CHART"};
+    private static final Set<String> TYPES = Set.of("PAGE_LOAD", "CLIENT_ERROR", "MAP_MOBILE_CAPTURE", "PC_CAPTURE");
     private final AdminDashboardMetricRepository repository;
 
     @PostMapping
@@ -29,7 +29,9 @@ public class ClientMetricController {
                 || event.type() == null
                 || !Arrays.asList(PAGES).contains(event.page())
                 || !TYPES.contains(event.type())
-                || ((event.type().equals("PAGE_LOAD") || event.type().equals("MAP_MOBILE_CAPTURE"))
+                || ((event.type().equals("PAGE_LOAD")
+                                || event.type().equals("MAP_MOBILE_CAPTURE")
+                                || event.type().equals("PC_CAPTURE"))
                         && (event.durationMs() == null || event.durationMs() < 0 || event.durationMs() > 120_000))
                 || (event.type().equals("CLIENT_ERROR") && event.durationMs() != null)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "측정 정보가 올바르지 않습니다.");

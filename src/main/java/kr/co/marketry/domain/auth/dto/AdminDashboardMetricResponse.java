@@ -7,4 +7,6 @@ public record AdminDashboardMetricResponse(
         long returningMembers,
         java.util.List<AdminPageMetricResponse> pages,
         long mobileCaptures,
-        long averageMobileCaptureMs) {}
+        long averageMobileCaptureMs,
+        long pcCaptures,
+        long averagePcCaptureMs) {}
