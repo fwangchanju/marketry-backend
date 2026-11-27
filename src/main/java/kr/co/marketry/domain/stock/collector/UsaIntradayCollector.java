@@ -80,7 +80,7 @@ public class UsaIntradayCollector {
         Fetched fetched = fetchAll(symbols);
         if (fetched.quotes().size() < symbols.size() * MIN_SUCCESS_RATIO) {
             String reason = fetched.limited() ? "야후 호출 제한" : "응답 종목 부족";
-            return Result.skipped(reason + ": " + fetched.quotes().size() + "/" + symbols.size());
+            return Result.failed(reason + ": " + fetched.quotes().size() + "/" + symbols.size());
         }
         SessionTimes sessions = fetched.quotes().values().iterator().next().sessions();
         Instant now = clock.instant();
@@ -106,7 +106,7 @@ public class UsaIntradayCollector {
                 .map(quote -> quote.getId().getSnapshotTime())
                 .orElse(null);
         if (lastSnapshotTime == null) {
-            return Result.skipped("기준이 될 미국 시세가 없습니다");
+            return Result.failed("기준이 될 미국 시세가 없습니다");
         }
         if (snapshotTime.isAfter(lastSnapshotTime) == false) {
             return Result.skipped("새 시세가 없습니다");
@@ -202,14 +202,24 @@ public class UsaIntradayCollector {
 
     private record Fetched(Map<String, ExtendedQuote> quotes, boolean limited) {}
 
-    /** 한 회차 결과. 저장하지 않았으면 reason에 이유가 있다. */
-    public record Result(boolean saved, LocalDateTime snapshotTime, int savedCount, int totalCount, String reason) {
+    /** 한 회차 결과. 저장하지 않았으면 reason에 이유가 있고, fetchFailed는 야후 응답 부족·호출 제한처럼 실패로 세는 경우다(장 시간 밖·새 시세 없음은 정상이라 아니다). */
+    public record Result(
+            boolean saved,
+            LocalDateTime snapshotTime,
+            int savedCount,
+            int totalCount,
+            String reason,
+            boolean fetchFailed) {
         static Result saved(LocalDateTime snapshotTime, int savedCount, int totalCount) {
-            return new Result(true, snapshotTime, savedCount, totalCount, null);
+            return new Result(true, snapshotTime, savedCount, totalCount, null, false);
         }
 
         static Result skipped(String reason) {
-            return new Result(false, null, 0, 0, reason);
+            return new Result(false, null, 0, 0, reason, false);
+        }
+
+        static Result failed(String reason) {
+            return new Result(false, null, 0, 0, reason, true);
         }
     }
 }

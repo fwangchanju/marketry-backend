@@ -156,6 +156,20 @@ class UsaIntradayCollectorTest {
     }
 
     @Test
+    void 장_시간_밖과_새_시세_없음은_실패로_세지_않고_응답_부족과_호출_제한은_실패로_센다() {
+        givenLast(LAST_CLOSE, row("AAPL", "100.00", "1000000"), row("MSFT", "200.00", "2000000"));
+        givenQuotes(quote("AAPL", "100", point("2026-11-12T13:10:00Z", "105")));
+
+        UsaIntradayCollector.Result tooFew =
+                collector(IN_PRE_MARKET, "AAPL", "MSFT").collect();
+        UsaIntradayCollector.Result outside =
+                collector(Instant.parse("2026-11-12T08:59:00Z"), "AAPL").collect();
+
+        assertThat(tooFew.fetchFailed()).isTrue();
+        assertThat(outside.fetchFailed()).isFalse();
+    }
+
+    @Test
     void 종목을_20개씩_묶어_부르고_야후가_호출을_제한하면_나머지_묶음은_부르지_않는다() {
         List<String> symbols = new ArrayList<>();
         for (int index = 0; index < 45; index++) {

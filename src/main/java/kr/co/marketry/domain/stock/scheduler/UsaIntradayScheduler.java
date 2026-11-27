@@ -1,5 +1,8 @@
 package kr.co.marketry.domain.stock.scheduler;
 
+import kr.co.marketry.common.exception.ErrorCode;
+import kr.co.marketry.common.exception.EscalateException;
+import kr.co.marketry.domain.notification.listener.EscalationPublisher;
 import kr.co.marketry.domain.stock.collector.UsaIntradayCollector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,12 +18,21 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 public class UsaIntradayScheduler {
+    private static final int ALERT_AFTER_FAILURES = 3;
+    private static final int REALERT_EVERY_FAILURES = 12;
+    private static final String ALERT_SOURCE = "미국";
+
     private final UsaIntradayCollector collector;
+    private final EscalationPublisher escalationPublisher;
     private final boolean collectEnabled;
+    private int consecutiveFailures;
 
     public UsaIntradayScheduler(
-            UsaIntradayCollector collector, @Value("${usa-intraday.enabled:false}") boolean collectEnabled) {
+            UsaIntradayCollector collector,
+            EscalationPublisher escalationPublisher,
+            @Value("${usa-intraday.enabled:false}") boolean collectEnabled) {
         this.collector = collector;
+        this.escalationPublisher = escalationPublisher;
         this.collectEnabled = collectEnabled;
     }
 
@@ -41,9 +53,35 @@ public class UsaIntradayScheduler {
                     result.savedCount(),
                     result.totalCount(),
                     result.reason() == null ? "" : result.reason());
+            if (result.fetchFailed()) {
+                recordFailure(result.reason());
+            } else {
+                consecutiveFailures = 0;
+            }
         } catch (RuntimeException failure) {
-            // TODO 정식 단계에서 연속 실패 알림(UsaQuoteScheduler와 같은 방식)을 붙인다. 시험 단계라 로그만 남긴다.
             log.warn("[미국장중] 수집 실패", failure);
+            recordFailure(failure.getClass().getSimpleName() + ": " + failure.getMessage());
+        }
+    }
+
+    // 연속으로 실패한 회차만 센다. 성공하거나 장 시간 밖·새 시세 없음 같은 정상 회차가 끼면 다시 센다(미국 종가 수집과 같은 규칙이고, 5분 간격이라
+    // 재알림 12회는 약 1시간이다). 알림 실패는 수집을 막지 않는다.
+    private void recordFailure(String reason) {
+        consecutiveFailures++;
+        boolean firstAlert = consecutiveFailures == ALERT_AFTER_FAILURES;
+        boolean repeatAlert = consecutiveFailures > ALERT_AFTER_FAILURES
+                && (consecutiveFailures - ALERT_AFTER_FAILURES) % REALERT_EVERY_FAILURES == 0;
+        if (firstAlert == false && repeatAlert == false) {
+            return;
+        }
+        try {
+            escalationPublisher.report(
+                    ALERT_SOURCE,
+                    new EscalateException(
+                            ErrorCode.USA_INTRADAY_COLLECT_FAILED,
+                            new IllegalStateException("연속 " + consecutiveFailures + "회 실패: " + reason)));
+        } catch (RuntimeException alertFailure) {
+            log.warn("[미국장중] 알림 발송 실패", alertFailure);
         }
     }
 }
