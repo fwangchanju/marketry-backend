@@ -37,6 +37,20 @@ class EscalationPublisherTest {
     }
 
     @Test
+    void 알림은_문장과_회차를_먼저_쓰고_한_줄_띄워_오류_코드와_원인을_적는다() {
+        var failure =
+                new EscalateException(ErrorCode.USA_INDEX_MISSING, new IllegalStateException("빈 날짜: [2026-11-27]"));
+
+        publisher.report(failure, FIRST);
+
+        var captured = ArgumentCaptor.forClass(EscalationEvent.class);
+        verify(events).publishEvent(captured.capture());
+        assertThat(captured.getValue().message())
+                .isEqualTo(
+                        "⚠️ 미국 지수 종가가 개장 전까지 저장되지 않았습니다. (1회차)\n\n[USA_INDEX_MISSING]\ncause: IllegalStateException\n빈 날짜: [2026-11-27]");
+    }
+
+    @Test
     void 오류_종류와_날짜별로_별도_집계한다() {
         var capture = new EscalateException(ErrorCode.SCREENSHOT_CAPTURE_FAILED);
         var stitch = new EscalateException(ErrorCode.IMAGE_STITCH_FAILED);
