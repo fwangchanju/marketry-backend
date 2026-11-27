@@ -149,7 +149,8 @@ class YahooFinanceQuoteClientTest {
                                 java.util.Arrays.asList(101.0, 111.0),
                                 java.util.Arrays.asList(99.0, 109.0),
                                 java.util.Arrays.asList(100.5, 110.0),
-                                java.util.Arrays.asList(10L, 20L))))))));
+                                java.util.Arrays.asList(10L, 20L)))),
+                        null))));
 
         List<YahooFinanceQuoteClient.DailyBar> bars = YahooFinanceQuoteClient.toDailyBars("AAPL", response);
 
@@ -174,12 +175,57 @@ class YahooFinanceQuoteClientTest {
                                 java.util.Arrays.asList(101.0, 111.0),
                                 java.util.Arrays.asList(99.0, 109.0),
                                 java.util.Arrays.asList(100.5, null),
-                                java.util.Arrays.asList(10L, 20L))))))));
+                                java.util.Arrays.asList(10L, 20L)))),
+                        null))));
 
         List<YahooFinanceQuoteClient.DailyBar> bars = YahooFinanceQuoteClient.toDailyBars("^N225", response);
 
         assertThat(bars).hasSize(1);
         assertThat(bars.getFirst().date()).isEqualTo(LocalDate.of(2026, 11, 11));
+    }
+
+    @Test
+    void 조기_마감일처럼_일봉이_마감_시각으로_찍혀도_거래소_달력_날짜로_읽는다() {
+        // 2026-11-27(13:00 마감): 야후가 일봉을 장 시작(14:30Z)이 아니라 마감 무렵(18:38Z)으로 찍었다. 한국 달력으로는 11/28 03:38이다.
+        long earlyClose = Instant.parse("2026-11-27T18:38:39Z").getEpochSecond();
+        YahooDailyResponse response = dailyResponse(earlyClose, "America/New_York");
+
+        List<YahooFinanceQuoteClient.DailyBar> bars = YahooFinanceQuoteClient.toDailyBars("^GSPC", response);
+
+        assertThat(bars).hasSize(1);
+        assertThat(bars.getFirst().date()).isEqualTo(LocalDate.of(2026, 11, 27));
+    }
+
+    @Test
+    void 거래소_시간대가_없거나_잘못되면_한국_달력으로_읽는다() {
+        long open = Instant.parse("2026-11-12T14:30:00Z").getEpochSecond();
+
+        assertThat(YahooFinanceQuoteClient.toDailyBars("^N225", dailyResponse(open, null))
+                        .getFirst()
+                        .date())
+                .isEqualTo(LocalDate.of(2026, 11, 12));
+        assertThat(YahooFinanceQuoteClient.toDailyBars("^N225", dailyResponse(open, "Not/AZone"))
+                        .getFirst()
+                        .date())
+                .isEqualTo(LocalDate.of(2026, 11, 12));
+    }
+
+    @Test
+    void 도쿄_일봉은_거래소와_한국_달력이_같아_날짜가_그대로다() {
+        long tokyoOpen = Instant.parse("2026-11-12T00:00:00Z").getEpochSecond();
+
+        assertThat(YahooFinanceQuoteClient.toDailyBars("7203.T", dailyResponse(tokyoOpen, "Asia/Tokyo"))
+                        .getFirst()
+                        .date())
+                .isEqualTo(LocalDate.of(2026, 11, 12));
+    }
+
+    private static YahooDailyResponse dailyResponse(long timestamp, String exchangeTimezone) {
+        return new YahooDailyResponse(new YahooDailyResponse.Chart(List.of(new YahooDailyResponse.Result(
+                List.of(timestamp),
+                new YahooDailyResponse.Indicators(List.of(new YahooDailyResponse.Quote(
+                        List.of(100.0), List.of(101.0), List.of(99.0), List.of(100.5), List.of(10L)))),
+                exchangeTimezone == null ? null : new YahooDailyResponse.Meta(exchangeTimezone)))));
     }
 
     private static YahooSessionResponse sessionResponse(List<Long> timestamps, long regularEnd) {
