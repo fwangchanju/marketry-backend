@@ -11,6 +11,7 @@ import kr.co.marketry.common.enums.Zone;
 import kr.co.marketry.domain.stock.dto.YahooChartResponse;
 import kr.co.marketry.domain.stock.dto.YahooDailyResponse;
 import kr.co.marketry.domain.stock.dto.YahooSessionResponse;
+import kr.co.marketry.domain.stock.dto.YahooSparkResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -36,6 +37,10 @@ public class YahooFinanceQuoteClient {
     private static final String MARKET_VALUE_URL =
             "https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/{symbol}"
                     + "?type=trailingMarketCap&period1={from}&period2={to}";
+    // 여러 종목의 오늘 5분 가격(장 밖 포함)과 전일 종가, 그날 프리·정규·애프터 시각. 한 번에 20종목까지 받는다.
+    private static final String SPARK_URL = "https://query1.finance.yahoo.com/v7/finance/spark"
+            + "?symbols={symbols}&range=1d&interval=5m&includePrePost=true";
+    public static final int SPARK_MAX_SYMBOLS = 20;
     private static final String TOKYO_SUFFIX = ".T";
     private static final String USER_AGENT = "Mozilla/5.0";
 
@@ -142,6 +147,84 @@ public class YahooFinanceQuoteClient {
 
     private static Double last(List<Double> values) {
         return values == null || values.isEmpty() ? null : values.getLast();
+    }
+
+    /**
+     * 여러 종목(최대 {@link #SPARK_MAX_SYMBOLS}개)의 오늘 5분 가격과 전일 종가, 그날 세션 시각을 한 번에 받는다. 장 밖(프리·애프터) 가격도 온다.
+     * 응답에 없거나 값이 비정상인 종목은 결과에서 빠진다.
+     */
+    public List<ExtendedQuote> fetchExtendedQuotes(List<String> symbols) {
+        YahooSparkResponse response = restClient
+                .get()
+                .uri(SPARK_URL, String.join(",", symbols))
+                .header(HttpHeaders.USER_AGENT, USER_AGENT)
+                .retrieve()
+                .body(YahooSparkResponse.class);
+        return toExtendedQuotes(response);
+    }
+
+    static List<ExtendedQuote> toExtendedQuotes(YahooSparkResponse response) {
+        if (response == null || response.spark() == null || response.spark().result() == null) {
+            throw new IllegalStateException("야후 여러 종목 응답에 시세가 없습니다");
+        }
+        List<ExtendedQuote> quotes = new ArrayList<>();
+        for (YahooSparkResponse.Result result : response.spark().result()) {
+            ExtendedQuote quote = toExtendedQuote(result);
+            if (quote != null) {
+                quotes.add(quote);
+            }
+        }
+        return quotes;
+    }
+
+    // 전일 종가나 세션 시각이 없으면 그 종목은 쓰지 않는다. 가격이 빈 5분 칸(거래 없음)은 뺀다.
+    private static ExtendedQuote toExtendedQuote(YahooSparkResponse.Result result) {
+        if (result == null
+                || result.symbol() == null
+                || result.response() == null
+                || result.response().isEmpty()) {
+            return null;
+        }
+        YahooSparkResponse.Response body = result.response().getFirst();
+        YahooSparkResponse.Meta meta = body.meta();
+        if (meta == null || meta.currentTradingPeriod() == null) {
+            return null;
+        }
+        Double previousClose = meta.previousClose() == null ? meta.chartPreviousClose() : meta.previousClose();
+        SessionTimes sessions = toSessionTimes(meta.currentTradingPeriod());
+        if (previousClose == null || previousClose <= 0 || sessions == null) {
+            return null;
+        }
+        List<PricePoint> prices = new ArrayList<>();
+        List<Double> closes = body.indicators() == null
+                        || body.indicators().quote() == null
+                        || body.indicators().quote().isEmpty()
+                ? null
+                : body.indicators().quote().getFirst().close();
+        if (body.timestamp() != null && closes != null) {
+            for (int index = 0; index < body.timestamp().size() && index < closes.size(); index++) {
+                Double close = closes.get(index);
+                if (close != null && close > 0) {
+                    prices.add(new PricePoint(
+                            Instant.ofEpochSecond(body.timestamp().get(index)), BigDecimal.valueOf(close)));
+                }
+            }
+        }
+        return new ExtendedQuote(result.symbol(), BigDecimal.valueOf(previousClose), sessions, prices);
+    }
+
+    private static SessionTimes toSessionTimes(YahooSparkResponse.TradingPeriods periods) {
+        if (periods.pre() == null
+                || periods.regular() == null
+                || periods.pre().start() == null
+                || periods.regular().start() == null
+                || periods.regular().end() == null) {
+            return null;
+        }
+        return new SessionTimes(
+                Instant.ofEpochSecond(periods.pre().start()),
+                Instant.ofEpochSecond(periods.regular().start()),
+                Instant.ofEpochSecond(periods.regular().end()));
     }
 
     /** 그 기간의 일봉. 값이 빈 날은 뺀다. 가격은 야후가 분할을 반영해 준 값이다. */
@@ -270,4 +353,14 @@ public class YahooFinanceQuoteClient {
     public record MarketValue(LocalDate date, BigDecimal value) {}
 
     public record IndexSession(LocalDate latestBarDate, Instant regularEnd) {}
+
+    /** 한 종목의 오늘 5분 가격(장 밖 포함, 시각 순)과 전일 종가, 세션 시각. */
+    public record ExtendedQuote(
+            String symbol, BigDecimal previousClose, SessionTimes sessions, List<PricePoint> prices) {}
+
+    /** 그날 프리마켓 시작, 정규장 시작·종료 시각. */
+    public record SessionTimes(Instant preStart, Instant regularStart, Instant regularEnd) {}
+
+    /** 5분 칸의 시작 시각과 그 칸의 마지막 가격. */
+    public record PricePoint(Instant time, BigDecimal price) {}
 }

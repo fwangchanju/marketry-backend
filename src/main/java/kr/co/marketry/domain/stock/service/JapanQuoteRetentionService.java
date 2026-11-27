@@ -22,6 +22,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 public class JapanQuoteRetentionService {
     static final String MARKET = "JAPAN";
+    static final String USA_MARKET = "USA";
     static final String INDEX_MARKET = "NIKKEI225";
 
     private final OverseasStockQuoteRepository repository;
@@ -29,24 +30,41 @@ public class JapanQuoteRetentionService {
     private final TransactionTemplate transactionTemplate;
 
     public void cleanup(int retainedTradingDays) {
+        for (LocalDate date : cleanupStockQuotes(MARKET, retainedTradingDays)) {
+            cleanupIndexQuotes(date);
+        }
+    }
+
+    /**
+     * 미국 프리마켓 5분 시세도 같은 규칙으로 정리한다(2026-11-27). 미국은 하루의 마지막 시세가 16:00 종가라 종가만 남는다. 미국 지수는 일봉 표에
+     * 하루 한 줄이라 정리할 것이 없다.
+     */
+    // TODO 일본·미국을 함께 정리하게 됐으니 클래스 이름을 OverseasQuoteRetentionService로 바꾼다(테스트·스케줄러 이름 함께).
+    public void cleanupUsa(int retainedTradingDays) {
+        cleanupStockQuotes(USA_MARKET, retainedTradingDays);
+    }
+
+    // 정리 대상 날짜(최근 거래일 몇 개를 뺀 앞 날짜)마다 그날 마지막 시세만 남긴다. 정리 대상 날짜를 돌려준다.
+    private List<LocalDate> cleanupStockQuotes(String market, int retainedTradingDays) {
         Map<LocalDate, List<LocalDateTime>> timesByDate = new TreeMap<>();
-        for (LocalDateTime time : repository.findSnapshotTimes(MARKET)) {
+        for (LocalDateTime time : repository.findSnapshotTimes(market)) {
             timesByDate
                     .computeIfAbsent(time.toLocalDate(), ignored -> new java.util.ArrayList<>())
                     .add(time);
         }
         List<LocalDate> dates = List.copyOf(timesByDate.keySet());
-        for (LocalDate date : cleanupDates(dates, retainedTradingDays)) {
+        List<LocalDate> targets = cleanupDates(dates, retainedTradingDays);
+        for (LocalDate date : targets) {
             List<LocalDateTime> times = timesByDate.get(date);
             if (times.size() >= 2) {
                 LocalDateTime last =
                         times.stream().max(LocalDateTime::compareTo).orElseThrow();
                 Integer deleted = transactionTemplate.execute(status -> repository.deleteDayExceptLast(
-                        MARKET, date.atStartOfDay(), date.plusDays(1).atStartOfDay(), last));
-                log.info("[일본시세정리] 삭제완료 | context : {}|{}", date, deleted);
+                        market, date.atStartOfDay(), date.plusDays(1).atStartOfDay(), last));
+                log.info("[해외시세정리] 삭제완료 | context : {}|{}|{}", market, date, deleted);
             }
-            cleanupIndexQuotes(date);
         }
+        return targets;
     }
 
     // 종목과 같은 날짜의 지수 값도 마지막 값만 남긴다. 지수 정리가 실패해도 종목 정리는 이미 끝났다.

@@ -24,6 +24,7 @@ class SnapshotRetentionSchedulerTest {
         doThrow(new RuntimeException("failure")).when(service).cleanupSnapshotsForDate(first);
         new SnapshotRetentionScheduler(service, japan, publisher).cleanupSnapshots(today);
         verify(japan).cleanup(5);
+        verify(japan).cleanupUsa(5);
         verify(service).cleanupSnapshotsForDate(first);
         verify(service).cleanupSnapshotsForDate(second);
         verify(publisher).report(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.any());

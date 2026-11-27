@@ -118,10 +118,7 @@ public class UsaQuoteCollector {
         if (clock.instant().isBefore(closeAt.plus(delay))) {
             return Result.of(Status.WAITING, day, null, 0, 0, 0, "마감 후 대기 중입니다");
         }
-        LocalDateTime lastSnapshotTime = repository
-                .findFirstByIdMarketOrderByIdSnapshotTimeDesc(MARKET)
-                .map(quote -> quote.getId().getSnapshotTime())
-                .orElse(null);
+        LocalDateTime lastSnapshotTime = lastCloseSnapshotTime();
         if (lastSnapshotTime == null) {
             return Result.of(Status.NO_BASELINE, day, null, 0, 0, 0, "기준이 될 미국 시세가 없습니다");
         }
@@ -171,6 +168,27 @@ public class UsaQuoteCollector {
         saveCandles(candles, day);
         return Result.of(Status.SAVED, day, snapshotTime, rows.size(), totalCount, failureCount, null)
                 .withMissingIndexDays(saveMissingIndexCloses(day));
+    }
+
+    /**
+     * 가장 최근 종가 시세(16:00)의 시각. 프리마켓 5분 시세(UsaPreMarketCollector)가 그날 종가보다 먼저 쌓이므로, 가장 최근 시세가 아니라
+     * 종가 시세를 기준으로 삼아야 그날을 이미 저장한 것으로 잘못 보지 않고 시가총액도 전 거래일 종가에서 이어진다(2026-11-27).
+     */
+    private LocalDateTime lastCloseSnapshotTime() {
+        LocalDateTime latest = repository
+                .findFirstByIdMarketOrderByIdSnapshotTimeDesc(MARKET)
+                .map(quote -> quote.getId().getSnapshotTime())
+                .orElse(null);
+        if (latest == null || CLOSE_TIME.equals(latest.toLocalTime())) {
+            return latest;
+        }
+        LocalDateTime found = null;
+        for (LocalDateTime time : repository.findSnapshotTimes(MARKET)) {
+            if (CLOSE_TIME.equals(time.toLocalTime())) {
+                found = time;
+            }
+        }
+        return found;
     }
 
     /** 종목 차트에 쓸 그날 일봉(시가·고가·저가·종가·거래량)을 저장한다. 실패해도 종가 저장은 이미 끝났으므로 로그만 남긴다. */
