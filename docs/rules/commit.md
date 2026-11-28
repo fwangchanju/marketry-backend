@@ -29,3 +29,4 @@ claude/<type>/<작업-내용-kebab-case>
 - 작업 내용은 영문 kebab-case로 간결하게 요약하되, 최대 3단어 이하로 작성한다.
 
 예: claude/feat/widget-followups, claude/fix/admin-tokens-env
+
